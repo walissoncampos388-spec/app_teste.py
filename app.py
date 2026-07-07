@@ -53,11 +53,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# CREDENCIAIS DO SEU CONTRATO BRASPRESS
+# CONFIGURAÇÕES DE CREDENCIAIS E INTEGRACAO
 # ==========================================
 BRASPRESS_CNPJ_CIA_DO_JEANS = "34835571000168"  # CNPJ Cia do Jeans (Tomador)
 BRASPRESS_INSCRICAO_ESTADUAL = "107873130"     # Sua Inscrição Estadual de GO
 CEP_ORIGEM = "76330000"                       # CEP de Jaraguá-GO
+
+# Token Oficial do SuperFrete que você acabou de enviar
+SUPERFRETE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3ODM0Mzc0NzAsInN1YiI6IkROakhlMVJiVDJWMmx2eFZvZ1NOOHRyV3VHdjIifQ.r5BJVLvyPkR9a-W6B_C7ouKOlrSr891NYUEtG938g-4"
 
 def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
     url_api = "https://www.braspress.com.br/wscalc/calculaFrete.faw"
@@ -86,18 +89,59 @@ def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
         if response.status_code == 200:
             texto_resposta = response.text.strip()
             if texto_resposta.startswith("<html") or texto_resposta.startswith("<!DOCTYPE html"):
-                return {"sucesso": False, "msg": "API em manutenção (Aguardando nova integração REST)."}
-            
+                return {"sucesso": False, "msg": "API antiga desativada (Aguardando nova integração REST da Braspress)."}
             root = ET.fromstring(response.content)
             vlr_frete = root.find(".//vlrFrete")
             prazo = root.find(".//prazoEntrega")
             if vlr_frete is not None:
                 return {"sucesso": True, "preco": float(vlr_frete.text.replace(",", ".")), "prazo": prazo.text if prazo is not None else "-"}
         elif response.status_code == 404:
-            return {"sucesso": False, "msg": "API antiga desativada (Aguardando nova integração REST)."}
+            return {"sucesso": False, "msg": "API antiga desativada (Aguardando nova integração REST da Braspress)."}
     except Exception:
         pass
-    return {"sucesso": False, "msg": "Serviço online indisponível. Veja os fretes fixos regionais."}
+    return {"sucesso": False, "msg": "Serviço online indisponível. Veja os Correios ou fretes fixos regionais."}
+
+
+def calcular_frete_superfrete(cep_destino, peso, comprimento, largura, altura, valor_nf):
+    url_api = "https://api.superfrete.com/v1/calculator"
+    
+    headers = {
+        "Authorization": f"Bearer {SUPERFRETE_TOKEN}",
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+    
+    payload = {
+        "from": {
+            "postal_code": CEP_ORIGEM
+        },
+        "to": {
+            "postal_code": cep_destino.replace("-", "").strip()
+        },
+        "services": "1,2", # 1 = SEDEX, 2 = PAC
+        "options": {
+            "receipt": False,
+            "own_hand": False,
+            "insurance": True,
+            "declared_value": float(valor_nf)
+        },
+        "package": {
+            "weight": float(peso),
+            "width": float(largura),
+            "height": float(altura),
+            "length": float(comprimento),
+            "format": "box"
+        }
+    }
+    
+    try:
+        response = requests.post(url_api, json=payload, headers=headers, timeout=7)
+        if response.status_code == 200:
+            return {"sucesso": True, "dados": response.json()}
+        else:
+            return {"sucesso": False, "msg": f"Erro de comunicação com SuperFrete (Status: {response.status_code})"}
+    except Exception as e:
+        return {"sucesso": False, "msg": f"Instabilidade na conexão: {str(e)}"}
 
 
 # CACHE ULTRA-RÁPIDO: Organização dos dados da planilha de fretes fixos
@@ -233,7 +277,7 @@ btn_calcular = st.button("🚀 CALCULAR FRETE REAL EM TODOS OS MEIOS", type="pri
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================================
-# PASSO 3: RESULTADOS & WHATSAPP
+# PASSO 3: RESULTADOS
 # ==========================================
 if btn_calcular:
     if not cep_input or not cidade_automatica:
@@ -245,30 +289,55 @@ if btn_calcular:
         opcoes_whatsapp = []
         
         with aba_online:
+            # 1. CONSULTA BRASPRESS
             with st.spinner("Consultando Braspress..."):
                 res_braspress = calcular_frete_braspress(cep_input, peso_total_calculado, valor_para_seguro, cnpj_fornecedor_parceiro)
-            
             if res_braspress["sucesso"]:
                 preco_bp = f"R$ {res_braspress['preco']:.2f}"
                 st.markdown(f"""
                 <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
-                    <div>
-                        <strong style="font-size:16px; color:#1e3a8a;">🚚 BRASPRESS (Contrato Cia do Jeans)</strong><br>
-                        <span style="font-size:13px; color:#6b7280;">Prazo: {res_braspress['prazo']} dias úteis | Rodoviário</span>
-                    </div>
+                    <div><strong style="font-size:16px; color:#1e3a8a;">🚚 BRASPRESS (Contrato Cia do Jeans)</strong><br><span style="font-size:13px; color:#6b7280;">Prazo: {res_braspress['prazo']} dias úteis</span></div>
                     <div style="text-align: right;"><span style="font-size:20px; font-weight:700; color:#111827;">{preco_bp}</span></div>
                 </div>
                 """, unsafe_allow_html=True)
                 opcoes_whatsapp.append(f"🚛 *BRASPRESS*\n💰 Valor: {preco_bp}\n⏱️ Prazo: {res_braspress['prazo']} dias úteis\n")
             else:
-                st.warning(f"⚠️ Nota Braspress: {res_braspress['msg']}")
+                st.info(f"ℹ️ Braspress: {res_braspress['msg']}")
                 
-            st.markdown("""
-            <div class="card-frete" style="border-left: 5px solid #ffcc00; opacity: 0.7;">
-                <div><strong style="font-size:16px; color:#1e3a8a;">📬 CORREIOS PAC (Contrato Próprio)</strong><br><span style="font-size:13px; color:#6b7280;">Aguardando credenciais de integração</span></div>
-                <div style="text-align: right;"><span style="font-size:14px; color:#6b7280; font-weight:600;">Em Breve</span></div>
-            </div>
-            """, unsafe_allow_html=True)
+            # 2. CONSULTA SUPERFRETE (CORREIOS PAC E SEDEX)
+            with st.spinner("Consultando Correios via SuperFrete..."):
+                res_sf = calcular_frete_superfrete(cep_input, peso_total_calculado, comprimento, largura, altura, valor_para_seguro)
+            
+            if res_sf["sucesso"]:
+                dados_correios = res_sf["dados"]
+                # Procurar pelos serviços na resposta da API do SuperFrete
+                for servico in dados_correios:
+                    nome_comercial = str(servico.get("name", "")).upper()
+                    if servico.get("error"):
+                        continue
+                    
+                    preco_f = float(servico.get("price", 0))
+                    prazo_f = servico.get("delivery", "-")
+                    
+                    if "SEDEX" in nome_comercial:
+                        st.markdown(f"""
+                        <div class="card-frete" style="border-left: 5px solid #ffcc00;">
+                            <div><strong style="font-size:16px; color:#1e3a8a;">📬 CORREIOS SEDEX (SuperFrete Desconto)</strong><br><span style="font-size:13px; color:#6b7280;">Prazo: {prazo_f} dias úteis | Entrega Expressa</span></div>
+                            <div style="text-align: right;"><span style="font-size:20px; font-weight:700; color:#111827;">R$ {preco_f:.2f}</span></div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        opcoes_whatsapp.append(f"📬 *CORREIOS SEDEX*\n💰 Valor: R$ {preco_f:.2f}\n⏱️ Prazo: {prazo_f} dias úteis\n")
+                    
+                    elif "PAC" in nome_comercial:
+                        st.markdown(f"""
+                        <div class="card-frete" style="border-left: 5px solid #0056b3;">
+                            <div><strong style="font-size:16px; color:#1e3a8a;">📬 CORREIOS PAC (SuperFrete Desconto)</strong><br><span style="font-size:13px; color:#6b7280;">Prazo: {prazo_f} dias úteis | Entrega Normal</span></div>
+                            <div style="text-align: right;"><span style="font-size:20px; font-weight:700; color:#111827;">R$ {preco_f:.2f}</span></div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        opcoes_whatsapp.append(f"📬 *CORREIOS PAC*\n💰 Valor: R$ {preco_f:.2f}\n⏱️ Prazo: {prazo_f} dias úteis\n")
+            else:
+                st.error(f"❌ Correios (SuperFrete): {res_sf['msg']}")
             
         with aba_fixa:
             if df_fretes_fixos.empty:
@@ -292,7 +361,6 @@ if btn_calcular:
                         </div>
                         """, unsafe_allow_html=True)
                         
-                        # Formato Espaçado por Linha para a Planilha Regional
                         opcoes_whatsapp.append(
                             f"🚛 *{row['TRANSPORTADORA']}*\n"
                             f"💰 Mínimo: R$ {row['VALOR_MINIMO']}\n"
@@ -303,13 +371,12 @@ if btn_calcular:
                     st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_automatica}-{uf_automatica}.")
 
         # ==========================================
-        # GERADOR E BOTÃO DO WHATSAPP RESTRUTURADO
+        # PASSO 4: GERADOR E BOTÃO DO WHATSAPP ESPAÇADO
         # ==========================================
         st.markdown("<br><hr style='border-top: 1px dashed #cbd5e1;'><br>", unsafe_allow_html=True)
         st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #25d366;">', unsafe_allow_html=True)
         st.markdown('<div class="titulo-etapa" style="color: #25d366;">💬 PASSO 4: Enviar Cotação ao Cliente</div>', unsafe_allow_html=True)
         
-        # Constrói o texto com quebras nítidas de linha (\n\n) entre as transportadoras
         texto_opcoes = "\n".join(opcoes_whatsapp) if opcoes_whatsapp else "• Nenhuma opção localizada."
         
         mensagem_vendedor = (
