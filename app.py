@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import requests
 import urllib.parse
 
 # 1. Configuração de Design da Página
@@ -118,40 +117,18 @@ with st.container():
 st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid #e5e7eb;'>", unsafe_allow_html=True)
 
 # ==========================================
-# PASSO 1: LOCALIZAÇÃO DO CLIENTE (STÁVEL)
+# PASSO 1: DESTINO DO PEDIDO (DIGITAÇÃO DIRETA)
 # ==========================================
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">📍 PASSO 1: Destino do Pedido</div>', unsafe_allow_html=True)
-col1, col2, col3 = st.columns([1.5, 2, 1])
+col1, col2 = st.columns([3, 1])
 
 with col1:
-    cep_input = st.text_input("📬 Digite o CEP do Cliente:", placeholder="00000000", max_chars=9)
+    cidade_input = st.text_input("📍 Digite a Cidade do Cliente:", placeholder="Ex: Goiânia, São Paulo, Brasília...").strip().upper()
+with col2:
+    lista_ufs = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"]
+    uf_input = st.selectbox("🏳️ UF (Estado):", options=lista_ufs, index=8) # Padrão index 8 é GO
 
-cidade_val = ""
-uf_val = ""
-bloquear_campos = True
-
-if cep_input:
-    cep_limpo = cep_input.replace("-", "").replace(" ", "")
-    if len(cep_limpo) == 8 and cep_limpo.isdigit():
-        try:
-            # Usando AwesomeAPI que é muito mais estável que o ViaCEP público
-            url_api = f"https://cep.awesomeapi.com.br/json/{cep_limpo}"
-            resposta = requests.get(url_api, timeout=4).json()
-            if "city" in resposta:
-                cidade_val = resposta.get("city", "").upper()
-                uf_val = resposta.get("state", "").upper()
-            else:
-                bloquear_campos = False
-                st.warning("⚠️ CEP não localizado automaticamente. Digite a cidade manualmente.")
-        except Exception:
-            bloquear_campos = False
-            st.warning("⚠️ Servidor de CEP indisponível. Digite a cidade manualmente.")
-
-with col2: 
-    cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Digite a Cidade se não buscar...", disabled=bloquear_campos)
-with col3: 
-    uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=bloquear_campos)
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
@@ -197,11 +174,8 @@ st.markdown("<br>", unsafe_allow_html=True)
 # PASSO 3: RESULTADOS E WHATSAPP
 # ==========================================
 if btn_calcular:
-    cidade_busca = cidade_automatica.strip().upper()
-    uf_busca = uf_automatica.strip().upper()
-    
-    if not cep_input or not cidade_busca:
-        st.error("❌ Por favor, digite um CEP válido ou informe a cidade no Passo 1.")
+    if not cidade_input:
+        st.error("❌ Por favor, digite o nome da cidade no Passo 1.")
     elif total_pecas == 0:
         st.error("❌ Insira a quantidade de produtos no Passo 2 para calcular.")
     else:
@@ -212,7 +186,7 @@ if btn_calcular:
         if df_fretes_fixos.empty:
             st.warning("⚠️ Planilha 'SISTEMA_DE_FRETES_AUTOMATIZADO.xlsx' não encontrada no repositório.")
         else:
-            resultados_fixos = df_fretes_fixos[(df_fretes_fixos['CIDADE'] == cidade_busca) & (df_fretes_fixos['UF'] == uf_busca)]
+            resultados_fixos = df_fretes_fixos[(df_fretes_fixos['CIDADE'] == cidade_input) & (df_fretes_fixos['UF'] == uf_input)]
             
             if not resultados_fixos.empty:
                 for idx, row in resultados_fixos.iterrows():
@@ -238,7 +212,7 @@ if btn_calcular:
                         f"📞 Contato: {row['FONE']}\n"
                     )
             else: 
-                st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_busca}-{uf_busca}.")
+                st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_input}-{uf_input}. Verifique se digitou o nome correto (Ex: GOIÂNIA com acento ou sem).")
 
         # ==========================================
         # PASSO 4: ENVIAR PARA O WHATSAPP
@@ -252,8 +226,8 @@ if btn_calcular:
             
             mensagem_vendedor = (
                 f"Olá! Segue a cotação de frete para o seu pedido da *Cia do Jeans*:\n\n"
-                f"📍 *Destino:*\n{cidade_busca} - {uf_busca}\n\n"
-                f"📦 *Volume estimado:*\n{total_pecas} peças ({peso_total_calculado:.2f} kg)\n\n"
+                f"📍 *Destino:*\n{cidade_input} - {uf_input}\n\n"
+                f"📦 *Volume estimado:*\n{total_pecas} pieces ({peso_total_calculado:.2f} kg)\n\n"
                 f"🛍️ *Embalagem:*\n{tipo_embalagem}\n\n"
                 f"-----------------------------------------\n"
                 f"🚚 *OPÇÕES DE ENVIO:*\n\n"
