@@ -18,6 +18,7 @@ st.markdown("""
         footer {visibility: hidden;}
         .main { background-color: #f4f6f9; }
         
+        /* Blocos organizadores das etapas */
         .bloco-etapa {
             background-color: white;
             padding: 22px;
@@ -36,6 +37,7 @@ st.markdown("""
             letter-spacing: 0.5px;
         }
         
+        /* Cards de exibição do frete final */
         .card-frete {
             background-color: white;
             padding: 18px;
@@ -50,7 +52,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# CACHE ULTRA-RÁPIDO: Carrega dados das transportadoras normais
+# CACHE ULTRA-RÁPIDO: Organização dos dados da planilha de fretes fixos
 @st.cache_data(ttl=3600)
 def carregar_e_limpar_dados():
     try:
@@ -101,57 +103,7 @@ def carregar_e_limpar_dados():
                 })
     return pd.DataFrame(linhas)
 
-# NOVO CACHE: Carrega a tabela interna da J&T Express vinda do seu Excel
-@st.cache_data(ttl=3600)
-def carregar_tabela_jt():
-    try:
-        # Tenta carregar de uma aba chamada 'JT_EXPRESS' ou da principal se você colocar junto
-        df_jt = pd.read_excel("SISTEMA_DE_FRETES_AUTOMATIZADO.xlsx", sheet_name='JT_EXPRESS')
-        df_jt.columns = [str(c).strip().upper() for c in df_jt.columns]
-        return df_jt
-    except Exception:
-        # Se não achar a aba, usa uma tabela reserva no código para não quebrar
-        return pd.DataFrame({
-            'UF': ['GO', 'DF', 'SP', 'MG', 'RJ', 'MT', 'MS', 'BA', 'TO'],
-            'VALOR_BASE': [15.50, 16.90, 22.00, 20.00, 24.00, 23.00, 22.00, 25.00, 19.00],
-            'ADICIONAL_KG': [1.60, 1.80, 2.20, 2.00, 2.50, 2.30, 2.10, 2.80, 1.90],
-            'PRAZO': ['2 a 4 dias', '2 a 3 dias', '4 a 6 dias', '3 a 5 dias', '4 a 7 dias', '4 a 6 dias', '4 a 6 dias', '5 a 8 dias', '3 a 5 dias']
-        })
-
 df_fretes_fixos = carregar_e_limpar_dados()
-df_tabela_jt = carregar_tabela_jt()
-
-# Função Dinâmica de cálculo usando as taxas reais do print
-def calcular_jt_express_dinamico(uf, peso, valor_nf):
-    # Procura o estado na tabela do Excel
-    regiao = df_tabela_jt[df_tabela_jt['UF'] == uf]
-    
-    if not regiao.empty:
-        val_base = float(regiao.iloc[0]['VALOR_BASE'])
-        add_kg = float(regiao.iloc[0]['ADICIONAL_KG'])
-        prazo = str(regiao.iloc[0]['PRAZO'])
-    else:
-        # Padrão Brasil caso não mapeado
-        val_base, add_kg, prazo = 28.00, 3.00, '6 a 10 dias'
-    
-    # 1. Frete Peso Seco
-    peso_calculo = max(1.0, peso)
-    frete_peso = val_base + ((peso_calculo - 1.0) * add_kg)
-    
-    # Calibração manual para o teste de 6.4kg bater perfeitamente com os R$ 64,49 do print
-    if uf == 'SP' and peso_calculo >= 6.3 and peso_calculo <= 6.5:
-        frete_peso = 64.49
-
-    # 2. Taxas do painel J&T (Print enviado)
-    gris = 5.00
-    adv_seguro = max(1.50, valor_nf * 0.002) # ADV de 0,20%
-    
-    # 3. Imposto Embutido (ICMS 12%) -> Fórmula fiscal: Total / 0.88
-    subtotal = frete_peso + gris + adv_seguro
-    total_com_icms = subtotal / 0.88
-    
-    return round(total_com_icms, 2), prazo
-
 
 # Cabeçalho Centralizado
 with st.container():
@@ -214,7 +166,7 @@ with c2:
     qtd_tshirt = st.number_input("Quantidade de T-Shirt:", min_value=0, value=0, step=1)
     qtd_polo = st.number_input("Quantidade de Gola Polo:", min_value=0, value=0, step=1)
 
-# Matemática de Pesos
+# Matemática de Pesos e Embalagem
 peso_pecas_puro = (qtd_calcas * 0.60) + (qtd_bermudas * 0.40) + (qtd_shorts * 0.35) + (qtd_gola_o * 0.28) + (qtd_tshirt * 0.20) + (qtd_polo * 0.32)
 peso_total_calculado = peso_pecas_puro + (0.4 if peso_pecas_puro > 0 else 0)
 total_pecas = qtd_calcas + qtd_bermudas + qtd_shorts + qtd_gola_o + qtd_tshirt + qtd_polo
@@ -227,8 +179,10 @@ else: tipo_embalagem = "Fardo Comercial"
 valor_nf_meia = (qtd_calcas * 40) + (qtd_bermudas * 33) + (qtd_shorts * 33) + (qtd_gola_o * 18) + (qtd_tshirt * 19) + (qtd_polo * 25)
 
 with c3:
+    # Mudança estratégica: text_input para acabar com os zeros fixos à esquerda
     valor_manual_nf_txt = st.text_input("✍️ Valor Real da NF (Opcional):", placeholder="Ex: 1250,00").strip()
     
+    # Processa o valor digitado de forma segura
     valor_manual_nf = 0.0
     if valor_manual_nf_txt:
         try:
@@ -262,28 +216,6 @@ if btn_calcular:
         
         opcoes_whatsapp = []
         
-        # 1. CÁLCULO DA J&T EXPRESS
-        valor_jt, prazo_jt = calcular_jt_express_dinamico(uf_busca, peso_total_calculado, valor_para_seguro)
-        
-        st.markdown(f"""
-        <div class="card-frete" style="border-left: 5px solid #ff5000;">
-            <div>
-                <strong style="font-size:16px; color:#ff5000;"><b>🚀 J&T EXPRESS</b></strong><br>
-                <span style="font-size:13px; color:#4b5563;">📍 Envio Completo (Tabela Excel + Impostos)</span><br>
-                <span style="font-size:12px; color:#6b7280;">⏱️ Prazo Estimado: {prazo_jt} | 📄 Exige NF: SIM</span>
-            </div>
-            <div style="text-align: right;"><span style="font-size:13px; color:#6b7280; font-weight:600;">Total</span><br><span style="font-size:18px; font-weight:700; color:#111827;">R$ {valor_jt:.2f}</span></div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        opcoes_whatsapp.append(
-            f"🚀 *J&T EXPRESS*\n"
-            f"💰 Valor: R$ {valor_jt:.2f}\n"
-            f"⏱️ Prazo: {prazo_jt}\n"
-            f"📄 Observação: Envio oficial J&T\n"
-        )
-        
-        # 2. BUSCA DAS OUTRAS TRANSPORTADORAS NA PLANILHA EXCEL
         if df_fretes_fixos.empty:
             st.warning("⚠️ Planilha 'SISTEMA_DE_FRETES_AUTOMATIZADO.xlsx' não encontrada.")
         else:
@@ -312,6 +244,8 @@ if btn_calcular:
                         f"⏱️ Prazo: {prazo}\n"
                         f"📞 Contato: {row['FONE']}\n"
                     )
+            else: 
+                st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_busca}-{uf_busca}.")
 
         # ==========================================
         # PASSO 4: ENVIAR PARA O WHATSAPP
