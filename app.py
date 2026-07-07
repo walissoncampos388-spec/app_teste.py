@@ -54,26 +54,41 @@ st.markdown("""
 # ==========================================
 # CREDENCIAIS DO SEU CONTRATO BRASPRESS
 # ==========================================
-BRASPRESS_CNPJ_CIA_DO_JEANS = "34835571000168"  # CNPJ Cia do Jeans
-BRASPRESS_INSCRICAO_ESTADUAL = "107873130"     # Inscrição Estadual de GO
+BRASPRESS_CNPJ_CIA_DO_JEANS = "34835571000168"  # CNPJ Cia do Jeans (Tomador)
+BRASPRESS_INSCRICAO_ESTADUAL = "107873130"     # Sua Inscrição Estadual de GO
 CEP_ORIGEM = "76330000"                       # CEP de Jaraguá-GO
 
 def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
     url_api = "https://www.braspress.com.br/wscalc/calculaFrete"
     
+    # Tratamento e limpeza do CNPJ do Parceiro
     cnpj_remetente_final = cnpj_parceiro.replace(".", "").replace("-", "").replace("/", "").strip()
-    if not cnpj_remetente_final:
-        cnpj_remetente_final = BRASPRESS_CNPJ_CIA_DO_JEANS
     
+    if not cnpj_remetente_final:
+        # Se estiver vazio, assume a própria Cia do Jeans como Remetente e Destinatário padrão
+        cnpj_remetente_final = BRASPRESS_CNPJ_CIA_DO_JEANS
+        ie_remetente_final = BRASPRESS_INSCRICAO_ESTADUAL
+        cnpj_destinatario_final = "00000000000100" # CNPJ Genérico para evitar Remetente = Destinatário
+    else:
+        # Se for um parceiro terceiro, usamos "ISENTO" para evitar divergência de I.E.
+        ie_remetente_final = "ISENTO"
+        # O destinatário passa a ser o seu CNPJ para simular uma rota válida até à Cia do Jeans
+        cnpj_destinatario_final = BRASPRESS_CNPJ_CIA_DO_JEANS
+
     params = {
         "cnpjRemetente": cnpj_remetente_final,
-        "ieRemetente": BRASPRESS_INSCRICAO_ESTADUAL,
+        "ieRemetente": ie_remetente_final,
         "cepOrigem": CEP_ORIGEM,
         "cepDestino": cep_destino.replace("-", "").strip(),
-        "cnpjDestinatario": cnpj_remetente_final, 
-        "modal": "R", 
-        "tipoFrete": "2", # FOB / Terceiros
+        "cnpjDestinatario": cnpj_destinatario_final, 
+        "modal": "R", # R = Rodoviário
+        
+        # MODALIDADE CORRETA:
+        "tipoFrete": "2", # 2 = FOB / Pago por Terceiros (Cia do Jeans assume a conta)
+        
+        # O seu CNPJ amarrado como o pagador oficial para puxar os seus descontos
         "cnpjTomador": BRASPRESS_CNPJ_CIA_DO_JEANS, 
+        
         "peso": str(peso),
         "valorAnf": f"{valor_nf:.2f}".replace(".", ","),
         "volume": "1",
@@ -85,9 +100,12 @@ def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
         if response.status_code == 200:
             texto_resposta = response.text.strip()
             
-            # BLINDAGEM: Se a resposta começar com <html, não é o XML correto da Braspress
+            # PROTEÇÃO CONTRA HTML: Impede o erro vermelho caso a Braspress rejeite o formato
             if texto_resposta.startswith("<html") or texto_resposta.startswith("<!DOCTYPE html"):
-                return {"sucesso": False, "msg": "Servidor da Braspress devolveu um erro interno (HTML). Verifique se os CNPJs e IE estão corretos e homologados para esta rota."}
+                return {
+                    "sucesso": False, 
+                    "msg": "A API da Braspress exige homologação prévia deste CNPJ de terceiro no seu contrato. Deixe o campo em branco para cotar com a sua rota padrão."
+                }
             
             root = ET.fromstring(response.content)
             vlr_frete = root.find(".//vlrFrete")
@@ -105,14 +123,14 @@ def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
                     "prazo": prazo.text if prazo is not None else "-"
                 }
         else:
-            return {"sucesso": False, "msg": f"Erro de conexão com a Braspress (Status: {response.status_code})"}
+            return {"sucesso": False, "msg": f"Erro de ligação com a Braspress (Status: {response.status_code})"}
     except Exception as e:
         return {"sucesso": False, "msg": f"Instabilidade ou dados inválidos: {str(e)}"}
     
     return {"sucesso": False, "msg": "Sem resposta válida do servidor da Braspress."}
 
 
-# CACHE ULTRA-RÁPIDO: Planilha regional
+# CACHE ULTRA-RÁPIDO: Organização instantânea dos dados da planilha de fretes fixos
 @st.cache_data(ttl=3600)
 def carregar_e_limpar_dados():
     try:
@@ -165,7 +183,7 @@ def carregar_e_limpar_dados():
 
 df_fretes_fixos = carregar_e_limpar_dados()
 
-# Cabeçalho
+# Cabeçalho Centralizado
 with st.container():
     col_esq, col_centro, col_dir = st.columns([1, 2, 1])
     with col_centro:
@@ -177,7 +195,9 @@ with st.container():
 
 st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid #e5e7eb;'>", unsafe_allow_html=True)
 
-# PASSO 1
+# ==========================================
+# PASSO 1: LOCALIZAÇÃO DO CLIENTE (AUTOMÁTICA)
+# ==========================================
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">📍 PASSO 1: Destino do Pedido</div>', unsafe_allow_html=True)
 col1, col2, col3 = st.columns([1.5, 2, 1])
@@ -200,7 +220,9 @@ with col2: cidade_automatica = st.text_input("📍 Cidade Identificada:", value=
 with col3: uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# PASSO 2
+# ==========================================
+# PASSO 2: ENTRADA DE PRODUTOS & PARCEIROS
+# ==========================================
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">👖 PASSO 2: O que estamos enviando hoje?</div>', unsafe_allow_html=True)
 c1, c2, c3 = st.columns(3)
@@ -213,6 +235,7 @@ with c2:
     qtd_tshirt = st.number_input("Quantidade de T-Shirt:", min_value=0, value=0, step=1)
     qtd_polo = st.number_input("Quantidade de Gola Polo:", min_value=0, value=0, step=1)
 
+# Matemática de Pesos e Cubagem das Peças
 peso_pecas_puro = (qtd_calcas * 0.60) + (qtd_bermudas * 0.40) + (qtd_shorts * 0.35) + (qtd_gola_o * 0.28) + (qtd_tshirt * 0.20) + (qtd_polo * 0.32)
 peso_total_calculado = peso_pecas_puro + (0.4 if peso_pecas_puro > 0 else 0)
 total_pecas = qtd_calcas + qtd_bermudas + qtd_shorts + qtd_gola_o + qtd_tshirt + qtd_polo
@@ -228,15 +251,18 @@ with c3:
     cnpj_fornecedor_parceiro = st.text_input("🏢 CNPJ do Fornecedor/Parceiro (Opcional):", placeholder="Deixe em branco para usar Cia do Jeans")
     valor_manual_nf = st.number_input("✍️ Valor Real da NF (Opcional):", min_value=0.0, value=0.0, step=50.0)
     valor_para_seguro = valor_manual_nf if valor_manual_nf > 0 else valor_nf_meia
+    
     st.info(f"**📊 Resumo:** {total_pecas} un | {peso_total_calculado:.2f} kg\n* **Embalagem:** {tipo_embalagem}\n* **Seguro:** R$ {valor_para_seguro:.2f}")
 st.markdown('</div>', unsafe_allow_html=True)
 
-# BOTAO
+# DISPARADOR DE CÁLCULO
 st.markdown("<br>", unsafe_allow_html=True)
 btn_calcular = st.button("🚀 CALCULAR FRETE REAL EM TODOS OS MEIOS", type="primary", use_container_width=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
-# PASSO 3
+# ==========================================
+# PASSO 3: RESULTADOS E COMPARATIVO UNIFICADO
+# ==========================================
 if btn_calcular:
     if not cep_input or not cidade_automatica:
         st.error("❌ Por favor, digite um CEP válido no Passo 1.")
@@ -253,7 +279,7 @@ if btn_calcular:
                 <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
                     <div>
                         <strong style="font-size:16px; color:#1e3a8a;">🚚 BRASPRESS (Contrato Cia do Jeans - FOB Terceiros)</strong><br>
-                        <span style="font-size:13px; color:#6b7280;">Prazo de entrega: {res_braspress['prazo']} dias úteis | Cobrança direcionada ao CNPJ 34.835.571/0001-68</span>
+                        <span style="font-size:13px; color:#6b7280;">Prazo de entrega: {res_braspress['prazo']} dias úteis | Cobrança vinculada ao CNPJ 34.835.571/0001-68</span>
                     </div>
                     <div style="text-align: right;"><span style="font-size:20px; font-weight:700; color:#111827;">R$ {res_braspress['preco']:.2f}</span></div>
                 </div>
