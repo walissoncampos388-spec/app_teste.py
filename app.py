@@ -85,7 +85,6 @@ cidade_val = ""
 uf_val = ""
 
 if cep_input:
-    # Remove hífen ou espaços que o usuário digitar
     cep_limpo = cep_input.replace("-", "").replace(" ", "")
     if len(cep_limpo) == 8 and cep_limpo.isdigit():
         try:
@@ -111,7 +110,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ==========================================
-# PASSO 2: ENTRADA DE PRODUTOS (FÓRMULAS OFICIAIS DO EXCEL)
+# PASSO 2: ENTRADA DE PRODUTOS (CAMPOS ZERADOS CONFORME SOLICITADO)
 # ==========================================
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">👖 PASSO 2: O que estamos enviando hoje?</div>', unsafe_allow_html=True)
@@ -121,11 +120,13 @@ modo_carga = st.radio("Como prefere definir o tamanho do pedido?", ["🛍️ Sel
 if modo_carga == "🛍️ Selecionar Produtos (Fórmulas do Excel)":
     c1, c2, c3 = st.columns(3)
     with c1:
-        qtd_calcas = st.number_input("Quantidade de Calças:", min_value=0, value=6, step=1)
+        # Valores padrão alterados de 6 para 0
+        qtd_calcas = st.number_input("Quantidade de Calças:", min_value=0, value=0, step=1)
         qtd_bermudas = st.number_input("Quantidade de Bermudas:", min_value=0, value=0, step=1)
         qtd_shorts = st.number_input("Quantidade de Shorts:", min_value=0, value=0, step=1)
     with c2:
-        qtd_gola_o = st.number_input("Quantidade de Gola O:", min_value=0, value=7, step=1)
+        # Valores padrão alterados de 7 para 0
+        qtd_gola_o = st.number_input("Quantidade de Gola O:", min_value=0, value=0, step=1)
         qtd_tshirt = st.number_input("Quantidade de T-Shirt:", min_value=0, value=0, step=1)
         qtd_polo = st.number_input("Quantidade de Gola Polo:", min_value=0, value=0, step=1)
     
