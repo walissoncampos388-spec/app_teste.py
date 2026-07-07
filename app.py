@@ -59,7 +59,8 @@ BRASPRESS_INSCRICAO_ESTADUAL = "107873130"     # Sua Inscrição Estadual de GO
 CEP_ORIGEM = "76330000"                       # CEP de Jaraguá-GO
 
 def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
-    url_api = "https://www.braspress.com.br/wscalc/calculaFrete"
+    # URL Atualizada da API da Braspress para evitar o erro 404
+    url_api = "https://www.braspress.com.br/wscalc/calculaFrete.faw"
     
     # Tratamento e limpeza do CNPJ do Parceiro
     cnpj_remetente_final = cnpj_parceiro.replace(".", "").replace("-", "").replace("/", "").strip()
@@ -174,7 +175,7 @@ def carregar_e_limpar_dados():
 
 df_fretes_fixos = carregar_e_limpar_dados()
 
-# Cabeçalho Centralizado (Corrigido o conflito de aspas)
+# Cabeçalho Centralizado
 with st.container():
     col_esq, col_centro, col_dir = st.columns([1, 2, 1])
     with col_centro:
