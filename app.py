@@ -50,6 +50,67 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# CACHE ULTRA-RÁPIDO: Organização instantânea dos dados da sua planilha de fretes fixos
+@st.cache_data(ttl=3600)
+def carregar_e_limpar_dados():
+    try:
+        # Tenta ler a planilha no mesmo repositório
+        df = pd.read_excel("SISTEMA_DE_FRETES_AUTOMATIZADO.xlsx", sheet_name='Plan1')
+    except Exception:
+        return pd.DataFrame()
+        
+    df.columns = [str(c).strip().upper() for c in df.columns]
+    
+    pares = [
+        ('TRANSPORTADORA', 'ENVIO', 'FONE', 'PRAZO', 'FRETE', 'NF', 'VALOR MINIMO A PARTIR DE'),
+        ('TRANPORTADORA 2', 'ENVIO 2', 'FONE 2', 'PRAZO 2', 'FRETE 2', 'NF 2', 'VALOR MINIMO 2'),
+        ('TRANSPORTADORA 3', 'ENVIO 3', 'FONE 3', 'PRAZO 3', 'FRETE 3', 'NF 3', 'VALOR 3'),
+        ('TRANSPORTADORA 4', 'ENVIO 4', 'FONE 4', 'PRAZO 4', 'FRETE 4', 'NF 4', 'VALOR 4'),
+        ('TRANSPORTADORA 5', 'ENVIO 5', 'FONE 5', 'PRAZO 5', 'FRETE 5', 'NF 5', 'VALOR 5'),
+        ('TRANSPORTADORA 6', 'ENVIO 6', 'FONE2', 'PRAZO 6', 'FRETE 6', 'NF 6', 'VALOR 6'),
+        ('TRANSPORTADORA 7', 'ENVIO 7', 'FONE 7', 'PRAZO 7', 'FRETE 7', 'NF 7', 'VALOR MINIMO 7')
+    ]
+    
+    cidade_col = [c for c in df.columns if 'CIDADE' in c][0] if any('CIDADE' in c for c in df.columns) else None
+    uf_col = [c for c in df.columns if 'UF' in c][0] if any('UF' in c for c in df.columns) else None
+    
+    if not cidade_col or not uf_col:
+        return pd.DataFrame()
+        
+    linhas = []
+    for _, r in df.iterrows():
+        cidade = str(r[cidade_col]).strip().upper()
+        uf = str(r[uf_col]).strip().upper()
+        
+        if not cidade or cidade in ['NAN', '-', ''] or uf in ['NAN', '-', '']:
+            continue
+            
+        for t_col, env_col, fon_col, prz_col, frt_col, nf_col, val_col in pares:
+            def buscar(nome):
+                for c in df.columns:
+                    if c.replace(" ", "") == nome.replace(" ", ""):
+                        val = r[c]
+                        return str(val).strip() if pd.notna(val) else '-'
+                return '-'
+                
+            t_name = buscar(t_col)
+            if t_name and t_name not in ['-', '0', 'NAN', '']:
+                linhas.append({
+                    'CIDADE': cidade,
+                    'UF': uf,
+                    'TRANSPORTADORA': t_name,
+                    'ROTA_ENVIO': buscar(env_col),
+                    'FONE': buscar(fon_col),
+                    'PRAZO': buscar(prz_col),
+                    'TIPO_FRETE': buscar(frt_col),
+                    'EXIGE_NF': buscar(nf_col),
+                    'VALOR_MINIMO': buscar(val_col)
+                })
+                
+    return pd.DataFrame(linhas)
+
+df_fretes_fixos = carregar_e_limpar_dados()
+
 # Cabeçalho Centralizado
 with st.container():
     col_esq, col_centro, col_dir = st.columns([1, 2, 1])
@@ -80,7 +141,6 @@ col1, col2, col3 = st.columns([1.5, 2, 1])
 with col1:
     cep_input = st.text_input("📬 Digite o CEP do Cliente:", placeholder="00000000", max_chars=9)
 
-# Lógica de Busca de CEP em Tempo Real
 cidade_val = ""
 uf_val = ""
 
@@ -110,14 +170,13 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ==========================================
-# PASSO 2: ENTRADA DE PRODUTOS (FÓRMULAS DO EXCEL + CAMPO MANUAL)
+# PASSO 2: ENTRADA DE PRODUTOS
 # ==========================================
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">👖 PASSO 2: O que estamos enviando hoje?</div>', unsafe_allow_html=True)
 
 modo_carga = st.radio("Como prefere definir o tamanho do pedido?", ["🛍️ Selecionar Produtos (Fórmulas do Excel)", "✍️ Informar Peso e Medidas Manualmente"], horizontal=True)
 
-# Inicializa a variável para evitar erros no cálculo final
 valor_para_seguro = 0.0
 
 if modo_carga == "🛍️ Selecionar Produtos (Fórmulas do Excel)":
@@ -131,7 +190,6 @@ if modo_carga == "🛍️ Selecionar Produtos (Fórmulas do Excel)":
         qtd_tshirt = st.number_input("Quantidade de T-Shirt:", min_value=0, value=0, step=1)
         qtd_polo = st.number_input("Quantidade de Gola Polo:", min_value=0, value=0, step=1)
     
-    # 📐 MATEMÁTICA 1: PESO INDIVIDUAL (Conforme colunas F8 até K8 do seu Excel)
     peso_calcas = qtd_calcas * 0.60
     peso_bermudas = qtd_bermudas * 0.40
     peso_shorts = qtd_shorts * 0.35
@@ -139,14 +197,10 @@ if modo_carga == "🛍️ Selecionar Produtos (Fórmulas do Excel)":
     peso_tshirt = qtd_tshirt * 0.20
     peso_polo = qtd_polo * 0.32
     
-    # Peso total das roupas + margem fixa de caixa (0.4kg conforme célula J15 do Excel)
     peso_pecas_puro = peso_calcas + peso_bermudas + peso_shorts + peso_gola_o + peso_tshirt + peso_polo
     peso_total_calculado = peso_pecas_puro + (0.4 if peso_pecas_puro > 0 else 0)
-    
-    # Total acumulado de peças (Célula J9)
     total_pecas = qtd_calcas + qtd_bermudas + qtd_shorts + qtd_gola_o + qtd_tshirt + qtd_polo
     
-    # 📐 MATEMÁTICA 2: DIMENSÕES POR PROPORÇÃO DE COLUNAS (Lógica M7 à R33 do Excel)
     if total_pecas == 0:
         comprimento, largura, altura = 0, 0, 0
         tipo_embalagem = "Nenhum produto selecionado"
@@ -160,16 +214,13 @@ if modo_carga == "🛍️ Selecionar Produtos (Fórmulas do Excel)":
         comprimento, largura, altura = 8.3, 66, 40
         tipo_embalagem = "Fardo Comercial Grande (3 Colunas / 1 Vol)"
 
-    # 📐 MATEMÁTICA 3: TABELA DE SEGURO COMERCIAL (Células E23, E26, E29 do Excel)
     valor_nf_baixa = (qtd_calcas * 25) + (qtd_bermudas * 20) + (qtd_shorts * 20) + (qtd_gola_o * 15) + (qtd_tshirt * 15) + (qtd_polo * 22)
     valor_nf_meia = (qtd_calcas * 40) + (qtd_bermudas * 33) + (qtd_shorts * 33) + (qtd_gola_o * 18) + (qtd_tshirt * 19) + (qtd_polo * 25)
     valor_nf_alta = (qtd_calcas * 75) + (qtd_bermudas * 58) + (qtd_shorts * 58) + (qtd_gola_o * 38) + (qtd_tshirt * 39) + (qtd_polo * 50)
         
     with c3:
-        # NOVO CAMPO AJUSTADO: Adicionado campo para o vendedor digitar o valor real da nota manualmente se quiser
-        valor_manual_nf = st.number_input("✍️ Valor Real da NF (Opcional):", min_value=0.0, value=0.0, step=50.0, help="Deixe em 0 para usar as estimativas automáticas do Excel.")
+        valor_manual_nf = st.number_input("✍️ Valor Real da NF (Opcional):", min_value=0.0, value=0.0, step=50.0)
         
-        # Define qual valor usar na cotação real (Se preencheu manual, usa o manual. Se não, assume a estimativa padrão da NF Meia)
         if valor_manual_nf > 0:
             valor_para_seguro = valor_manual_nf
             texto_seguro_resumo = f"R$ {valor_manual_nf:.2f} (Digitado Manualmente)"
@@ -184,9 +235,6 @@ if modo_carga == "🛍️ Selecionar Produtos (Fórmulas do Excel)":
         * **Volume:** {comprimento} x {largura} x {altura} cm
         * **Embalagem:** {tipo_embalagem}
         * **Seguro Ativo para Cálculo:** {texto_seguro_resumo}
-        
-        **💰 Faixas de Seguro Estimadas do Excel:**
-        * **NF Baixa:** R$ {valor_nf_baixa:.2f} | **NF Meia:** R$ {valor_nf_meia:.2f} | **NF Alta:** R$ {valor_nf_alta:.2f}
         """)
 else:
     c1, c2, c3, c4 = st.columns(4)
@@ -213,7 +261,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ==========================================
 if btn_calcular:
     if not cep_input or not cidade_automatica:
-        st.error("❌ Por favor, digite um CEP válido no Passo 1 para simular o cálculo.")
+        st.error("❌ Por favor, digite um CEP válido no Passo 1 para realizar a cotação.")
     else:
         st.markdown("### 🏁 Opções de Envio Encontradas")
         
@@ -249,5 +297,36 @@ if btn_calcular:
             """, unsafe_allow_html=True)
             
         with aba_fixa:
-            st.markdown("<p style='color:#6b7280;'>Rotas fixas tradicionais baseadas na região de destino:</p>", unsafe_allow_html=True)
-            st.info(f"Aqui faremos o cruzamento automático: o sistema lê {cidade_automatica} - {uf_automatica} e traz as opções cadastradas na sua outra planilha de fretes regionais.")
+            if df_fretes_fixos.empty:
+                st.warning("⚠️ Planilha 'SISTEMA_DE_FRETES_AUTOMATIZADO.xlsx' não encontrada no repositório. Suba o arquivo para ativar esta busca.")
+            else:
+                # Faz a varredura inteligente por Cidade e UF na base de dados do Excel
+                resultados_fixos = df_fretes_fixos[
+                    (df_fretes_fixos['CIDADE'] == cidade_automatica) & 
+                    (df_fretes_fixos['UF'] == uf_automatica)
+                ]
+                
+                if not resultados_fixos.empty:
+                    st.markdown(f"<p style='color:#6b7280;'>Encontramos {len(resultados_fixos)} transportadora(s) na sua tabela para <b>{cidade_automatica} - {uf_automatica}</b>:</p>", unsafe_allow_html=True)
+                    
+                    for idx, row in resultados_fixos.iterrows():
+                        # Ajusta a exibição de dias
+                        prazo = str(row['PRAZO'])
+                        if "cotar" not in prazo.lower() and "dias" not in prazo.lower() and prazo != '-':
+                            prazo = f"{prazo} Dias"
+                            
+                        st.markdown(f"""
+                        <div class="card-frete" style="border-left: 5px solid #1e3a8a; background-color: #fafbfe;">
+                            <div>
+                                <strong style="font-size:16px; color:#1e3a8a;">🚛 {row['TRANSPORTADORA']}</strong><br>
+                                <span style="font-size:14px; color:#4b5563;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Contato: {row['FONE']}</span><br>
+                                <span style="font-size:13px; color:#6b7280;">⏱️ Prazo: {prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
+                            </div>
+                            <div style="text-align: right;">
+                                <span style="font-size:14px; color:#4b5563; font-weight:600;">Mínimo</span><br>
+                                <span style="font-size:18px; font-weight:700; color:#111827;">R$ {row['VALOR_MINIMO']}</span>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.warning(f"Nenhuma transportadora cadastrada na planilha regional para a cidade de {cidade_automatica} - {uf_automatica}.")
