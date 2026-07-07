@@ -59,7 +59,7 @@ BRASPRESS_CNPJ_CIA_DO_JEANS = "34835571000168"  # CNPJ Cia do Jeans (Tomador)
 BRASPRESS_INSCRICAO_ESTADUAL = "107873130"     # Sua Inscrição Estadual de GO
 CEP_ORIGEM = "76330000"                       # CEP de Jaraguá-GO
 
-# Token Oficial do SuperFrete que você acabou de enviar
+# Token Oficial do SuperFrete
 SUPERFRETE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3ODM0Mzc0NzAsInN1YiI6IkROakhlMVJiVDJWMmx2eFZvZ1NOOHRyV3VHdjIifQ.r5BJVLvyPkR9a-W6B_C7ouKOlrSr891NYUEtG938g-4"
 
 def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
@@ -105,10 +105,12 @@ def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
 def calcular_frete_superfrete(cep_destino, peso, comprimento, largura, altura, valor_nf):
     url_api = "https://api.superfrete.com/v1/calculator"
     
+    # Adicionado o User-Agent oficial para evitar o bloqueio e o erro de conexão do servidor
     headers = {
         "Authorization": f"Bearer {SUPERFRETE_TOKEN}",
         "Content-Type": "application/json",
-        "Accept": "application/json"
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
     
     payload = {
@@ -135,13 +137,18 @@ def calcular_frete_superfrete(cep_destino, peso, comprimento, largura, altura, v
     }
     
     try:
-        response = requests.post(url_api, json=payload, headers=headers, timeout=7)
+        response = requests.post(url_api, json=payload, headers=headers, timeout=8)
+        
         if response.status_code == 200:
+            texto = response.text.strip()
+            # Validação: Se a resposta não for um JSON limpo, avisa o erro de formato de forma amigável
+            if texto.startswith("<html") or texto.startswith("<!DOCTYPE html"):
+                return {"sucesso": False, "msg": "O painel do SuperFrete retornou uma página de erro temporária. Verifique os fretes fixos."}
             return {"sucesso": True, "dados": response.json()}
         else:
-            return {"sucesso": False, "msg": f"Erro de comunicação com SuperFrete (Status: {response.status_code})"}
+            return {"sucesso": False, "msg": f"O servidor do SuperFrete recusou os parâmetros (Status: {response.status_code})"}
     except Exception as e:
-        return {"sucesso": False, "msg": f"Instabilidade na conexão: {str(e)}"}
+        return {"sucesso": False, "msg": f"Não foi possível conectar ao SuperFrete no momento. Use as transportadoras fixas."}
 
 
 # CACHE ULTRA-RÁPIDO: Organização dos dados da planilha de fretes fixos
@@ -300,7 +307,7 @@ if btn_calcular:
                     <div style="text-align: right;"><span style="font-size:20px; font-weight:700; color:#111827;">{preco_bp}</span></div>
                 </div>
                 """, unsafe_allow_html=True)
-                opcoes_whatsapp.append(f"🚛 *BRASPRESS*\n💰 Valor: {preco_bp}\n⏱️ Prazo: {res_braspress['prazo']} dias úteis\n")
+                opcoes_whatsapp.append(f"Resumo frete nacional:\n\n\n\n\n🚛 *BRASPRESS*\n💰 Valor: {preco_bp}\n⏱️ Prazo: {res_braspress['prazo']} dias úteis\n")
             else:
                 st.info(f"ℹ️ Braspress: {res_braspress['msg']}")
                 
@@ -310,7 +317,6 @@ if btn_calcular:
             
             if res_sf["sucesso"]:
                 dados_correios = res_sf["dados"]
-                # Procurar pelos serviços na resposta da API do SuperFrete
                 for servico in dados_correios:
                     nome_comercial = str(servico.get("name", "")).upper()
                     if servico.get("error"):
@@ -337,7 +343,7 @@ if btn_calcular:
                         """, unsafe_allow_html=True)
                         opcoes_whatsapp.append(f"📬 *CORREIOS PAC*\n💰 Valor: R$ {preco_f:.2f}\n⏱️ Prazo: {prazo_f} dias úteis\n")
             else:
-                st.error(f"❌ Correios (SuperFrete): {res_sf['msg']}")
+                st.warning(f"⚠️ Correios (SuperFrete): {res_sf['msg']}")
             
         with aba_fixa:
             if df_fretes_fixos.empty:
@@ -371,7 +377,7 @@ if btn_calcular:
                     st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_automatica}-{uf_automatica}.")
 
         # ==========================================
-        # PASSO 4: GERADOR E BOTÃO DO WHATSAPP ESPAÇADO
+        # PASSO 4: GERADOR E BOTÃO DO WHATSAPP
         # ==========================================
         st.markdown("<br><hr style='border-top: 1px dashed #cbd5e1;'><br>", unsafe_allow_html=True)
         st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #25d366;">', unsafe_allow_html=True)
