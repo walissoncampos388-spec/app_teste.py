@@ -242,7 +242,6 @@ if btn_calcular:
         st.markdown("### 🏁 Opções de Envio Encontradas")
         aba_online, aba_fixa = st.tabs(["⚡ Cotações Online (APIs)", "📋 Transportadoras Fixas da Região"])
         
-        # Array para guardar as transportadoras encontradas e usar no texto do WhatsApp
         opcoes_whatsapp = []
         
         with aba_online:
@@ -260,7 +259,7 @@ if btn_calcular:
                     <div style="text-align: right;"><span style="font-size:20px; font-weight:700; color:#111827;">{preco_bp}</span></div>
                 </div>
                 """, unsafe_allow_html=True)
-                opcoes_whatsapp.append(f"• *BRASPRESS:* {preco_bp} ({res_braspress['prazo']} dias úteis)")
+                opcoes_whatsapp.append(f"🚛 *BRASPRESS*\n💰 Valor: {preco_bp}\n⏱️ Prazo: {res_braspress['prazo']} dias úteis\n")
             else:
                 st.warning(f"⚠️ Nota Braspress: {res_braspress['msg']}")
                 
@@ -293,39 +292,42 @@ if btn_calcular:
                         </div>
                         """, unsafe_allow_html=True)
                         
-                        # Adiciona no resumo do WhatsApp
-                        opcoes_whatsapp.append(f"• *{row['TRANSPORTADORA']}:* Mínimo R$ {row['VALOR_MINIMO']} (Prazo: {prazo} | 📞 {row['FONE']})")
+                        # Formato Espaçado por Linha para a Planilha Regional
+                        opcoes_whatsapp.append(
+                            f"🚛 *{row['TRANSPORTADORA']}*\n"
+                            f"💰 Mínimo: R$ {row['VALOR_MINIMO']}\n"
+                            f"⏱️ Prazo: {prazo}\n"
+                            f"📞 Contato: {row['FONE']}\n"
+                        )
                 else: 
                     st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_automatica}-{uf_automatica}.")
 
         # ==========================================
-        # GERADOR E BOTÃO DO WHATSAPP (A MÁGICA)
-# ==========================================
+        # GERADOR E BOTÃO DO WHATSAPP RESTRUTURADO
+        # ==========================================
         st.markdown("<br><hr style='border-top: 1px dashed #cbd5e1;'><br>", unsafe_allow_html=True)
         st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #25d366;">', unsafe_allow_html=True)
         st.markdown('<div class="titulo-etapa" style="color: #25d366;">💬 PASSO 4: Enviar Cotação ao Cliente</div>', unsafe_allow_html=True)
         
-        # Constrói o texto estruturado da mensagem
-        texto_opcoes = "\n".join(opcoes_whatsapp) if opcoes_whatsapp else "• Nenhuma opção localizada. Consultar fábrica."
+        # Constrói o texto com quebras nítidas de linha (\n\n) entre as transportadoras
+        texto_opcoes = "\n".join(opcoes_whatsapp) if opcoes_whatsapp else "• Nenhuma opção localizada."
         
         mensagem_vendedor = (
             f"Olá! Segue a cotação de frete para o seu pedido da *Cia do Jeans*:\n\n"
-            f"📍 *Destino:* {cidade_automatica} - {uf_automatica}\n"
-            f"📦 *Volume estimado:* {total_pecas} peças ({peso_total_calculado:.2f} kg)\n"
-            f"🛍️ *Tipo de Carga:* {tipo_embalagem}\n\n"
-            f"🚚 *Opções de Envio Disponíveis:*\n"
-            f"{texto_opcoes}\n\n"
-            f"_Qual destas opções fica melhor para fazermos o despacho do seu fardo?_"
+            f"📍 *Destino:*\n{cidade_automatica} - {uf_automatica}\n\n"
+            f"📦 *Volume estimado:*\n{total_pecas} peças ({peso_total_calculado:.2f} kg)\n\n"
+            f"🛍️ *Embalagem:*\n{tipo_embalagem}\n\n"
+            f"-----------------------------------------\n"
+            f"🚚 *OPÇÕES DE ENVIO:*\n\n"
+            f"{texto_opcoes}"
+            f"-----------------------------------------\n\n"
+            f"_Qual destas opções fica melhor para fazermos o despacho?_"
         )
         
-        # Caixa de texto para o vendedor ver ou editar antes de enviar
-        texto_editavel = st.text_area("Pré-visualização da Mensagem:", value=mensagem_vendedor, height=180)
-        
-        # Transforma o texto em formato de link URL seguro para o WhatsApp
+        texto_editavel = st.text_area("Pré-visualização da Mensagem:", value=mensagem_vendedor, height=250)
         texto_codificado = urllib.parse.quote(texto_editavel)
         link_whatsapp = f"https://api.whatsapp.com/send?text={texto_codificado}"
         
-        # Cria o botão físico estilizado de verde do WhatsApp
         st.markdown(f"""
             <a href="{link_whatsapp}" target="_blank" style="text-decoration: none;">
                 <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer;">
