@@ -11,13 +11,34 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Estilização CSS Premium e Responsiva
+# Estilização CSS Premium, Responsiva e Trava do Banner Full Width
 st.markdown("""
     <style>
         .stDeployButton {display:none;}
         footer {visibility: hidden;}
-        .main { background-color: #f4f6f9; }
+        .main { background-color: #f4f6f9; padding-top: 0rem; }
+        block-container { padding-top: 0rem; padding-bottom: 0rem; }
         
+        /* Estilo do Banner Estreito e Comprido de ponta a ponta */
+        .banner-container {
+            width: 100vw;
+            position: relative;
+            left: 50%;
+            right: 50%;
+            margin-left: -50vw;
+            margin-right: -50vw;
+            margin-top: -6rem; /* Sobe o banner para tirar o espaço em branco do topo */
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+        .banner-imagem {
+            width: 100%;
+            height: auto;
+            max-height: 180px; /* Limita a altura para ficar estreito */
+            object-fit: cover; /* Garante que a imagem se ajuste sem distorcer */
+            display: block;
+        }
+
         /* Blocos organizadores das etapas */
         .bloco-etapa {
             background-color: white;
@@ -105,17 +126,18 @@ def carregar_e_limpar_dados():
 
 df_fretes_fixos = carregar_e_limpar_dados()
 
-# Cabeçalho Centralizado
-with st.container():
-    col_esq, col_centro, col_dir = st.columns([1, 2, 1])
-    with col_centro:
-        try:
-            st.image("https://raw.githubusercontent.com/walissoncampos/fretes-cia-do-jeans/main/logo_ciadojeans.png", use_container_width=True)
-        except Exception:
-            pass
-        st.markdown("<h2 style='text-align:center; color:#1e3a8a; font-family:sans-serif; font-weight:800; margin:0;'>⚡ CALCULADORA DE FRETE INTELIGENTE</h2>", unsafe_allow_html=True)
+# ==========================================
+# BANNER RETANGULAR PONTA A PONTA (FULL WIDTH)
+# ==========================================
+# Altere o link abaixo para a imagem oficial do banner estreito da Cia do Jeans
+LINK_DO_BANNER = "https://raw.githubusercontent.com/walissoncampos/fretes-cia-do-jeans/main/logo_ciadojeans.png"
 
-st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid #e5e7eb;'>", unsafe_allow_html=True)
+st.markdown(f"""
+    <div class="banner-container">
+        <img src="{LINK_DO_BANNER}" class="banner-imagem">
+    </div>
+""", unsafe_allow_html=True)
+
 
 # ==========================================
 # PASSO 1: LOCALIZAÇÃO DO CLIENTE
@@ -179,10 +201,8 @@ else: tipo_embalagem = "Fardo Comercial"
 valor_nf_meia = (qtd_calcas * 40) + (qtd_bermudas * 33) + (qtd_shorts * 33) + (qtd_gola_o * 18) + (qtd_tshirt * 19) + (qtd_polo * 25)
 
 with c3:
-    # Mudança estratégica: text_input para acabar com os zeros fixos à esquerda
     valor_manual_nf_txt = st.text_input("✍️ Valor Real da NF (Opcional):", placeholder="Ex: 1250,00").strip()
     
-    # Processa o valor digitado de forma segura
     valor_manual_nf = 0.0
     if valor_manual_nf_txt:
         try:
@@ -223,16 +243,16 @@ if btn_calcular:
             
             if not resultados_fixos.empty:
                 for idx, row in resultados_fixos.iterrows():
-                    prazo = str(row['PRAZO'])
-                    if "cotar" not in prazo.lower() and "dias" not in prazo.lower() and prazo != '-': 
-                        prazo = f"{prazo} Dias"
+                    print_prazo = str(row['PRAZO'])
+                    if "cotar" not in print_prazo.lower() and "dias" not in print_prazo.lower() and print_prazo != '-': 
+                        print_prazo = f"{print_prazo} Dias"
                         
                     st.markdown(f"""
                     <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
                         <div>
-                            <strong style="font-size:16px; color:#1e3a8a;"><b>🚛 {row['TRANSPORTADORA']}</b></strong><br>
+                            <strong style="font-size:16px; color:#1e3a8a;"><b>... {row['TRANSPORTADORA']}</b></strong><br>
                             <span style="font-size:13px; color:#4b5563;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Fone: {row['FONE']}</span><br>
-                            <span style="font-size:12px; color:#6b7280;">⏱️ Prazo: {prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
+                            <span style="font-size:12px; color:#6b7280;">⏱️ Prazo: {print_prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
                         </div>
                         <div style="text-align: right;"><span style="font-size:13px; color:#6b7280; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#111827;">R$ {row['VALOR_MINIMO']}</span></div>
                     </div>
@@ -241,7 +261,7 @@ if btn_calcular:
                     opcoes_whatsapp.append(
                         f"🚛 *{row['TRANSPORTADORA']}*\n"
                         f"💰 Mínimo: R$ {row['VALOR_MINIMO']}\n"
-                        f"⏱️ Prazo: {prazo}\n"
+                        f"⏱️ Prazo: {print_prazo}\n"
                         f"📞 Contato: {row['FONE']}\n"
                     )
             else: 
