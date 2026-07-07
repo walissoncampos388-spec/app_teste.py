@@ -110,9 +110,16 @@ with st.container():
     col_esq, col_centro, col_dir = st.columns([1, 2, 1])
     with col_centro:
         try:
-            st.image("https://raw.githubusercontent.com/walissoncampos/fretes-cia-do-jeans/main/logo_ciadojeans.png", use_container_width=True)
+            # Criamos uma div HTML interna apenas para garantir que a imagem fique 100% centralizada na coluna
+            st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
+            st.image(
+                "https://raw.githubusercontent.com/walissoncampos/fretes-cia-do-jeans/main/logo_ciadojeans.png", 
+                width=120
+            )
+            st.markdown("</div>", unsafe_allow_html=True)
         except Exception:
             pass
+
         st.markdown(
     """
     <div style='text-align:center; font-family:sans-serif; margin:0; line-height: 1.1;'>
