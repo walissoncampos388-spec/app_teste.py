@@ -82,13 +82,8 @@ def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
         "cepDestino": cep_destino.replace("-", "").strip(),
         "cnpjDestinatario": cnpj_destinatario_final, 
         "modal": "R", # R = Rodoviário
-        
-        # MODALIDADE CORRETA:
-        "tipoFrete": "2", # 2 = FOB / Pago por Terceiros (Cia do Jeans assume a conta)
-        
-        # O seu CNPJ amarrado como o pagador oficial para puxar os seus descontos
+        "tipoFrete": "2", # 2 = FOB / Pago por Terceiros
         "cnpjTomador": BRASPRESS_CNPJ_CIA_DO_JEANS, 
-        
         "peso": str(peso),
         "valorAnf": f"{valor_nf:.2f}".replace(".", ","),
         "volume": "1",
@@ -213,11 +208,15 @@ if cep_input:
             if "erro" not in resposta:
                 cidade_val = resposta.get("localidade", "").upper()
                 uf_val = resposta.get("uf", "").upper()
-            else: st.error("❌ CEP não encontrado.")
-        except Exception: pass
+            else:
+                st.error("❌ CEP não encontrado.")
+        except Exception:
+            pass
 
-with col2: cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Aguardando CEP...", disabled=True)
-with col3: uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=True)
+with col2: 
+    cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Aguardando CEP...", disabled=True)
+with col3: 
+    uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
@@ -240,10 +239,14 @@ peso_pecas_puro = (qtd_calcas * 0.60) + (qtd_bermudas * 0.40) + (qtd_shorts * 0.
 peso_total_calculado = peso_pecas_puro + (0.4 if peso_pecas_puro > 0 else 0)
 total_pecas = qtd_calcas + qtd_bermudas + qtd_shorts + qtd_gola_o + qtd_tshirt + qtd_polo
 
-if total_pecas == 0: comprimento, largura, altura, tipo_embalagem = 0, 0, 0, "Nenhum produto"
-elif total_pecas <= 15: comprimento, largura, altura, tipo_embalagem = 25, 25, 35, "Caixa Pequena"
-elif total_pecas <= 30: comprimento, largura, altura, tipo_embalagem = 12.5, 44, 40, "Caixa Média"
-else: comprimento, largura, altura, tipo_embalagem = 8.3, 66, 40, "Fardo Comercial"
+if total_pecas == 0: 
+    comprimento, largura, altura, tipo_embalagem = 0, 0, 0, "Nenhum produto"
+elif total_pecas <= 15: 
+    comprimento, largura, altura, tipo_embalagem = 25, 25, 35, "Caixa Pequena"
+elif total_pecas <= 30: 
+    comprimento, largura, altura, tipo_embalagem = 12.5, 44, 40, "Caixa Média"
+else: 
+    comprimento, largura, altura, tipo_embalagem = 8.3, 66, 40, "Fardo Comercial"
 
 valor_nf_meia = (qtd_calcas * 40) + (qtd_bermudas * 33) + (qtd_shorts * 33) + (qtd_gola_o * 18) + (qtd_tshirt * 19) + (qtd_polo * 25)
 
@@ -302,7 +305,8 @@ if btn_calcular:
                 if not resultados_fixos.empty:
                     for idx, row in resultados_fixos.iterrows():
                         prazo = str(row['PRAZO'])
-                        if "cotar" not in prazo.lower() and "dias" not in prazo.lower() and prazo != '-': prazo = f"{prazo} Dias"
+                        if "cotar" not in prazo.lower() and "dias" not in prazo.lower() and prazo != '-': 
+                            prazo = f"{prazo} Dias"
                         st.markdown(f"""
                         <div class="card-frete" style="border-left: 5px solid #4b5563;">
                             <div>
@@ -313,4 +317,5 @@ if btn_calcular:
                             <div style="text-align: right;"><span style="font-size:13px; color:#6b7280; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#111827;">R$ {row['VALOR_MINIMO']}</span></div>
                         </div>
                         """, unsafe_allow_html=True)
-                else: st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_automatica}-{uf_automatica}.")
+                else: 
+                    st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_automatica}-{uf_automatica}.")
