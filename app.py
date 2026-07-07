@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import requests
-import xml.etree.ElementTree as ET
 import urllib.parse
 
 # 1. Configuração de Design da Página
@@ -51,53 +50,6 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
-
-# ==========================================
-# CREDENCIAIS DO SEU CONTRATO BRASPRESS
-# ==========================================
-BRASPRESS_CNPJ_CIA_DO_JEANS = "34835571000168"  # CNPJ Cia do Jeans (Tomador)
-BRASPRESS_INSCRICAO_ESTADUAL = "107873130"     # Sua Inscrição Estadual de GO
-CEP_ORIGEM = "76330000"                       # CEP de Jaraguá-GO
-
-def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
-    url_api = "https://www.braspress.com.br/wscalc/calculaFrete.faw"
-    cnpj_remetente_final = cnpj_parceiro.replace(".", "").replace("-", "").replace("/", "").strip()
-    
-    if not cnpj_remetente_final:
-        cnpj_remetente_final = BRASPRESS_CNPJ_CIA_DO_JEANS
-        ie_remetente_final = BRASPRESS_INSCRICAO_ESTADUAL
-        cnpj_destinatario_final = "00000000000100"
-    else:
-        ie_remetente_final = "ISENTO"
-        cnpj_destinatario_final = BRASPRESS_CNPJ_CIA_DO_JEANS
-
-    params = {
-        "cnpjRemetente": cnpj_remetente_final,
-        "ieRemetente": ie_remetente_final,
-        "cepOrigem": CEP_ORIGEM,
-        "cepDestino": cep_destino.replace("-", "").strip(),
-        "cnpjDestinatario": cnpj_destinatario_final, 
-        "modal": "R", "tipoFrete": "2", "cnpjTomador": BRASPRESS_CNPJ_CIA_DO_JEANS, 
-        "peso": str(peso), "valorAnf": f"{valor_nf:.2f}".replace(".", ","), "volume": "1", "cubagem": "0",
-    }
-    
-    try:
-        response = requests.get(url_api, params=params, timeout=6)
-        if response.status_code == 200:
-            texto_resposta = response.text.strip()
-            if texto_resposta.startswith("<html") or texto_resposta.startswith("<!DOCTYPE html"):
-                return {"sucesso": False, "msg": "API em manutenção (Aguardando nova integração REST)."}
-            
-            root = ET.fromstring(response.content)
-            vlr_frete = root.find(".//vlrFrete")
-            prazo = root.find(".//prazoEntrega")
-            if vlr_frete is not None:
-                return {"sucesso": True, "preco": float(vlr_frete.text.replace(",", ".")), "prazo": prazo.text if prazo is not None else "-"}
-        elif response.status_code == 404:
-            return {"sucesso": False, "msg": "API antiga desativada (Aguardando nova integração REST)."}
-    except Exception:
-        pass
-    return {"sucesso": False, "msg": "Serviço online indisponível. Veja os fretes fixos regionais."}
 
 
 # CACHE ULTRA-RÁPIDO: Organização dos dados da planilha de fretes fixos
@@ -171,15 +123,19 @@ st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid 
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">📍 PASSO 1: Destino do Pedido</div>', unsafe_allow_html=True)
 col1, col2, col3 = st.columns([1.5, 2, 1])
+
 with col1:
     cep_input = st.text_input("📬 Digite o CEP do Cliente:", placeholder="00000000", max_chars=9)
 
-cidade_val, uf_val = "", ""
+cidade_val = ""
+uf_val = ""
+
 if cep_input:
     cep_limpo = cep_input.replace("-", "").replace(" ", "")
     if len(cep_limpo) == 8 and cep_limpo.isdigit():
         try:
-            resposta = requests.get(f"https://viacep.com.br/ws/{cep_limpo}/json/", timeout=5).json()
+            url_api = f"https://viacep.com.br/ws/{cep_limpo}/json/"
+            resposta = requests.get(url_api, timeout=4).json()
             if "erro" not in resposta:
                 cidade_val = resposta.get("localidade", "").upper()
                 uf_val = resposta.get("uf", "").upper()
@@ -188,8 +144,10 @@ if cep_input:
         except Exception:
             pass
 
-with col2: cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Aguardando CEP...", disabled=True)
-with col3: uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=True)
+with col2: 
+    cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Aguardando CEP...", disabled=True)
+with col3: 
+    uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
@@ -207,132 +165,106 @@ with c2:
     qtd_tshirt = st.number_input("Quantidade de T-Shirt:", min_value=0, value=0, step=1)
     qtd_polo = st.number_input("Quantidade de Gola Polo:", min_value=0, value=0, step=1)
 
-# Matemática de Pesos e Cubagem
+# Matemática de Pesos e Embalagem
 peso_pecas_puro = (qtd_calcas * 0.60) + (qtd_bermudas * 0.40) + (qtd_shorts * 0.35) + (qtd_gola_o * 0.28) + (qtd_tshirt * 0.20) + (qtd_polo * 0.32)
 peso_total_calculado = peso_pecas_puro + (0.4 if peso_pecas_puro > 0 else 0)
 total_pecas = qtd_calcas + qtd_bermudas + qtd_shorts + qtd_gola_o + qtd_tshirt + qtd_polo
 
-if total_pecas == 0: comprimento, largura, altura, tipo_embalagem = 0, 0, 0, "Nenhum produto"
-elif total_pecas <= 15: comprimento, largura, altura, tipo_embalagem = 25, 25, 35, "Caixa Pequena"
-elif total_pecas <= 30: comprimento, largura, altura, tipo_embalagem = 12.5, 44, 40, "Caixa Média"
-else: comprimento, largura, altura, tipo_embalagem = 8.3, 66, 40, "Fardo Comercial"
+if total_pecas == 0: tipo_embalagem = "Nenhum produto"
+elif total_pecas <= 15: tipo_embalagem = "Caixa Pequena"
+elif total_pecas <= 30: tipo_embalagem = "Caixa Média"
+else: tipo_embalagem = "Fardo Comercial"
 
 valor_nf_meia = (qtd_calcas * 40) + (qtd_bermudas * 33) + (qtd_shorts * 33) + (qtd_gola_o * 18) + (qtd_tshirt * 19) + (qtd_polo * 25)
 
 with c3:
-    cnpj_fornecedor_parceiro = st.text_input("🏢 CNPJ do Fornecedor/Parceiro (Opcional):", placeholder="Usar padrão Cia do Jeans")
     valor_manual_nf = st.number_input("✍️ Valor Real da NF (Opcional):", min_value=0.0, value=0.0, step=50.0)
     valor_para_seguro = valor_manual_nf if valor_manual_nf > 0 else valor_nf_meia
     
-    st.info(f"**📊 Resumo:** {total_pecas} un | {peso_total_calculado:.2f} kg\n* **Embalagem:** {tipo_embalagem}\n* **Seguro:** R$ {valor_para_seguro:.2f}")
+    st.info(f"**📊 Resumo do Pedido:**\n* **Carga:** {total_pecas} un | {peso_total_calculado:.2f} kg\n* **Embalagem:** {tipo_embalagem}\n* **Seguro:** R$ {valor_para_seguro:.2f}")
 st.markdown('</div>', unsafe_allow_html=True)
 
 # DISPARADOR DE CÁLCULO
 st.markdown("<br>", unsafe_allow_html=True)
-btn_calcular = st.button("🚀 CALCULAR FRETE REAL EM TODOS OS MEIOS", type="primary", use_container_width=True)
+btn_calcular = st.button("🚀 BUSCAR TRANSPORTADORAS DISPONÍVEIS", type="primary", use_container_width=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================================
-# PASSO 3: RESULTADOS & WHATSAPP
+# PASSO 3: RESULTADOS E WHATSAPP
 # ==========================================
 if btn_calcular:
     if not cep_input or not cidade_automatica:
         st.error("❌ Por favor, digite um CEP válido no Passo 1.")
+    elif total_pecas == 0:
+        st.error("❌ Insira a quantidade de produtos no Passo 2 para calcular.")
     else:
-        st.markdown("### 🏁 Opções de Envio Encontradas")
-        aba_online, aba_fixa = st.tabs(["⚡ Cotações Online (APIs)", "📋 Transportadoras Fixas da Região"])
+        st.markdown("### 🏁 Transportadoras Encontradas para a Região")
         
         opcoes_whatsapp = []
         
-        with aba_online:
-            with st.spinner("Consultando Braspress..."):
-                res_braspress = calcular_frete_braspress(cep_input, peso_total_calculado, valor_para_seguro, cnpj_fornecedor_parceiro)
+        if df_fretes_fixos.empty:
+            st.warning("⚠️ Planilha 'SISTEMA_DE_FRETES_AUTOMATIZADO.xlsx' não encontrada no repositório.")
+        else:
+            resultados_fixos = df_fretes_fixos[(df_fretes_fixos['CIDADE'] == cidade_automatica) & (df_fretes_fixos['UF'] == uf_automatica)]
             
-            if res_braspress["sucesso"]:
-                preco_bp = f"R$ {res_braspress['preco']:.2f}"
-                st.markdown(f"""
-                <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
-                    <div>
-                        <strong style="font-size:16px; color:#1e3a8a;">🚚 BRASPRESS (Contrato Cia do Jeans)</strong><br>
-                        <span style="font-size:13px; color:#6b7280;">Prazo: {res_braspress['prazo']} dias úteis | Rodoviário</span>
-                    </div>
-                    <div style="text-align: right;"><span style="font-size:20px; font-weight:700; color:#111827;">{preco_bp}</span></div>
-                </div>
-                """, unsafe_allow_html=True)
-                opcoes_whatsapp.append(f"🚛 *BRASPRESS*\n💰 Valor: {preco_bp}\n⏱️ Prazo: {res_braspress['prazo']} dias úteis\n")
-            else:
-                st.warning(f"⚠️ Nota Braspress: {res_braspress['msg']}")
-                
-            st.markdown("""
-            <div class="card-frete" style="border-left: 5px solid #ffcc00; opacity: 0.7;">
-                <div><strong style="font-size:16px; color:#1e3a8a;">📬 CORREIOS PAC (Contrato Próprio)</strong><br><span style="font-size:13px; color:#6b7280;">Aguardando credenciais de integração</span></div>
-                <div style="text-align: right;"><span style="font-size:14px; color:#6b7280; font-weight:600;">Em Breve</span></div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-        with aba_fixa:
-            if df_fretes_fixos.empty:
-                st.warning("⚠️ Planilha 'SISTEMA_DE_FRETES_AUTOMATIZADO.xlsx' não encontrada.")
-            else:
-                resultados_fixos = df_fretes_fixos[(df_fretes_fixos['CIDADE'] == cidade_automatica) & (df_fretes_fixos['UF'] == uf_automatica)]
-                if not resultados_fixos.empty:
-                    for idx, row in resultados_fixos.iterrows():
-                        prazo = str(row['PRAZO'])
-                        if "cotar" not in prazo.lower() and "dias" not in prazo.lower() and prazo != '-': 
-                            prazo = f"{prazo} Dias"
-                            
-                        st.markdown(f"""
-                        <div class="card-frete" style="border-left: 5px solid #4b5563;">
-                            <div>
-                                <strong style="font-size:16px; color:#1e3a8a;"><b>🚛 {row['TRANSPORTADORA']}</b></strong><br>
-                                <span style="font-size:13px; color:#4b5563;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Fone: {row['FONE']}</span><br>
-                                <span style="font-size:12px; color:#6b7280;">⏱️ Prazo: {prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
-                            </div>
-                            <div style="text-align: right;"><span style="font-size:13px; color:#6b7280; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#111827;">R$ {row['VALOR_MINIMO']}</span></div>
-                        </div>
-                        """, unsafe_allow_html=True)
+            if not resultados_fixos.empty:
+                for idx, row in resultados_fixos.iterrows():
+                    prazo = str(row['PRAZO'])
+                    if "cotar" not in prazo.lower() and "dias" not in prazo.lower() and prazo != '-': 
+                        prazo = f"{prazo} Dias"
                         
-                        # Formato Espaçado por Linha para a Planilha Regional
-                        opcoes_whatsapp.append(
-                            f"🚛 *{row['TRANSPORTADORA']}*\n"
-                            f"💰 Mínimo: R$ {row['VALOR_MINIMO']}\n"
-                            f"⏱️ Prazo: {prazo}\n"
-                            f"📞 Contato: {row['FONE']}\n"
-                        )
-                else: 
-                    st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_automatica}-{uf_automatica}.")
+                    st.markdown(f"""
+                    <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
+                        <div>
+                            <strong style="font-size:16px; color:#1e3a8a;">🚛 {row['TRANSPORTADORA']}</strong><br>
+                            <span style="font-size:13px; color:#4b5563;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Fone: {row['FONE']}</span><br>
+                            <span style="font-size:12px; color:#6b7280;">⏱️ Prazo: {prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
+                        </div>
+                        <div style="text-align: right;"><span style="font-size:13px; color:#6b7280; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#111827;">R$ {row['VALOR_MINIMO']}</span></div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Monta o resumo por linhas nítidas para o WhatsApp
+                    opcoes_whatsapp.append(
+                        f"🚛 *{row['TRANSPORTADORA']}*\n"
+                        f"💰 Mínimo: R$ {row['VALOR_MINIMO']}\n"
+                        f"⏱️ Prazo: {prazo}\n"
+                        f"📞 Contato: {row['FONE']}\n"
+                    )
+            else: 
+                st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_automatica}-{uf_automatica}.")
 
         # ==========================================
-        # GERADOR E BOTÃO DO WHATSAPP RESTRUTURADO
+        # PASSO 4: ENVIAR PARA O WHATSAPP
         # ==========================================
-        st.markdown("<br><hr style='border-top: 1px dashed #cbd5e1;'><br>", unsafe_allow_html=True)
-        st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #25d366;">', unsafe_allow_html=True)
-        st.markdown('<div class="titulo-etapa" style="color: #25d366;">💬 PASSO 4: Enviar Cotação ao Cliente</div>', unsafe_allow_html=True)
-        
-        # Constrói o texto com quebras nítidas de linha (\n\n) entre as transportadoras
-        texto_opcoes = "\n".join(opcoes_whatsapp) if opcoes_whatsapp else "• Nenhuma opção localizada."
-        
-        mensagem_vendedor = (
-            f"Olá! Segue a cotação de frete para o seu pedido da *Cia do Jeans*:\n\n"
-            f"📍 *Destino:*\n{cidade_automatica} - {uf_automatica}\n\n"
-            f"📦 *Volume estimado:*\n{total_pecas} peças ({peso_total_calculado:.2f} kg)\n\n"
-            f"🛍️ *Embalagem:*\n{tipo_embalagem}\n\n"
-            f"-----------------------------------------\n"
-            f"🚚 *OPÇÕES DE ENVIO:*\n\n"
-            f"{texto_opcoes}"
-            f"-----------------------------------------\n\n"
-            f"_Qual destas opções fica melhor para fazermos o despacho?_"
-        )
-        
-        texto_editavel = st.text_area("Pré-visualização da Mensagem:", value=mensagem_vendedor, height=250)
-        texto_codificado = urllib.parse.quote(texto_editavel)
-        link_whatsapp = f"https://api.whatsapp.com/send?text={texto_codificado}"
-        
-        st.markdown(f"""
-            <a href="{link_whatsapp}" target="_blank" style="text-decoration: none;">
-                <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer;">
-                    📲 ENVIAR COTAÇÃO PARA O WHATSAPP DO CLIENTE
-                </div>
-            </a>
-        """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        if opcoes_whatsapp:
+            st.markdown("<br><hr style='border-top: 1px dashed #cbd5e1;'><br>", unsafe_allow_html=True)
+            st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #25d366;">', unsafe_allow_html=True)
+            st.markdown('<div class="titulo-etapa" style="color: #25d366;">💬 PASSO 3: Enviar Cotação ao Cliente</div>', unsafe_allow_html=True)
+            
+            texto_opcoes = "\n".join(opcoes_whatsapp)
+            
+            mensagem_vendedor = (
+                f"Olá! Segue a cotação de frete para o seu pedido da *Cia do Jeans*:\n\n"
+                f"📍 *Destino:*\n{cidade_automatica} - {uf_automatica}\n\n"
+                f"📦 *Volume estimado:*\n{total_pecas} peças ({peso_total_calculado:.2f} kg)\n\n"
+                f"🛍️ *Embalagem:*\n{tipo_embalagem}\n\n"
+                f"-----------------------------------------\n"
+                f"🚚 *OPÇÕES DE ENVIO:*\n\n"
+                f"{texto_opcoes}"
+                f"-----------------------------------------\n\n"
+                f"_Qual destas opções fica melhor para fazermos o despacho?_"
+            )
+            
+            texto_editavel = st.text_area("Pré-visualização da Mensagem:", value=mensagem_vendedor, height=250)
+            texto_codificado = urllib.parse.quote(texto_editavel)
+            link_whatsapp = f"https://api.whatsapp.com/send?text={texto_codificado}"
+            
+            st.markdown(f"""
+                <a href="{link_whatsapp}" target="_blank" style="text-decoration: none;">
+                    <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer;">
+                        📲 ENVIAR COTAÇÃO PARA O WHATSAPP DO CLIENTE
+                    </div>
+                </a>
+            """, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
