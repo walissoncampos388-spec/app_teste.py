@@ -59,7 +59,7 @@ BRASPRESS_CNPJ_CIA_DO_JEANS = "34835571000168"  # CNPJ Cia do Jeans (Tomador)
 BRASPRESS_INSCRICAO_ESTADUAL = "107873130"     # Sua Inscrição Estadual de GO
 CEP_ORIGEM = "76330000"                       # CEP de Jaraguá-GO
 
-# Novo Token de Desenvolvedor do SuperFrete Atualizado
+# Token Oficial do SuperFrete
 SUPERFRETE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3ODM0MzgwMTAsInN1YiI6IkROakhlMVJiVDJWMmx2eFZvZ1NOOHRyV3VHdjIifQ.M3vXT0qnHNENR_rEGcm3-o5E_KjVLVUDhtAvQoiyhoI"
 
 def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
@@ -113,13 +113,9 @@ def calcular_frete_superfrete(cep_destino, peso, comprimento, largura, altura, v
     }
     
     payload = {
-        "from": {
-            "postal_code": CEP_ORIGEM
-        },
-        "to": {
-            "postal_code": cep_destino.replace("-", "").strip()
-        },
-        "services": "1,2", # 1 = SEDEX, 2 = PAC
+        "from": { "postal_code": CEP_ORIGEM },
+        "to": { "postal_code": cep_destino.replace("-", "").strip() },
+        "services": "1,2", 
         "options": {
             "receipt": False,
             "own_hand": False,
@@ -137,15 +133,14 @@ def calcular_frete_superfrete(cep_destino, peso, comprimento, largura, altura, v
     
     try:
         response = requests.post(url_api, json=payload, headers=headers, timeout=8)
-        
         if response.status_code == 200:
             texto = response.text.strip()
             if texto.startswith("<html") or texto.startswith("<!DOCTYPE html"):
                 return {"sucesso": False, "msg": "O painel do SuperFrete retornou uma página de erro temporária."}
             return {"sucesso": True, "dados": response.json()}
         else:
-            return {"sucesso": False, "msg": f"Erro na API SuperFrete (Status: {response.status_code}). Certifique-se de preencher CEP e produtos corretamente."}
-    except Exception as e:
+            return {"sucesso": False, "msg": f"Erro na API SuperFrete (Status: {response.status_code})."}
+    except Exception:
         return {"sucesso": False, "msg": "Instabilidade temporária na conexão do SuperFrete."}
 
 
@@ -215,30 +210,36 @@ with st.container():
 st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid #e5e7eb;'>", unsafe_allow_html=True)
 
 # ==========================================
-# PASSO 1: LOCALIZAÇÃO DO CLIENTE
+# PASSO 1: LOCALIZAÇÃO DO CLIENTE (BLINDADA)
 # ==========================================
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">📍 PASSO 1: Destino do Pedido</div>', unsafe_allow_html=True)
 col1, col2, col3 = st.columns([1.5, 2, 1])
+
 with col1:
     cep_input = st.text_input("📬 Digite o CEP do Cliente:", placeholder="00000000", max_chars=9)
 
-cidade_val, uf_val = "", ""
+cidade_val = ""
+uf_val = ""
+
 if cep_input:
     cep_limpo = cep_input.replace("-", "").replace(" ", "")
     if len(cep_limpo) == 8 and cep_limpo.isdigit():
         try:
-            resposta = requests.get(f"https://viacep.com.br/ws/{cep_limpo}/json/", timeout=5).json()
+            url_api = f"https://viacep.com.br/ws/{cep_limpo}/json/"
+            resposta = requests.get(url_api, timeout=4).json()
             if "erro" not in resposta:
                 cidade_val = resposta.get("localidade", "").upper()
                 uf_val = resposta.get("uf", "").upper()
             else:
-                st.error("❌ CEP não encontrado.")
+                st.error("❌ CEP não encontrado no ViaCEP.")
         except Exception:
-            pass
+            st.error("⚠️ Servidor de CEP lento. Digite as quantidades e calcule para tentar novamente.")
 
-with col2: cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Aguardando CEP...", disabled=True)
-with col3: uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=True)
+with col2: 
+    cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Aguardando CEP...", disabled=True)
+with col3: 
+    uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
@@ -307,7 +308,7 @@ if btn_calcular:
                     <div style="text-align: right;"><span style="font-size:20px; font-weight:700; color:#111827;">{preco_bp}</span></div>
                 </div>
                 """, unsafe_allow_html=True)
-                opcoes_whatsapp.append(f"🚛 *BRASPRESS*\n💰 Valor: {preco_bp}\n⏱️ Prazo: {res_braspress['prazo']} dias úteis\n")
+                opcoes_whatsapp.append(f"Resumo frete nacional:\n\n\n\n\n🚛 *BRASPRESS*\n💰 Valor: {preco_bp}\n⏱️ Prazo: {res_braspress['prazo']} dias úteis\n")
             else:
                 st.info(f"ℹ️ Braspress: {res_braspress['msg']}")
                 
@@ -361,51 +362,4 @@ if btn_calcular:
                             <div>
                                 <strong style="font-size:16px; color:#1e3a8a;"><b>🚛 {row['TRANSPORTADORA']}</b></strong><br>
                                 <span style="font-size:13px; color:#4b5563;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Fone: {row['FONE']}</span><br>
-                                <span style="font-size:12px; color:#6b7280;">⏱️ Prazo: {prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
-                            </div>
-                            <div style="text-align: right;"><span style="font-size:13px; color:#6b7280; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#111827;">R$ {row['VALOR_MINIMO']}</span></div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        opcoes_whatsapp.append(
-                            f"🚛 *{row['TRANSPORTADORA']}*\n"
-                            f"💰 Mínimo: R$ {row['VALOR_MINIMO']}\n"
-                            f"⏱️ Prazo: {prazo}\n"
-                            f"📞 Contato: {row['FONE']}\n"
-                        )
-                else: 
-                    st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_automatica}-{uf_automatica}.")
-
-        # ==========================================
-        # PASSO 4: GERADOR E BOTÃO DO WHATSAPP
-        # ==========================================
-        st.markdown("<br><hr style='border-top: 1px dashed #cbd5e1;'><br>", unsafe_allow_html=True)
-        st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #25d366;">', unsafe_allow_html=True)
-        st.markdown('<div class="titulo-etapa" style="color: #25d366;">💬 PASSO 4: Enviar Cotação ao Cliente</div>', unsafe_allow_html=True)
-        
-        texto_opcoes = "\n".join(opcoes_whatsapp) if opcoes_whatsapp else "• Nenhuma opção localizada."
-        
-        mensagem_vendedor = (
-            f"Olá! Segue a cotação de frete para o seu pedido da *Cia do Jeans*:\n\n"
-            f"📍 *Destino:*\n{cidade_automatica} - {uf_automatica}\n\n"
-            f"📦 *Volume estimado:*\n{total_pecas} peças ({peso_total_calculado:.2f} kg)\n\n"
-            f"🛍️ *Embalagem:*\n{tipo_embalagem}\n\n"
-            f"-----------------------------------------\n"
-            f"🚚 *OPÇÕES DE ENVIO:*\n\n"
-            f"{texto_opcoes}"
-            f"-----------------------------------------\n\n"
-            f"_Qual destas opções fica melhor para fazermos o despacho?_"
-        )
-        
-        texto_editavel = st.text_area("Pré-visualização da Mensagem:", value=mensagem_vendedor, height=250)
-        texto_codificado = urllib.parse.quote(texto_editavel)
-        link_whatsapp = f"https://api.whatsapp.com/send?text={texto_codificado}"
-        
-        st.markdown(f"""
-            <a href="{link_whatsapp}" target="_blank" style="text-decoration: none;">
-                <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer;">
-                    📲 ENVIAR COTAÇÃO PARA O WHATSAPP DO CLIENTE
-                </div>
-            </a>
-        """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+                                <span style="font-size:12px; color:#6b7
