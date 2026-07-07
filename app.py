@@ -61,7 +61,6 @@ CEP_ORIGEM = "76330000"                       # CEP de Jaraguá-GO
 def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
     url_api = "https://www.braspress.com.br/wscalc/calculaFrete"
     
-    # Se o vendedor não preencher o CNPJ do parceiro, o robô usa o seu como remetente
     cnpj_remetente_final = cnpj_parceiro.replace(".", "").replace("-", "").replace("/", "").strip()
     if not cnpj_remetente_final:
         cnpj_remetente_final = BRASPRESS_CNPJ_CIA_DO_JEANS
@@ -72,14 +71,9 @@ def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
         "cepOrigem": CEP_ORIGEM,
         "cepDestino": cep_destino.replace("-", "").strip(),
         "cnpjDestinatario": cnpj_remetente_final, 
-        "modal": "R", # R = Rodoviário
-        
-        # MODALIDADE DO FRETE:
-        "tipoFrete": "2", # 2 = FOB / Pago por Terceiros (Cia do Jeans assume e ativa contrato)
-        
-        # Vincula o CNPJ que pagará o frete para aplicar a sua tabela de descontos
+        "modal": "R", 
+        "tipoFrete": "2", # FOB / Terceiros
         "cnpjTomador": BRASPRESS_CNPJ_CIA_DO_JEANS, 
-        
         "peso": str(peso),
         "valorAnf": f"{valor_nf:.2f}".replace(".", ","),
         "volume": "1",
@@ -89,6 +83,12 @@ def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
     try:
         response = requests.get(url_api, params=params, timeout=8)
         if response.status_code == 200:
+            texto_resposta = response.text.strip()
+            
+            # BLINDAGEM: Se a resposta começar com <html, não é o XML correto da Braspress
+            if texto_resposta.startswith("<html") or texto_resposta.startswith("<!DOCTYPE html"):
+                return {"sucesso": False, "msg": "Servidor da Braspress devolveu um erro interno (HTML). Verifique se os CNPJs e IE estão corretos e homologados para esta rota."}
+            
             root = ET.fromstring(response.content)
             vlr_frete = root.find(".//vlrFrete")
             prazo = root.find(".//prazoEntrega")
@@ -96,7 +96,7 @@ def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
             
             if erro is not None and erro.text != "0":
                 msg_erro = root.find(".//msgErro")
-                return {"sucesso": False, "msg": msg_erro.text if msg_erro is not None else "Erro na Braspress"}
+                return {"sucesso": False, "msg": msg_erro.text if msg_erro is not None else "Erro na tabela Braspress"}
                 
             if vlr_frete is not None:
                 return {
@@ -104,13 +104,15 @@ def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
                     "preco": float(vlr_frete.text.replace(",", ".")), 
                     "prazo": prazo.text if prazo is not None else "-"
                 }
+        else:
+            return {"sucesso": False, "msg": f"Erro de conexão com a Braspress (Status: {response.status_code})"}
     except Exception as e:
-        return {"sucesso": False, "msg": f"Instabilidade de conexão: {str(e)}"}
+        return {"sucesso": False, "msg": f"Instabilidade ou dados inválidos: {str(e)}"}
     
-    return {"sucesso": False, "msg": "Sem resposta do servidor da Braspress."}
+    return {"sucesso": False, "msg": "Sem resposta válida do servidor da Braspress."}
 
 
-# CACHE ULTRA-RÁPIDO: Organização instantânea dos dados da planilha de fretes fixos
+# CACHE ULTRA-RÁPIDO: Planilha regional
 @st.cache_data(ttl=3600)
 def carregar_e_limpar_dados():
     try:
@@ -140,7 +142,6 @@ def carregar_e_limpar_dados():
     for _, r in df.iterrows():
         cidade = str(r[cidade_col]).strip().upper()
         uf = str(r[uf_col]).strip().upper()
-        
         if not cidade or cidade in ['NAN', '-', ''] or uf in ['NAN', '-', '']:
             continue
             
@@ -155,22 +156,16 @@ def carregar_e_limpar_dados():
             t_name = buscar(t_col)
             if t_name and t_name not in ['-', '0', 'NAN', '']:
                 linhas.append({
-                    'CIDADE': cidade,
-                    'UF': uf,
-                    'TRANSPORTADORA': t_name,
-                    'ROTA_ENVIO': buscar(env_col),
-                    'FONE': buscar(fon_col),
-                    'PRAZO': buscar(prz_col),
-                    'TIPO_FRETE': buscar(frt_col),
-                    'EXIGE_NF': buscar(nf_col),
-                    'VALOR_MINIMO': buscar(val_col)
+                    'CIDADE': cidade, 'UF': uf, 'TRANSPORTADORA': t_name,
+                    'ROTA_ENVIO': buscar(env_col), 'FONE': buscar(fon_col),
+                    'PRAZO': buscar(prz_col), 'TIPO_FRETE': buscar(frt_col),
+                    'EXIGE_NF': buscar(nf_col), 'VALOR_MINIMO': buscar(val_col)
                 })
-                
     return pd.DataFrame(linhas)
 
 df_fretes_fixos = carregar_e_limpar_dados()
 
-# Cabeçalho Centralizado
+# Cabeçalho
 with st.container():
     col_esq, col_centro, col_dir = st.columns([1, 2, 1])
     with col_centro:
@@ -182,49 +177,32 @@ with st.container():
 
 st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid #e5e7eb;'>", unsafe_allow_html=True)
 
-
-# ==========================================
-# PASSO 1: LOCALIZAÇÃO DO CLIENTE (AUTOMÁTICA)
-# ==========================================
+# PASSO 1
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">📍 PASSO 1: Destino do Pedido</div>', unsafe_allow_html=True)
-
 col1, col2, col3 = st.columns([1.5, 2, 1])
-
 with col1:
     cep_input = st.text_input("📬 Digite o CEP do Cliente:", placeholder="00000000", max_chars=9)
 
-cidade_val = ""
-uf_val = ""
-
+cidade_val, uf_val = "", ""
 if cep_input:
     cep_limpo = cep_input.replace("-", "").replace(" ", "")
     if len(cep_limpo) == 8 and cep_limpo.isdigit():
         try:
-            url_api = f"https://viacep.com.br/ws/{cep_limpo}/json/"
-            resposta = requests.get(url_api, timeout=5).json()
+            resposta = requests.get(f"https://viacep.com.br/ws/{cep_limpo}/json/", timeout=5).json()
             if "erro" not in resposta:
                 cidade_val = resposta.get("localidade", "").upper()
                 uf_val = resposta.get("uf", "").upper()
-            else:
-                st.error("❌ CEP não encontrado.")
-        except Exception:
-            st.error("⚠️ Erro ao buscar o CEP.")
+            else: st.error("❌ CEP não encontrado.")
+        except Exception: pass
 
-with col2:
-    cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Aguardando CEP...", disabled=True)
-with col3:
-    uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=True)
-
+with col2: cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Aguardando CEP...", disabled=True)
+with col3: uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-
-# ==========================================
-# PASSO 2: ENTRADA DE PRODUTOS & PARCEIROS
-# ==========================================
+# PASSO 2
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">👖 PASSO 2: O que estamos enviando hoje?</div>', unsafe_allow_html=True)
-
 c1, c2, c3 = st.columns(3)
 with c1:
     qtd_calcas = st.number_input("Quantidade de Calças:", min_value=0, value=0, step=1)
@@ -235,65 +213,41 @@ with c2:
     qtd_tshirt = st.number_input("Quantidade de T-Shirt:", min_value=0, value=0, step=1)
     qtd_polo = st.number_input("Quantidade de Gola Polo:", min_value=0, value=0, step=1)
 
-# Matemática das Peças
 peso_pecas_puro = (qtd_calcas * 0.60) + (qtd_bermudas * 0.40) + (qtd_shorts * 0.35) + (qtd_gola_o * 0.28) + (qtd_tshirt * 0.20) + (qtd_polo * 0.32)
 peso_total_calculado = peso_pecas_puro + (0.4 if peso_pecas_puro > 0 else 0)
 total_pecas = qtd_calcas + qtd_bermudas + qtd_shorts + qtd_gola_o + qtd_tshirt + qtd_polo
 
-if total_pecas == 0:
-    comprimento, largura, altura, tipo_embalagem = 0, 0, 0, "Nenhum produto"
-elif total_pecas <= 15:
-    comprimento, largura, altura, tipo_embalagem = 25, 25, 35, "Caixa Pequena (1 Col / 1 Vol)"
-elif total_pecas <= 30:
-    comprimento, largura, altura, tipo_embalagem = 12.5, 44, 40, "Caixa Média (2 Col / 1 Vol)"
-else:
-    comprimento, largura, altura, tipo_embalagem = 8.3, 66, 40, "Fardo Comercial (3 Col / 1 Vol)"
+if total_pecas == 0: comprimento, largura, altura, tipo_embalagem = 0, 0, 0, "Nenhum produto"
+elif total_pecas <= 15: comprimento, largura, altura, tipo_embalagem = 25, 25, 35, "Caixa Pequena"
+elif total_pecas <= 30: comprimento, largura, altura, tipo_embalagem = 12.5, 44, 40, "Caixa Média"
+else: comprimento, largura, altura, tipo_embalagem = 8.3, 66, 40, "Fardo Comercial"
 
 valor_nf_meia = (qtd_calcas * 40) + (qtd_bermudas * 33) + (qtd_shorts * 33) + (qtd_gola_o * 18) + (qtd_tshirt * 19) + (qtd_polo * 25)
 
 with c3:
-    # INPUTS DE OPERAÇÃO DE TERCEIROS
     cnpj_fornecedor_parceiro = st.text_input("🏢 CNPJ do Fornecedor/Parceiro (Opcional):", placeholder="Deixe em branco para usar Cia do Jeans")
     valor_manual_nf = st.number_input("✍️ Valor Real da NF (Opcional):", min_value=0.0, value=0.0, step=50.0)
-    
     valor_para_seguro = valor_manual_nf if valor_manual_nf > 0 else valor_nf_meia
-    
-    st.info(f"""
-    **📊 Resumo:**
-    * **Carga:** {total_pecas} un | {peso_total_calculado:.2f} kg
-    * **Embalagem:** {tipo_embalagem} ({comprimento}x{largura}x{altura} cm)
-    * **Seguro:** R$ {valor_para_seguro:.2f}
-    """)
-
+    st.info(f"**📊 Resumo:** {total_pecas} un | {peso_total_calculado:.2f} kg\n* **Embalagem:** {tipo_embalagem}\n* **Seguro:** R$ {valor_para_seguro:.2f}")
 st.markdown('</div>', unsafe_allow_html=True)
 
-
-# ==========================================
-# DISPARADOR DE CÁLCULO
-# ==========================================
+# BOTAO
 st.markdown("<br>", unsafe_allow_html=True)
 btn_calcular = st.button("🚀 CALCULAR FRETE REAL EM TODOS OS MEIOS", type="primary", use_container_width=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
-
-# ==========================================
-# PASSO 3: RESULTADOS E COMPARATIVO UNIFICADO
-# ==========================================
+# PASSO 3
 if btn_calcular:
     if not cep_input or not cidade_automatica:
         st.error("❌ Por favor, digite um CEP válido no Passo 1.")
     else:
         st.markdown("### 🏁 Opções de Envio Encontradas")
-        
         aba_online, aba_fixa = st.tabs(["⚡ Cotações Online (APIs)", "📋 Transportadoras Fixas da Região"])
         
         with aba_online:
-            st.markdown(f"<p style='color:#6b7280;'>Cálculo contratual em tempo real para <b>{cidade_automatica} - {uf_automatica}</b>:</p>", unsafe_allow_html=True)
-            
             with st.spinner("Consultando tabela FOB/Terceiros na Braspress..."):
                 res_braspress = calcular_frete_braspress(cep_input, peso_total_calculado, valor_para_seguro, cnpj_fornecedor_parceiro)
             
-            # Card Dinâmico da Braspress
             if res_braspress["sucesso"]:
                 st.markdown(f"""
                 <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
@@ -305,46 +259,32 @@ if btn_calcular:
                 </div>
                 """, unsafe_allow_html=True)
             else:
-                st.error(f"❌ Braspress: {res_braspress['msg']}")
+                st.warning(f"⚠️ Nota Braspress: {res_braspress['msg']}")
                 
-            # Esqueleto para os Correios (Próxima Integração)
-            st.markdown(f"""
+            st.markdown("""
             <div class="card-frete" style="border-left: 5px solid #ffcc00; opacity: 0.7;">
-                <div>
-                    <strong style="font-size:16px; color:#1e3a8a;">📬 CORREIOS PAC (Contrato Próprio)</strong><br>
-                    <span style="font-size:13px; color:#6b7280;">Aguardando credenciais de integração</span>
-                </div>
+                <div><strong style="font-size:16px; color:#1e3a8a;">📬 CORREIOS PAC (Contrato Próprio)</strong><br><span style="font-size:13px; color:#6b7280;">Aguardando credenciais de integração</span></div>
                 <div style="text-align: right;"><span style="font-size:14px; color:#6b7280; font-weight:600;">Em Breve</span></div>
             </div>
             """, unsafe_allow_html=True)
             
         with aba_fixa:
             if df_fretes_fixos.empty:
-                st.warning("⚠️ Planilha 'SISTEMA_DE_FRETES_AUTOMATIZADO.xlsx' não encontrada no repositório. Suba o arquivo para ativar esta busca.")
+                st.warning("⚠️ Planilha 'SISTEMA_DE_FRETES_AUTOMATIZADO.xlsx' não encontrada.")
             else:
-                resultados_fixos = df_fretes_fixos[
-                    (df_fretes_fixos['CIDADE'] == cidade_automatica) & 
-                    (df_fretes_fixos['UF'] == uf_automatica)
-                ]
-                
+                resultados_fixos = df_fretes_fixos[(df_fretes_fixos['CIDADE'] == cidade_automatica) & (df_fretes_fixos['UF'] == uf_automatica)]
                 if not resultados_fixos.empty:
                     for idx, row in resultados_fixos.iterrows():
                         prazo = str(row['PRAZO'])
-                        if "cotar" not in prazo.lower() and "dias" not in prazo.lower() and prazo != '-':
-                            prazo = f"{prazo} Dias"
-                            
+                        if "cotar" not in prazo.lower() and "dias" not in prazo.lower() and prazo != '-': prazo = f"{prazo} Dias"
                         st.markdown(f"""
                         <div class="card-frete" style="border-left: 5px solid #4b5563;">
                             <div>
-                                <strong style="font-size:16px; color:#1e3a8a;">🚛 {row['TRANSPORTADORA']}</strong><br>
+                                <strong style="font-size:16px; color:#1e3a8a;"><b>🚛 {row['TRANSPORTADORA']}</b></strong><br>
                                 <span style="font-size:13px; color:#4b5563;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Fone: {row['FONE']}</span><br>
                                 <span style="font-size:12px; color:#6b7280;">⏱️ Prazo: {prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
                             </div>
-                            <div style="text-align: right;">
-                                <span style="font-size:13px; color:#6b7280; font-weight:600;">Mínimo</span><br>
-                                <span style="font-size:18px; font-weight:700; color:#111827;">R$ {row['VALOR_MINIMO']}</span>
-                            </div>
+                            <div style="text-align: right;"><span style="font-size:13px; color:#6b7280; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#111827;">R$ {row['VALOR_MINIMO']}</span></div>
                         </div>
                         """, unsafe_allow_html=True)
-                else:
-                    st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_automatica}-{uf_automatica}.")
+                else: st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_automatica}-{uf_automatica}.")
