@@ -10,7 +10,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Estilização CSS Premium e Responsiva (Foco em Computador e Celular)
+# Estilização CSS Premium e Responsiva
 st.markdown("""
     <style>
         .stDeployButton {display:none;}
@@ -50,7 +50,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Cabeçalho Centralizado com a Logo Oficial da Cia do Jeans
+# Cabeçalho Centralizado
 with st.container():
     col_esq, col_centro, col_dir = st.columns([1, 2, 1])
     with col_centro:
@@ -70,19 +70,42 @@ st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid 
 
 
 # ==========================================
-# PASSO 1: LOCALIZAÇÃO DO CLIENTE
+# PASSO 1: LOCALIZAÇÃO DO CLIENTE (AUTOMÁTICA)
 # ==========================================
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">📍 PASSO 1: Destino do Pedido</div>', unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns([1.5, 2, 1])
+
 with col1:
-    cep_input = st.text_input("📬 Digite o CEP do Cliente:", placeholder="00000-000", max_chars=9)
+    cep_input = st.text_input("📬 Digite o CEP do Cliente:", placeholder="00000000", max_chars=9)
+
+# Lógica de Busca de CEP em Tempo Real
+cidade_val = ""
+uf_val = ""
+
+if cep_input:
+    # Remove hífen ou espaços que o usuário digitar
+    cep_limpo = cep_input.replace("-", "").replace(" ", "")
+    if len(cep_limpo) == 8 and cep_limpo.isdigit():
+        try:
+            url_api = f"https://viacep.com.br/ws/{cep_limpo}/json/"
+            resposta = requests.get(url_api, timeout=5).json()
+            
+            if "erro" not in resposta:
+                cidade_val = resposta.get("localidade", "").upper()
+                uf_val = resposta.get("uf", "").upper()
+            else:
+                st.error("❌ CEP não encontrado. Verifique os números.")
+        except Exception:
+            st.error("⚠️ Erro ao conectar ao serviço de busca de CEP.")
+    elif len(cep_limpo) > 0:
+        st.warning("⚠️ O CEP deve conter exatamente 8 algarismos.")
+
 with col2:
-    # Campo preparado para receber a integração de busca automática de CEP por API
-    cidade_automatica = st.text_input("📍 Cidade Identificada:", value="CANARANA" if cep_input else "", placeholder="Aguardando CEP...", disabled=True)
+    cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Aguardando CEP válido...", disabled=True)
 with col3:
-    uf_automatica = st.text_input("🏳️ UF:", value="MT" if cep_input else "", placeholder="EX: GO", disabled=True)
+    uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -122,20 +145,16 @@ if modo_carga == "🛍️ Selecionar Produtos (Fórmulas do Excel)":
     total_pecas = qtd_calcas + qtd_bermudas + qtd_shorts + qtd_gola_o + qtd_tshirt + qtd_polo
     
     # 📐 MATEMÁTICA 2: DIMENSÕES POR PROPORÇÃO DE COLUNAS (Lógica M7 à R33 do Excel)
-    # Padrão básico do Excel para embalagem (3 colunas/fardo) adaptado para limites de volumes
     if total_pecas == 0:
         comprimento, largura, altura = 0, 0, 0
         tipo_embalagem = "Nenhum produto selecionado"
     elif total_pecas <= 15:
-        # Correspondente a 1 coluna 1 vol (Células G15, H15, I15: 25x25x35)
         comprimento, largura, altura = 25, 25, 35
         tipo_embalagem = "Caixa Pequena Padrão (1 Coluna / 1 Vol)"
     elif total_pecas <= 30:
-        # Correspondente a 2 colunas 1 vol (Células G16, H16, I16: 12.5x44x40)
         comprimento, largura, altura = 12.5, 44, 40
         tipo_embalagem = "Caixa Média Padrão (2 Colunas / 1 Vol)"
     else:
-        # Correspondente a fardo padrão grande de 3 colunas (8.3x66x40)
         comprimento, largura, altura = 8.3, 66, 40
         tipo_embalagem = "Fardo Comercial Grande (3 Colunas / 1 Vol)"
 
@@ -180,17 +199,16 @@ st.markdown("<br>", unsafe_allow_html=True)
 # PASSO 3: RESULTADOS E COMPARATIVO UNIFICADO
 # ==========================================
 if btn_calcular:
-    if not cep_input:
-        st.error("❌ Por favor, digite um CEP no Passo 1 para simular o cálculo.")
+    if not cep_input or not cidade_automatica:
+        st.error("❌ Por favor, digite um CEP válido no Passo 1 para simular o cálculo.")
     else:
         st.markdown("### 🏁 Opções de Envio Encontradas")
         
         aba_online, aba_fixa = st.tabs(["⚡ Cotações Online (APIs)", "📋 Transportadoras Fixas da Região"])
         
         with aba_online:
-            st.markdown("<p style='color:#6b7280;'>Cálculo em tempo real (Aqui conectaremos os Correios, Jet e Braspress via token):</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='color:#6b7280;'>Cálculo em tempo real para a cidade de <b>{cidade_automatica} - {uf_automatica}</b>:</p>", unsafe_allow_html=True)
             
-            # Layout dos Cards de Resultado (Simulados estruturalmente para validação)
             st.markdown(f"""
             <div class="card-frete" style="border-left: 5px solid #ffcc00;">
                 <div>
@@ -219,4 +237,4 @@ if btn_calcular:
             
         with aba_fixa:
             st.markdown("<p style='color:#6b7280;'>Rotas fixas tradicionais baseadas na região de destino:</p>", unsafe_allow_html=True)
-            st.info(f"Aqui faremos o cruzamento automático: o sistema lê {cidade_automatica}-{uf_automatica} e traz as opções cadastradas na sua outra planilha de fretes regionais.")
+            st.info(f"Aqui faremos o cruzamento automático: o sistema lê {cidade_automatica} - {uf_automatica} e traz as opções cadastradas na sua outra planilha de fretes regionais.")
