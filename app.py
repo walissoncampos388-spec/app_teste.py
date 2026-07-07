@@ -115,17 +115,18 @@ with st.container():
             pass
         st.markdown(
     """
-    <div style='text-align:center; font-family:sans-serif; margin:0;'>
-        <h2 style='color:#1e3a8a; font-weight:800; margin:0; font-size: 1.8rem;'>
+    <div style='text-align:center; font-family:sans-serif; margin:0; line-height: 1.1;'>
+        <h2 style='color:#1e3a8a; font-weight:800; margin:0; font-size: 1.8rem; display:inline-block; width:100%;'>
             ⚡ CIA DO JEANS
         </h2>
-        <p style='color:#1e3a8a; font-weight:800; margin:5px 0 0 0; font-size: 1.2rem; text-transform: uppercase;'>
+        <p style='color:#1e3a8a; font-weight:800; margin:-2px 0 0 0; font-size: 1.2rem; text-transform: uppercase;'>
             Logística Inteligente
         </p>
     </div>
     """, 
     unsafe_allow_html=True
 )
+
 
 
 st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid #e5e7eb;'>", unsafe_allow_html=True)
