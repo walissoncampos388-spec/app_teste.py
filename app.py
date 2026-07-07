@@ -110,8 +110,7 @@ with st.container():
     col_esq, col_centro, col_dir = st.columns([1, 2, 1])
     with col_centro:
         try:
-            st.image("https://raw.githubusercontent.com/walissoncampos/fretes-cia-do-jeans/main/logo_ciadojeans.png", use_container_width=True)
-        except Exception:
+            
             pass
         st.markdown("<h2 style='text-align:center; color:#1e3a8a; font-family:sans-serif; font-weight:800; margin:0;'>⚡ CALCULADORA DE FRETE INTELIGENTE</h2>", unsafe_allow_html=True)
 
