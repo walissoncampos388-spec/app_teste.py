@@ -73,4 +73,204 @@ def carregar_e_limpar_dados():
     ]
     
     cidade_col = [c for c in df.columns if 'CIDADE' in c][0] if any('CIDADE' in c for c in df.columns) else None
-    uf_col = [c for c in df.columns if 'UF' in c][0] if any('UF' in c for c
+    uf_col = [c for c in df.columns if 'UF' in c][0] if any('UF' in c for c in df.columns) else None
+    
+    if not cidade_col or not uf_col:
+        return pd.DataFrame()
+        
+    linhas = []
+    for _, r in df.iterrows():
+        cidade = str(r[cidade_col]).strip().upper()
+        uf = str(r[uf_col]).strip().upper()
+        if not cidade or cidade in ['NAN', '-', ''] or uf in ['NAN', '-', '']:
+            continue
+            
+        for t_col, env_col, fon_col, prz_col, frt_col, nf_col, val_col in pares:
+            def buscar(nome):
+                for c in df.columns:
+                    if c.replace(" ", "") == nome.replace(" ", ""):
+                        val = r[c]
+                        return str(val).strip() if pd.notna(val) else '-'
+                return '-'
+                
+            t_name = buscar(t_col)
+            if t_name and t_name not in ['-', '0', 'NAN', '']:
+                linhas.append({
+                    'CIDADE': cidade, 'UF': uf, 'TRANSPORTADORA': t_name,
+                    'ROTA_ENVIO': buscar(env_col), 'FONE': buscar(fon_col),
+                    'PRAZO': buscar(prz_col), 'TIPO_FRETE': buscar(frt_col),
+                    'EXIGE_NF': buscar(nf_col), 'VALOR_MINIMO': buscar(val_col)
+                })
+    return pd.DataFrame(linhas)
+
+df_fretes_fixos = carregar_e_limpar_dados()
+
+# Cabeçalho Centralizado
+with st.container():
+    col_esq, col_centro, col_dir = st.columns([1, 2, 1])
+    with col_centro:
+        try:
+            st.image("https://raw.githubusercontent.com/walissoncampos/fretes-cia-do-jeans/main/logo_ciadojeans.png", use_container_width=True)
+        except Exception:
+            pass
+        st.markdown("<h2 style='text-align:center; color:#1e3a8a; font-family:sans-serif; font-weight:800; margin:0;'>⚡ CALCULADORA DE FRETE INTELIGENTE</h2>", unsafe_allow_html=True)
+
+st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid #e5e7eb;'>", unsafe_allow_html=True)
+
+# ==========================================
+# PASSO 1: LOCALIZAÇÃO DO CLIENTE (STÁVEL)
+# ==========================================
+st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
+st.markdown('<div class="titulo-etapa">📍 PASSO 1: Destino do Pedido</div>', unsafe_allow_html=True)
+col1, col2, col3 = st.columns([1.5, 2, 1])
+
+with col1:
+    cep_input = st.text_input("📬 Digite o CEP do Cliente:", placeholder="00000000", max_chars=9)
+
+cidade_val = ""
+uf_val = ""
+bloquear_campos = True
+
+if cep_input:
+    cep_limpo = cep_input.replace("-", "").replace(" ", "")
+    if len(cep_limpo) == 8 and cep_limpo.isdigit():
+        try:
+            # Usando AwesomeAPI que é muito mais estável que o ViaCEP público
+            url_api = f"https://cep.awesomeapi.com.br/json/{cep_limpo}"
+            resposta = requests.get(url_api, timeout=4).json()
+            if "city" in resposta:
+                cidade_val = resposta.get("city", "").upper()
+                uf_val = resposta.get("state", "").upper()
+            else:
+                bloquear_campos = False
+                st.warning("⚠️ CEP não localizado automaticamente. Digite a cidade manualmente.")
+        except Exception:
+            bloquear_campos = False
+            st.warning("⚠️ Servidor de CEP indisponível. Digite a cidade manualmente.")
+
+with col2: 
+    cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Digite a Cidade se não buscar...", disabled=bloquear_campos)
+with col3: 
+    uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=bloquear_campos)
+st.markdown('</div>', unsafe_allow_html=True)
+
+# ==========================================
+# PASSO 2: ENTRADA DE PRODUTOS
+# ==========================================
+st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
+st.markdown('<div class="titulo-etapa">👖 PASSO 2: O que estamos enviando hoje?</div>', unsafe_allow_html=True)
+c1, c2, c3 = st.columns(3)
+with c1:
+    qtd_calcas = st.number_input("Quantidade de Calças:", min_value=0, value=0, step=1)
+    qtd_bermudas = st.number_input("Quantidade de Bermudas:", min_value=0, value=0, step=1)
+    qtd_shorts = st.number_input("Quantidade de Shorts:", min_value=0, value=0, step=1)
+with c2:
+    qtd_gola_o = st.number_input("Quantidade de Gola O:", min_value=0, value=0, step=1)
+    qtd_tshirt = st.number_input("Quantidade de T-Shirt:", min_value=0, value=0, step=1)
+    qtd_polo = st.number_input("Quantidade de Gola Polo:", min_value=0, value=0, step=1)
+
+# Matemática de Pesos e Embalagem
+peso_pecas_puro = (qtd_calcas * 0.60) + (qtd_bermudas * 0.40) + (qtd_shorts * 0.35) + (qtd_gola_o * 0.28) + (qtd_tshirt * 0.20) + (qtd_polo * 0.32)
+peso_total_calculado = peso_pecas_puro + (0.4 if peso_pecas_puro > 0 else 0)
+total_pecas = qtd_calcas + qtd_bermudas + qtd_shorts + qtd_gola_o + qtd_tshirt + qtd_polo
+
+if total_pecas == 0: tipo_embalagem = "Nenhum produto"
+elif total_pecas <= 15: tipo_embalagem = "Caixa Pequena"
+elif total_pecas <= 30: tipo_embalagem = "Caixa Média"
+else: tipo_embalagem = "Fardo Comercial"
+
+valor_nf_meia = (qtd_calcas * 40) + (qtd_bermudas * 33) + (qtd_shorts * 33) + (qtd_gola_o * 18) + (qtd_tshirt * 19) + (qtd_polo * 25)
+
+with c3:
+    valor_manual_nf = st.number_input("✍️ Valor Real da NF (Opcional):", min_value=0.0, value=0.0, step=50.0)
+    valor_para_seguro = valor_manual_nf if valor_manual_nf > 0 else valor_nf_meia
+    
+    st.info(f"**📊 Resumo do Pedido:**\n* **Carga:** {total_pecas} un | {peso_total_calculado:.2f} kg\n* **Embalagem:** {tipo_embalagem}\n* **Seguro:** R$ {valor_para_seguro:.2f}")
+st.markdown('</div>', unsafe_allow_html=True)
+
+# DISPARADOR DE CÁLCULO
+st.markdown("<br>", unsafe_allow_html=True)
+btn_calcular = st.button("🚀 BUSCAR TRANSPORTADORAS DISPONÍVEIS", type="primary", use_container_width=True)
+st.markdown("<br>", unsafe_allow_html=True)
+
+# ==========================================
+# PASSO 3: RESULTADOS E WHATSAPP
+# ==========================================
+if btn_calcular:
+    cidade_busca = cidade_automatica.strip().upper()
+    uf_busca = uf_automatica.strip().upper()
+    
+    if not cep_input or not cidade_busca:
+        st.error("❌ Por favor, digite um CEP válido ou informe a cidade no Passo 1.")
+    elif total_pecas == 0:
+        st.error("❌ Insira a quantidade de produtos no Passo 2 para calcular.")
+    else:
+        st.markdown("### 🏁 Transportadoras Encontradas para a Região")
+        
+        opcoes_whatsapp = []
+        
+        if df_fretes_fixos.empty:
+            st.warning("⚠️ Planilha 'SISTEMA_DE_FRETES_AUTOMATIZADO.xlsx' não encontrada no repositório.")
+        else:
+            resultados_fixos = df_fretes_fixos[(df_fretes_fixos['CIDADE'] == cidade_busca) & (df_fretes_fixos['UF'] == uf_busca)]
+            
+            if not resultados_fixos.empty:
+                for idx, row in resultados_fixos.iterrows():
+                    prazo = str(row['PRAZO'])
+                    if "cotar" not in prazo.lower() and "dias" not in prazo.lower() and prazo != '-': 
+                        prazo = f"{prazo} Dias"
+                        
+                    st.markdown(f"""
+                    <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
+                        <div>
+                            <strong style="font-size:16px; color:#1e3a8a;"><b>🚛 {row['TRANSPORTADORA']}</b></strong><br>
+                            <span style="font-size:13px; color:#4b5563;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Fone: {row['FONE']}</span><br>
+                            <span style="font-size:12px; color:#6b7280;">⏱️ Prazo: {prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
+                        </div>
+                        <div style="text-align: right;"><span style="font-size:13px; color:#6b7280; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#111827;">R$ {row['VALOR_MINIMO']}</span></div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    opcoes_whatsapp.append(
+                        f"🚛 *{row['TRANSPORTADORA']}*\n"
+                        f"💰 Mínimo: R$ {row['VALOR_MINIMO']}\n"
+                        f"⏱️ Prazo: {prazo}\n"
+                        f"📞 Contato: {row['FONE']}\n"
+                    )
+            else: 
+                st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_busca}-{uf_busca}.")
+
+        # ==========================================
+        # PASSO 4: ENVIAR PARA O WHATSAPP
+        # ==========================================
+        if opcoes_whatsapp:
+            st.markdown("<br><hr style='border-top: 1px dashed #cbd5e1;'><br>", unsafe_allow_html=True)
+            st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #25d366;">', unsafe_allow_html=True)
+            st.markdown('<div class="titulo-etapa" style="color: #25d366;">💬 PASSO 3: Enviar Cotação ao Cliente</div>', unsafe_allow_html=True)
+            
+            texto_opcoes = "\n".join(opcoes_whatsapp)
+            
+            mensagem_vendedor = (
+                f"Olá! Segue a cotação de frete para o seu pedido da *Cia do Jeans*:\n\n"
+                f"📍 *Destino:*\n{cidade_busca} - {uf_busca}\n\n"
+                f"📦 *Volume estimado:*\n{total_pecas} peças ({peso_total_calculado:.2f} kg)\n\n"
+                f"🛍️ *Embalagem:*\n{tipo_embalagem}\n\n"
+                f"-----------------------------------------\n"
+                f"🚚 *OPÇÕES DE ENVIO:*\n\n"
+                f"{texto_opcoes}"
+                f"-----------------------------------------\n\n"
+                f"_Qual destas opções fica melhor para fazermos o despacho?_"
+            )
+            
+            texto_editavel = st.text_area("Pré-visualização da Mensagem:", value=mensagem_vendedor, height=250)
+            texto_codificado = urllib.parse.quote(texto_editavel)
+            link_whatsapp = f"https://api.whatsapp.com/send?text={texto_codificado}"
+            
+            st.markdown(f"""
+                <a href="{link_whatsapp}" target="_blank" style="text-decoration: none;">
+                    <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer;">
+                        📲 ENVIAR COTAÇÃO PARA O WHATSAPP DO CLIENTE
+                    </div>
+                </a>
+            """, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
