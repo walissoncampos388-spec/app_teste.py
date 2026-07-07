@@ -308,7 +308,7 @@ if btn_calcular:
                     <div style="text-align: right;"><span style="font-size:20px; font-weight:700; color:#111827;">{preco_bp}</span></div>
                 </div>
                 """, unsafe_allow_html=True)
-                opcoes_whatsapp.append(f"Resumo frete nacional:\n\n\n\n\n🚛 *BRASPRESS*\n💰 Valor: {preco_bp}\n⏱️ Prazo: {res_braspress['prazo']} dias úteis\n")
+                opcoes_whatsapp.append(f"🚛 *BRASPRESS*\n💰 Valor: {preco_bp}\n⏱️ Prazo: {res_braspress['prazo']} dias úteis\n")
             else:
                 st.info(f"ℹ️ Braspress: {res_braspress['msg']}")
                 
@@ -355,7 +355,7 @@ if btn_calcular:
                     for idx, row in resultados_fixos.iterrows():
                         prazo = str(row['PRAZO'])
                         if "cotar" not in prazo.lower() and "dias" not in prazo.lower() and prazo != '-': 
-                            prazo = f"{prazo} Days"
+                            prazo = f"{prazo} Dias"
                             
                         st.markdown(f"""
                         <div class="card-frete" style="border-left: 5px solid #4b5563;">
@@ -389,10 +389,24 @@ if btn_calcular:
         mensagem_vendedor = (
             f"Olá! Segue a cotação de frete para o seu pedido da *Cia do Jeans*:\n\n"
             f"📍 *Destino:*\n{cidade_automatica} - {uf_automatica}\n\n"
-            f"📦 *Volume estimado:*\n{total_pecas} peças ({weight_estimated:.2f} kg)\n\n"
+            f"📦 *Volume estimado:*\n{total_pecas} peças ({peso_total_calculado:.2f} kg)\n\n"
             f"🛍️ *Embalagem:*\n{tipo_embalagem}\n\n"
             f"-----------------------------------------\n"
             f"🚚 *OPÇÕES DE ENVIO:*\n\n"
             f"{texto_opcoes}"
             f"-----------------------------------------\n\n"
-            f"_Qual destas opções fica melhor
+            f"_Qual destas opções fica melhor para fazermos o despacho?_"
+        )
+        
+        texto_editavel = st.text_area("Pré-visualização da Mensagem:", value=mensagem_vendedor, height=250)
+        texto_codificado = urllib.parse.quote(texto_editavel)
+        link_whatsapp = f"https://api.whatsapp.com/send?text={texto_codificado}"
+        
+        st.markdown(f"""
+            <a href="{link_whatsapp}" target="_blank" style="text-decoration: none;">
+                <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer;">
+                    📲 ENVIAR COTAÇÃO PARA O WHATSAPP DO CLIENTE
+                </div>
+            </a>
+        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
