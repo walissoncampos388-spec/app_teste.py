@@ -11,26 +11,12 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Estilização CSS Premium para forçar o Banner a colar nas bordas laterais e do topo
+# Estilização CSS Premium e Responsiva
 st.markdown("""
     <style>
         .stDeployButton {display:none;}
         footer {visibility: hidden;}
         .main { background-color: #f4f6f9; }
-        
-        /* Remove completamente os espaços e margens do Streamlit no topo e laterais */
-        .block-container {
-            padding-top: 0rem !important;
-            padding-bottom: 2rem !important;
-            padding-left: 0rem !important;
-            padding-right: 0rem !important;
-        }
-        
-        /* Garante que o conteúdo abaixo do banner tenha margem nas laterais para não grudar na tela */
-        .conteudo-pagina {
-            padding-left: 2rem !important;
-            padding-right: 2rem !important;
-        }
         
         /* Blocos organizadores das etapas */
         .bloco-etapa {
@@ -119,21 +105,21 @@ def carregar_e_limpar_dados():
 
 df_fretes_fixos = carregar_e_limpar_dados()
 
-# ==========================================
-# BANNER RETANGULAR PONTA A PONTA (NATIVO)
-# ==========================================
-# Link da imagem retangular estreita e comprida
-LINK_DO_BANNER = "https://raw.githubusercontent.com/walissoncampos/fretes-cia-do-jeans/main/logo_ciadojeans.png"
+# Cabeçalho Centralizado
+with st.container():
+    col_esq, col_centro, col_dir = st.columns([1, 2, 1])
+    with col_centro:
+        try:
+            st.image("https://raw.githubusercontent.com/walissoncampos/fretes-cia-do-jeans/main/logo_ciadojeans.png", use_container_width=True)
+        except Exception:
+            pass
+        st.markdown("<h2 style='text-align:center; color:#1e3a8a; font-family:sans-serif; font-weight:800; margin:0;'>⚡ CALCULADORA DE FRETE INTELIGENTE</h2>", unsafe_allow_html=True)
 
-st.image(LINK_DO_BANNER, use_container_width=True)
-
+st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid #e5e7eb;'>", unsafe_allow_html=True)
 
 # ==========================================
-# ENCAPSULAMENTO DO CONTEÚDO (PARA MANTER AS MARGENS)
-# ==========================================
-st.markdown('<div class="conteudo-pagina">', unsafe_allow_html=True)
-
 # PASSO 1: LOCALIZAÇÃO DO CLIENTE
+# ==========================================
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">📍 PASSO 1: Destino do Pedido</div>', unsafe_allow_html=True)
 col1, col2, col3 = st.columns([1.5, 2, 1])
@@ -165,7 +151,9 @@ with col3:
     uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=desabilitar_campos)
 st.markdown('</div>', unsafe_allow_html=True)
 
+# ==========================================
 # PASSO 2: ENTRADA DE PRODUTOS
+# ==========================================
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">👖 PASSO 2: O que estamos enviando hoje?</div>', unsafe_allow_html=True)
 c1, c2, c3 = st.columns(3)
@@ -191,8 +179,10 @@ else: tipo_embalagem = "Fardo Comercial"
 valor_nf_meia = (qtd_calcas * 40) + (qtd_bermudas * 33) + (qtd_shorts * 33) + (qtd_gola_o * 18) + (qtd_tshirt * 19) + (qtd_polo * 25)
 
 with c3:
+    # Mudança estratégica: text_input para acabar com os zeros fixos à esquerda
     valor_manual_nf_txt = st.text_input("✍️ Valor Real da NF (Opcional):", placeholder="Ex: 1250,00").strip()
     
+    # Processa o valor digitado de forma segura
     valor_manual_nf = 0.0
     if valor_manual_nf_txt:
         try:
@@ -210,7 +200,9 @@ st.markdown("<br>", unsafe_allow_html=True)
 btn_calcular = st.button("🚀 CALCULAR FRETE E GERAR WHATSAPP", type="primary", use_container_width=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
+# ==========================================
 # PASSO 3: RESULTADOS E WHATSAPP
+# ==========================================
 if btn_calcular:
     cidade_busca = cidade_automatica.strip().upper()
     uf_busca = uf_automatica.strip().upper()
@@ -255,7 +247,9 @@ if btn_calcular:
             else: 
                 st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_busca}-{uf_busca}.")
 
+        # ==========================================
         # PASSO 4: ENVIAR PARA O WHATSAPP
+        # ==========================================
         if opcoes_whatsapp:
             st.markdown("<br><hr style='border-top: 1px dashed #cbd5e1;'><br>", unsafe_allow_html=True)
             st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #25d366;">', unsafe_allow_html=True)
@@ -266,7 +260,7 @@ if btn_calcular:
             mensagem_vendedor = (
                 f"Olá! Segue a cotação de frete para o seu pedido da *Cia do Jeans*:\n\n"
                 f"📍 *Destino:*\n{cidade_busca} - {uf_busca}\n\n"
-                f"📦 *Volume estimado:*\n{total_pecas} pieces ({peso_total_calculado:.2f} kg)\n\n"
+                f"📦 *Volume estimado:*\n{total_pecas} peças ({peso_total_calculado:.2f} kg)\n\n"
                 f"🛍️ *Embalagem:*\n{tipo_embalagem}\n\n"
                 f"-----------------------------------------\n"
                 f"🚚 *OPÇÕES DE ENVIO:*\n\n"
@@ -287,5 +281,3 @@ if btn_calcular:
                 </a>
             """, unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True) # Fecha a div conteudo-pagina
