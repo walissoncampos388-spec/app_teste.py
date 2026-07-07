@@ -118,7 +118,7 @@ with st.container():
 st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid #e5e7eb;'>", unsafe_allow_html=True)
 
 # ==========================================
-# PASSO 1: LOCALIZAÇÃO DO CLIENTE (INTELIGENTE)
+# PASSO 1: LOCALIZAÇÃO DO CLIENTE
 # ==========================================
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">📍 PASSO 1: Destino do Pedido</div>', unsafe_allow_html=True)
@@ -129,27 +129,23 @@ with col1:
 
 cidade_val = ""
 uf_val = ""
-desabilitar_campos = True  # Começa bloqueado para automação
+desabilitar_campos = True
 
 if cep_input:
     cep_limpo = cep_input.replace("-", "").replace(" ", "")
     if len(cep_limpo) == 8 and cep_limpo.isdigit():
         try:
-            # Servidor alternativo super estável
             url_api = f"https://opencep.com/v1/{cep_limpo}"
             resposta = requests.get(url_api, timeout=3).json()
             if "localidade" in resposta:
                 cidade_val = resposta.get("localidade", "").upper()
                 uf_val = resposta.get("uf", "").upper()
             else:
-                # Se não achar o CEP, destrava para digitação manual
                 desabilitar_campos = False
         except Exception:
-            # Se der qualquer erro de rede, destrava na hora!
             desabilitar_campos = False
 
 with col2: 
-    # Se a API falhar, o campo deixa de ser "disabled" e vira editável!
     cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Digite a Cidade se não buscar...", disabled=desabilitar_campos)
 with col3: 
     uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=desabilitar_campos)
@@ -183,7 +179,17 @@ else: tipo_embalagem = "Fardo Comercial"
 valor_nf_meia = (qtd_calcas * 40) + (qtd_bermudas * 33) + (qtd_shorts * 33) + (qtd_gola_o * 18) + (qtd_tshirt * 19) + (qtd_polo * 25)
 
 with c3:
-    valor_manual_nf = st.number_input("✍️ Valor Real da NF (Opcional):", min_value=0.0, value=0.0, step=50.0)
+    # Mudança estratégica: text_input para acabar com os zeros fixos à esquerda
+    valor_manual_nf_txt = st.text_input("✍️ Valor Real da NF (Opcional):", placeholder="Ex: 1250,00").strip()
+    
+    # Processa o valor digitado de forma segura
+    valor_manual_nf = 0.0
+    if valor_manual_nf_txt:
+        try:
+            valor_manual_nf = float(valor_manual_nf_txt.replace(".", "").replace(",", "."))
+        except ValueError:
+            st.error("⚠️ Digite um valor numérico válido para a NF.")
+            
     valor_para_seguro = valor_manual_nf if valor_manual_nf > 0 else valor_nf_meia
     
     st.info(f"**📊 Resumo do Pedido:**\n* **Carga:** {total_pecas} un | {peso_total_calculado:.2f} kg\n* **Embalagem:** {tipo_embalagem}\n* **Seguro:** R$ {valor_para_seguro:.2f}")
@@ -202,7 +208,7 @@ if btn_calcular:
     uf_busca = uf_automatica.strip().upper()
     
     if not cep_input or not cidade_busca:
-        st.error("❌ Por favor, informe um CEP válido ou preencha a Cidade no Passo 1.")
+        st.error("❌ Por favor, informe um CEP válido no Passo 1.")
     elif total_pecas == 0:
         st.error("❌ Insira a quantidade de produtos no Passo 2 para calcular.")
     else:
@@ -211,7 +217,7 @@ if btn_calcular:
         opcoes_whatsapp = []
         
         if df_fretes_fixos.empty:
-            st.warning("⚠️ Planilha 'SISTEMA_DE_FRETES_AUTOMATIZADO.xlsx' não encontrada no repositório.")
+            st.warning("⚠️ Planilha 'SISTEMA_DE_FRETES_AUTOMATIZADO.xlsx' não encontrada.")
         else:
             resultados_fixos = df_fretes_fixos[(df_fretes_fixos['CIDADE'] == cidade_busca) & (df_fretes_fixos['UF'] == uf_busca)]
             
