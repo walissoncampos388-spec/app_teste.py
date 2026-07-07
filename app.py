@@ -105,6 +105,30 @@ def carregar_e_limpar_dados():
 
 df_fretes_fixos = carregar_e_limpar_dados()
 
+# Função para Calcular Frete da J&T Express com base no peso e estado (Tabela Simulada)
+def calcular_jt_express(uf, peso):
+    # Valores base estimados de balcão/coleta por região para até 1kg + adicional por kg
+    tabela_jt = {
+        'GO': {'base': 18.50, 'adicional': 1.80, 'prazo': '2 a 4 dias'},
+        'DF': {'base': 19.90, 'adicional': 2.00, 'prazo': '2 a 3 dias'},
+        'SP': {'base': 24.50, 'adicional': 2.50, 'prazo': '4 a 6 dias'},
+        'MG': {'base': 23.00, 'adicional': 2.30, 'prazo': '3 a 5 dias'},
+        'RJ': {'base': 26.00, 'adicional': 2.80, 'prazo': '4 a 7 dias'},
+        'MT': {'base': 25.00, 'adicional': 2.60, 'prazo': '4 a 6 dias'},
+        'MS': {'base': 24.00, 'adicional': 2.40, 'prazo': '4 a 6 dias'},
+        'BA': {'base': 27.00, 'adicional': 3.10, 'prazo': '5 a 8 dias'},
+        'TO': {'base': 22.00, 'adicional': 2.20, 'prazo': '3 a 5 dias'},
+    }
+    
+    # Região padrão caso o estado não esteja mapeado acima (resto do Brasil)
+    config = tabela_jt.get(uf, {'base': 32.00, 'adicional': 3.50, 'prazo': '6 a 10 dias'})
+    
+    # Cálculo: Valor Base + (Peso Excedente * Valor do Kg Adicional)
+    peso_calculo = max(1.0, peso)
+    valor_final = config['base'] + ((peso_calculo - 1.0) * config['adicional'])
+    return round(valor_final, 2), config['prazo']
+
+
 # Cabeçalho Centralizado
 with st.container():
     col_esq, col_centro, col_dir = st.columns([1, 2, 1])
@@ -179,10 +203,8 @@ else: tipo_embalagem = "Fardo Comercial"
 valor_nf_meia = (qtd_calcas * 40) + (qtd_bermudas * 33) + (qtd_shorts * 33) + (qtd_gola_o * 18) + (qtd_tshirt * 19) + (qtd_polo * 25)
 
 with c3:
-    # Mudança estratégica: text_input para acabar com os zeros fixos à esquerda
     valor_manual_nf_txt = st.text_input("✍️ Valor Real da NF (Opcional):", placeholder="Ex: 1250,00").strip()
     
-    # Processa o valor digitado de forma segura
     valor_manual_nf = 0.0
     if valor_manual_nf_txt:
         try:
@@ -216,6 +238,28 @@ if btn_calcular:
         
         opcoes_whatsapp = []
         
+        # 1. CÁLCULO AUTOMÁTICO DA J&T EXPRESS
+        valor_jt, prazo_jt = calcular_jt_express(uf_busca, peso_total_calculado)
+        
+        st.markdown(f"""
+        <div class="card-frete" style="border-left: 5px solid #ff5000;">
+            <div>
+                <strong style="font-size:16px; color:#ff5000;"><b>🚀 J&T EXPRESS (E-Commerce)</b></strong><br>
+                <span style="font-size:13px; color:#4b5563;">📍 Envio por Peso/Região | 📞 Coleta Direta</span><br>
+                <span style="font-size:12px; color:#6b7280;">⏱️ Prazo: {prazo_jt} | 📄 Exige NF: SIM</span>
+            </div>
+            <div style="text-align: right;"><span style="font-size:13px; color:#6b7280; font-weight:600;">Valor</span><br><span style="font-size:18px; font-weight:700; color:#111827;">R$ {valor_jt:.2f}</span></div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        opcoes_whatsapp.append(
+            f"🚀 *J&T EXPRESS*\n"
+            f"💰 Valor: R$ {valor_jt:.2f}\n"
+            f"⏱️ Prazo: {prazo_jt}\n"
+            f"📄 Observação: Envio oficial J&T\n"
+        )
+        
+        # 2. BUSCA DAS OUTRAS TRANSPORTADORAS NA PLANILHA EXCEL
         if df_fretes_fixos.empty:
             st.warning("⚠️ Planilha 'SISTEMA_DE_FRETES_AUTOMATIZADO.xlsx' não encontrada.")
         else:
@@ -244,8 +288,6 @@ if btn_calcular:
                         f"⏱️ Prazo: {prazo}\n"
                         f"📞 Contato: {row['FONE']}\n"
                     )
-            else: 
-                st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_busca}-{uf_busca}.")
 
         # ==========================================
         # PASSO 4: ENVIAR PARA O WHATSAPP
