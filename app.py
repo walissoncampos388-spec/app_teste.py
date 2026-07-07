@@ -59,10 +59,9 @@ BRASPRESS_INSCRICAO_ESTADUAL = "107873130"     # Sua Inscrição Estadual de GO
 CEP_ORIGEM = "76330000"                       # CEP de Jaraguá-GO
 
 def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
-    # URL Atualizada da API da Braspress para evitar o erro 404
+    # Tentativa com o endpoint unificado
     url_api = "https://www.braspress.com.br/wscalc/calculaFrete.faw"
     
-    # Tratamento e limpeza do CNPJ do Parceiro
     cnpj_remetente_final = cnpj_parceiro.replace(".", "").replace("-", "").replace("/", "").strip()
     
     if not cnpj_remetente_final:
@@ -89,14 +88,14 @@ def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
     }
     
     try:
-        response = requests.get(url_api, params=params, timeout=8)
+        response = requests.get(url_api, params=params, timeout=6)
         if response.status_code == 200:
             texto_resposta = response.text.strip()
             
             if texto_resposta.startswith("<html") or texto_resposta.startswith("<!DOCTYPE html"):
                 return {
                     "sucesso": False, 
-                    "msg": "A API da Braspress exige homologação prévia deste CNPJ de terceiro no seu contrato. Deixe o campo em branco para cotar com a sua rota padrão."
+                    "msg": "A API antiga da Braspress respondeu em HTML ou está instável. Use a aba ao lado para consultar as transportadoras fixas da região."
                 }
             
             root = ET.fromstring(response.content)
@@ -114,12 +113,14 @@ def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
                     "preco": float(vlr_frete.text.replace(",", ".")), 
                     "prazo": prazo.text if prazo is not None else "-"
                 }
+        elif response.status_code == 404:
+            return {"sucesso": False, "msg": "Servidor da Braspress desativou temporariamente esta rota antiga (Erro 404). Por favor, verifique os fretes fixos regionais na aba ao lado."}
         else:
-            return {"sucesso": False, "msg": f"Erro de ligação com a Braspress (Status: {response.status_code})"}
-    except Exception as e:
-        return {"sucesso": False, "msg": f"Instabilidade ou dados inválidos: {str(e)}"}
+            return {"sucesso": False, "msg": f"Erro de comunicação (Status: {response.status_code})"}
+    except Exception:
+        return {"sucesso": False, "msg": "O sistema da Braspress não respondeu a tempo. Veja a tabela de fretes fixos na aba ao lado."}
     
-    return {"sucesso": False, "msg": "Sem resposta válida do servidor da Braspress."}
+    return {"sucesso": False, "msg": "Sem resposta válida da transportadora."}
 
 
 # CACHE ULTRA-RÁPIDO: Organização instantânea dos dados da planilha de fretes fixos
