@@ -110,22 +110,23 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ==========================================
-# PASSO 2: ENTRADA DE PRODUTOS (CAMPOS ZERADOS CONFORME SOLICITADO)
+# PASSO 2: ENTRADA DE PRODUTOS (FÓRMULAS DO EXCEL + CAMPO MANUAL)
 # ==========================================
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">👖 PASSO 2: O que estamos enviando hoje?</div>', unsafe_allow_html=True)
 
 modo_carga = st.radio("Como prefere definir o tamanho do pedido?", ["🛍️ Selecionar Produtos (Fórmulas do Excel)", "✍️ Informar Peso e Medidas Manualmente"], horizontal=True)
 
+# Inicializa a variável para evitar erros no cálculo final
+valor_para_seguro = 0.0
+
 if modo_carga == "🛍️ Selecionar Produtos (Fórmulas do Excel)":
     c1, c2, c3 = st.columns(3)
     with c1:
-        # Valores padrão alterados de 6 para 0
         qtd_calcas = st.number_input("Quantidade de Calças:", min_value=0, value=0, step=1)
         qtd_bermudas = st.number_input("Quantidade de Bermudas:", min_value=0, value=0, step=1)
         qtd_shorts = st.number_input("Quantidade de Shorts:", min_value=0, value=0, step=1)
     with c2:
-        # Valores padrão alterados de 7 para 0
         qtd_gola_o = st.number_input("Quantidade de Gola O:", min_value=0, value=0, step=1)
         qtd_tshirt = st.number_input("Quantidade de T-Shirt:", min_value=0, value=0, step=1)
         qtd_polo = st.number_input("Quantidade de Gola Polo:", min_value=0, value=0, step=1)
@@ -165,17 +166,27 @@ if modo_carga == "🛍️ Selecionar Produtos (Fórmulas do Excel)":
     valor_nf_alta = (qtd_calcas * 75) + (qtd_bermudas * 58) + (qtd_shorts * 58) + (qtd_gola_o * 38) + (qtd_tshirt * 39) + (qtd_polo * 50)
         
     with c3:
+        # NOVO CAMPO AJUSTADO: Adicionado campo para o vendedor digitar o valor real da nota manualmente se quiser
+        valor_manual_nf = st.number_input("✍️ Valor Real da NF (Opcional):", min_value=0.0, value=0.0, step=50.0, help="Deixe em 0 para usar as estimativas automáticas do Excel.")
+        
+        # Define qual valor usar na cotação real (Se preencheu manual, usa o manual. Se não, assume a estimativa padrão da NF Meia)
+        if valor_manual_nf > 0:
+            valor_para_seguro = valor_manual_nf
+            texto_seguro_resumo = f"R$ {valor_manual_nf:.2f} (Digitado Manualmente)"
+        else:
+            valor_para_seguro = valor_nf_meia
+            texto_seguro_resumo = f"R$ {valor_nf_meia:.2f} (Estimativa Meia)"
+
         st.info(f"""
         **📊 Resumo da Carga (Cia do Jeans):**
         * **Total de Peças:** {total_pecas} un
         * **Peso Total:** {peso_total_calculado:.2f} kg
         * **Volume:** {comprimento} x {largura} x {altura} cm
         * **Embalagem:** {tipo_embalagem}
+        * **Seguro Ativo para Cálculo:** {texto_seguro_resumo}
         
-        **💰 Declaração de Seguro Estimada:**
-        * **NF Baixa:** R$ {valor_nf_baixa:.2f}
-        * **NF Meia:** R$ {valor_nf_meia:.2f}
-        * **NF Alta:** R$ {valor_nf_alta:.2f}
+        **💰 Faixas de Seguro Estimadas do Excel:**
+        * **NF Baixa:** R$ {valor_nf_baixa:.2f} | **NF Meia:** R$ {valor_nf_meia:.2f} | **NF Alta:** R$ {valor_nf_alta:.2f}
         """)
 else:
     c1, c2, c3, c4 = st.columns(4)
@@ -183,7 +194,8 @@ else:
     with c2: comprimento = st.number_input("Comprimento (cm):", min_value=1, value=40)
     with c3: largura = st.number_input("Largura (cm):", min_value=1, value=40)
     with c4: altura = st.number_input("Altura (cm):", min_value=1, value=30)
-    valor_nf_meia = st.number_input("Valor da Mercadoria para Seguro (R$):", min_value=1.0, value=300.0)
+    valor_manual_nf = st.number_input("Valor da Mercadoria para Seguro (R$):", min_value=1.0, value=300.0)
+    valor_para_seguro = valor_manual_nf
 
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -222,7 +234,7 @@ if btn_calcular:
             <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
                 <div>
                     <strong style="font-size:16px; color:#1e3a8a;">🚚 BRASPRESS (Rodoviário Comercial)</strong><br>
-                    <span style="font-size:13px; color:#6b7280;">Cálculo baseado no Seguro de R$ {valor_nf_meia:.2f} | Cubagem aplicada</span>
+                    <span style="font-size:13px; color:#6b7280;">Cálculo baseado no Seguro de R$ {valor_para_seguro:.2f} | Cubagem aplicada</span>
                 </div>
                 <div style="text-align: right;"><span style="font-size:20px; font-weight:700; color:#111827;">R$ 112,90</span></div>
             </div>
