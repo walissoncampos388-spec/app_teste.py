@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 import xml.etree.ElementTree as ET
+import urllib.parse
 
 # 1. Configuração de Design da Página
 st.set_page_config(
@@ -59,9 +60,7 @@ BRASPRESS_INSCRICAO_ESTADUAL = "107873130"     # Sua Inscrição Estadual de GO
 CEP_ORIGEM = "76330000"                       # CEP de Jaraguá-GO
 
 def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
-    # Tentativa com o endpoint unificado
     url_api = "https://www.braspress.com.br/wscalc/calculaFrete.faw"
-    
     cnpj_remetente_final = cnpj_parceiro.replace(".", "").replace("-", "").replace("/", "").strip()
     
     if not cnpj_remetente_final:
@@ -78,52 +77,30 @@ def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
         "cepOrigem": CEP_ORIGEM,
         "cepDestino": cep_destino.replace("-", "").strip(),
         "cnpjDestinatario": cnpj_destinatario_final, 
-        "modal": "R", 
-        "tipoFrete": "2", 
-        "cnpjTomador": BRASPRESS_CNPJ_CIA_DO_JEANS, 
-        "peso": str(peso),
-        "valorAnf": f"{valor_nf:.2f}".replace(".", ","),
-        "volume": "1",
-        "cubagem": "0",
+        "modal": "R", "tipoFrete": "2", "cnpjTomador": BRASPRESS_CNPJ_CIA_DO_JEANS, 
+        "peso": str(peso), "valorAnf": f"{valor_nf:.2f}".replace(".", ","), "volume": "1", "cubagem": "0",
     }
     
     try:
         response = requests.get(url_api, params=params, timeout=6)
         if response.status_code == 200:
             texto_resposta = response.text.strip()
-            
             if texto_resposta.startswith("<html") or texto_resposta.startswith("<!DOCTYPE html"):
-                return {
-                    "sucesso": False, 
-                    "msg": "A API antiga da Braspress respondeu em HTML ou está instável. Use a aba ao lado para consultar as transportadoras fixas da região."
-                }
+                return {"sucesso": False, "msg": "API em manutenção (Aguardando nova integração REST)."}
             
             root = ET.fromstring(response.content)
             vlr_frete = root.find(".//vlrFrete")
             prazo = root.find(".//prazoEntrega")
-            erro = root.find(".//erro")
-            
-            if erro is not None and erro.text != "0":
-                msg_erro = root.find(".//msgErro")
-                return {"sucesso": False, "msg": msg_erro.text if msg_erro is not None else "Erro na tabela Braspress"}
-                
             if vlr_frete is not None:
-                return {
-                    "sucesso": True, 
-                    "preco": float(vlr_frete.text.replace(",", ".")), 
-                    "prazo": prazo.text if prazo is not None else "-"
-                }
+                return {"sucesso": True, "preco": float(vlr_frete.text.replace(",", ".")), "prazo": prazo.text if prazo is not None else "-"}
         elif response.status_code == 404:
-            return {"sucesso": False, "msg": "Servidor da Braspress desativou temporariamente esta rota antiga (Erro 404). Por favor, verifique os fretes fixos regionais na aba ao lado."}
-        else:
-            return {"sucesso": False, "msg": f"Erro de comunicação (Status: {response.status_code})"}
+            return {"sucesso": False, "msg": "API antiga desativada (Aguardando nova integração REST)."}
     except Exception:
-        return {"sucesso": False, "msg": "O sistema da Braspress não respondeu a tempo. Veja a tabela de fretes fixos na aba ao lado."}
-    
-    return {"sucesso": False, "msg": "Sem resposta válida da transportadora."}
+        pass
+    return {"sucesso": False, "msg": "Serviço online indisponível. Veja os fretes fixos regionais."}
 
 
-# CACHE ULTRA-RÁPIDO: Organização instantânea dos dados da planilha de fretes fixos
+# CACHE ULTRA-RÁPIDO: Organização dos dados da planilha de fretes fixos
 @st.cache_data(ttl=3600)
 def carregar_e_limpar_dados():
     try:
@@ -184,13 +161,12 @@ with st.container():
             st.image("https://raw.githubusercontent.com/walissoncampos/fretes-cia-do-jeans/main/logo_ciadojeans.png", use_container_width=True)
         except Exception:
             pass
-        
         st.markdown("<h2 style='text-align:center; color:#1e3a8a; font-family:sans-serif; font-weight:800; margin:0;'>⚡ CALCULADORA DE FRETE INTELIGENTE</h2>", unsafe_allow_html=True)
 
 st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid #e5e7eb;'>", unsafe_allow_html=True)
 
 # ==========================================
-# PASSO 1: LOCALIZAÇÃO DO CLIENTE (AUTOMÁTICA)
+# PASSO 1: LOCALIZAÇÃO DO CLIENTE
 # ==========================================
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">📍 PASSO 1: Destino do Pedido</div>', unsafe_allow_html=True)
@@ -212,14 +188,12 @@ if cep_input:
         except Exception:
             pass
 
-with col2: 
-    cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Aguardando CEP...", disabled=True)
-with col3: 
-    uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=True)
+with col2: cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Aguardando CEP...", disabled=True)
+with col3: uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
-# PASSO 2: ENTRADA DE PRODUTOS & PARCEIROS
+# PASSO 2: ENTRADA DE PRODUTOS
 # ==========================================
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">👖 PASSO 2: O que estamos enviando hoje?</div>', unsafe_allow_html=True)
@@ -233,24 +207,20 @@ with c2:
     qtd_tshirt = st.number_input("Quantidade de T-Shirt:", min_value=0, value=0, step=1)
     qtd_polo = st.number_input("Quantidade de Gola Polo:", min_value=0, value=0, step=1)
 
-# Matemática de Pesos e Cubagem das Peças
+# Matemática de Pesos e Cubagem
 peso_pecas_puro = (qtd_calcas * 0.60) + (qtd_bermudas * 0.40) + (qtd_shorts * 0.35) + (qtd_gola_o * 0.28) + (qtd_tshirt * 0.20) + (qtd_polo * 0.32)
 peso_total_calculado = peso_pecas_puro + (0.4 if peso_pecas_puro > 0 else 0)
 total_pecas = qtd_calcas + qtd_bermudas + qtd_shorts + qtd_gola_o + qtd_tshirt + qtd_polo
 
-if total_pecas == 0: 
-    comprimento, largura, altura, tipo_embalagem = 0, 0, 0, "Nenhum produto"
-elif total_pecas <= 15: 
-    comprimento, largura, altura, tipo_embalagem = 25, 25, 35, "Caixa Pequena"
-elif total_pecas <= 30: 
-    comprimento, largura, altura, tipo_embalagem = 12.5, 44, 40, "Caixa Média"
-else: 
-    comprimento, largura, altura, tipo_embalagem = 8.3, 66, 40, "Fardo Comercial"
+if total_pecas == 0: comprimento, largura, altura, tipo_embalagem = 0, 0, 0, "Nenhum produto"
+elif total_pecas <= 15: comprimento, largura, altura, tipo_embalagem = 25, 25, 35, "Caixa Pequena"
+elif total_pecas <= 30: comprimento, largura, altura, tipo_embalagem = 12.5, 44, 40, "Caixa Média"
+else: comprimento, largura, altura, tipo_embalagem = 8.3, 66, 40, "Fardo Comercial"
 
 valor_nf_meia = (qtd_calcas * 40) + (qtd_bermudas * 33) + (qtd_shorts * 33) + (qtd_gola_o * 18) + (qtd_tshirt * 19) + (qtd_polo * 25)
 
 with c3:
-    cnpj_fornecedor_parceiro = st.text_input("🏢 CNPJ do Fornecedor/Parceiro (Opcional):", placeholder="Deixe em branco para usar Cia do Jeans")
+    cnpj_fornecedor_parceiro = st.text_input("🏢 CNPJ do Fornecedor/Parceiro (Opcional):", placeholder="Usar padrão Cia do Jeans")
     valor_manual_nf = st.number_input("✍️ Valor Real da NF (Opcional):", min_value=0.0, value=0.0, step=50.0)
     valor_para_seguro = valor_manual_nf if valor_manual_nf > 0 else valor_nf_meia
     
@@ -263,7 +233,7 @@ btn_calcular = st.button("🚀 CALCULAR FRETE REAL EM TODOS OS MEIOS", type="pri
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ==========================================
-# PASSO 3: RESULTADOS E COMPARATIVO UNIFICADO
+# PASSO 3: RESULTADOS & WHATSAPP
 # ==========================================
 if btn_calcular:
     if not cep_input or not cidade_automatica:
@@ -272,20 +242,25 @@ if btn_calcular:
         st.markdown("### 🏁 Opções de Envio Encontradas")
         aba_online, aba_fixa = st.tabs(["⚡ Cotações Online (APIs)", "📋 Transportadoras Fixas da Região"])
         
+        # Array para guardar as transportadoras encontradas e usar no texto do WhatsApp
+        opcoes_whatsapp = []
+        
         with aba_online:
-            with st.spinner("Consultando tabela FOB/Terceiros na Braspress..."):
+            with st.spinner("Consultando Braspress..."):
                 res_braspress = calcular_frete_braspress(cep_input, peso_total_calculado, valor_para_seguro, cnpj_fornecedor_parceiro)
             
             if res_braspress["sucesso"]:
+                preco_bp = f"R$ {res_braspress['preco']:.2f}"
                 st.markdown(f"""
                 <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
                     <div>
-                        <strong style="font-size:16px; color:#1e3a8a;">🚚 BRASPRESS (Contrato Cia do Jeans - FOB Terceiros)</strong><br>
-                        <span style="font-size:13px; color:#6b7280;">Prazo de entrega: {res_braspress['prazo']} dias úteis | Cobrança vinculada ao CNPJ 34.835.571/0001-68</span>
+                        <strong style="font-size:16px; color:#1e3a8a;">🚚 BRASPRESS (Contrato Cia do Jeans)</strong><br>
+                        <span style="font-size:13px; color:#6b7280;">Prazo: {res_braspress['prazo']} dias úteis | Rodoviário</span>
                     </div>
-                    <div style="text-align: right;"><span style="font-size:20px; font-weight:700; color:#111827;">R$ {res_braspress['preco']:.2f}</span></div>
+                    <div style="text-align: right;"><span style="font-size:20px; font-weight:700; color:#111827;">{preco_bp}</span></div>
                 </div>
                 """, unsafe_allow_html=True)
+                opcoes_whatsapp.append(f"• *BRASPRESS:* {preco_bp} ({res_braspress['prazo']} dias úteis)")
             else:
                 st.warning(f"⚠️ Nota Braspress: {res_braspress['msg']}")
                 
@@ -306,6 +281,7 @@ if btn_calcular:
                         prazo = str(row['PRAZO'])
                         if "cotar" not in prazo.lower() and "dias" not in prazo.lower() and prazo != '-': 
                             prazo = f"{prazo} Dias"
+                            
                         st.markdown(f"""
                         <div class="card-frete" style="border-left: 5px solid #4b5563;">
                             <div>
@@ -316,5 +292,45 @@ if btn_calcular:
                             <div style="text-align: right;"><span style="font-size:13px; color:#6b7280; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#111827;">R$ {row['VALOR_MINIMO']}</span></div>
                         </div>
                         """, unsafe_allow_html=True)
+                        
+                        # Adiciona no resumo do WhatsApp
+                        opcoes_whatsapp.append(f"• *{row['TRANSPORTADORA']}:* Mínimo R$ {row['VALOR_MINIMO']} (Prazo: {prazo} | 📞 {row['FONE']})")
                 else: 
                     st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_automatica}-{uf_automatica}.")
+
+        # ==========================================
+        # GERADOR E BOTÃO DO WHATSAPP (A MÁGICA)
+# ==========================================
+        st.markdown("<br><hr style='border-top: 1px dashed #cbd5e1;'><br>", unsafe_allow_html=True)
+        st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #25d366;">', unsafe_allow_html=True)
+        st.markdown('<div class="titulo-etapa" style="color: #25d366;">💬 PASSO 4: Enviar Cotação ao Cliente</div>', unsafe_allow_html=True)
+        
+        # Constrói o texto estruturado da mensagem
+        texto_opcoes = "\n".join(opcoes_whatsapp) if opcoes_whatsapp else "• Nenhuma opção localizada. Consultar fábrica."
+        
+        mensagem_vendedor = (
+            f"Olá! Segue a cotação de frete para o seu pedido da *Cia do Jeans*:\n\n"
+            f"📍 *Destino:* {cidade_automatica} - {uf_automatica}\n"
+            f"📦 *Volume estimado:* {total_pecas} peças ({peso_total_calculado:.2f} kg)\n"
+            f"🛍️ *Tipo de Carga:* {tipo_embalagem}\n\n"
+            f"🚚 *Opções de Envio Disponíveis:*\n"
+            f"{texto_opcoes}\n\n"
+            f"_Qual destas opções fica melhor para fazermos o despacho do seu fardo?_"
+        )
+        
+        # Caixa de texto para o vendedor ver ou editar antes de enviar
+        texto_editavel = st.text_area("Pré-visualização da Mensagem:", value=mensagem_vendedor, height=180)
+        
+        # Transforma o texto em formato de link URL seguro para o WhatsApp
+        texto_codificado = urllib.parse.quote(texto_editavel)
+        link_whatsapp = f"https://api.whatsapp.com/send?text={texto_codificado}"
+        
+        # Cria o botão físico estilizado de verde do WhatsApp
+        st.markdown(f"""
+            <a href="{link_whatsapp}" target="_blank" style="text-decoration: none;">
+                <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer;">
+                    📲 ENVIAR COTAÇÃO PARA O WHATSAPP DO CLIENTE
+                </div>
+            </a>
+        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
