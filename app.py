@@ -113,7 +113,7 @@ with st.container():
             st.image("https://raw.githubusercontent.com/walissoncampos/fretes-cia-do-jeans/main/logo_ciadojeans.png", use_container_width=True)
         except Exception:
             pass
-        st.markdown("<h2 style='text-align:center; color:#1e3a8a; font-family:sans-serif; font-weight:600; margin:0;'>⚡ CIA DO JEANS LOGISTICA INTELIGENTE</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align:center; color:#1e3a8a; font-family:sans-serif; font-weight:500; margin:0;'>⚡ CIA DO JEANS LOGISTICA INTELIGENTE</h2>", unsafe_allow_html=True)
 
 st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid #e5e7eb;'>", unsafe_allow_html=True)
 
