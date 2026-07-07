@@ -65,14 +65,11 @@ def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
     cnpj_remetente_final = cnpj_parceiro.replace(".", "").replace("-", "").replace("/", "").strip()
     
     if not cnpj_remetente_final:
-        # Se estiver vazio, assume a própria Cia do Jeans como Remetente e Destinatário padrão
         cnpj_remetente_final = BRASPRESS_CNPJ_CIA_DO_JEANS
         ie_remetente_final = BRASPRESS_INSCRICAO_ESTADUAL
-        cnpj_destinatario_final = "00000000000100" # CNPJ Genérico para evitar Remetente = Destinatário
+        cnpj_destinatario_final = "00000000000100"
     else:
-        # Se for um parceiro terceiro, usamos "ISENTO" para evitar divergência de I.E.
         ie_remetente_final = "ISENTO"
-        # O destinatário passa a ser o seu CNPJ para simular uma rota válida até à Cia do Jeans
         cnpj_destinatario_final = BRASPRESS_CNPJ_CIA_DO_JEANS
 
     params = {
@@ -81,8 +78,8 @@ def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
         "cepOrigem": CEP_ORIGEM,
         "cepDestino": cep_destino.replace("-", "").strip(),
         "cnpjDestinatario": cnpj_destinatario_final, 
-        "modal": "R", # R = Rodoviário
-        "tipoFrete": "2", # 2 = FOB / Pago por Terceiros
+        "modal": "R", 
+        "tipoFrete": "2", 
         "cnpjTomador": BRASPRESS_CNPJ_CIA_DO_JEANS, 
         "peso": str(peso),
         "valorAnf": f"{valor_nf:.2f}".replace(".", ","),
@@ -95,7 +92,6 @@ def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
         if response.status_code == 200:
             texto_resposta = response.text.strip()
             
-            # PROTEÇÃO CONTRA HTML: Impede o erro vermelho caso a Braspress rejeite o formato
             if texto_resposta.startswith("<html") or texto_resposta.startswith("<!DOCTYPE html"):
                 return {
                     "sucesso": False, 
@@ -178,7 +174,7 @@ def carregar_e_limpar_dados():
 
 df_fretes_fixos = carregar_e_limpar_dados()
 
-# Cabeçalho Centralizado
+# Cabeçalho Centralizado (Corrigido o conflito de aspas)
 with st.container():
     col_esq, col_centro, col_dir = st.columns([1, 2, 1])
     with col_centro:
@@ -186,7 +182,8 @@ with st.container():
             st.image("https://raw.githubusercontent.com/walissoncampos/fretes-cia-do-jeans/main/logo_ciadojeans.png", use_container_width=True)
         except Exception:
             pass
-        st.markdown("<div style='text-align: center; margin-top: 10px;'><h2 style='color: #1e3a8a; margin: 0; font-family: sans-serif; font-weight: 800;">⚡ CALCULADORA DE FRETE INTELIGENTE</h2></div>", unsafe_allow_html=True)
+        
+        st.markdown("<h2 style='text-align:center; color:#1e3a8a; font-family:sans-serif; font-weight:800; margin:0;'>⚡ CALCULADORA DE FRETE INTELIGENTE</h2>", unsafe_allow_html=True)
 
 st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid #e5e7eb;'>", unsafe_allow_html=True)
 
