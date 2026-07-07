@@ -11,34 +11,27 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Estilização CSS Premium, Responsiva e Trava do Banner Full Width
+# Estilização CSS Premium para forçar o Banner a colar nas bordas laterais e do topo
 st.markdown("""
     <style>
         .stDeployButton {display:none;}
         footer {visibility: hidden;}
-        .main { background-color: #f4f6f9; padding-top: 0rem; }
-        block-container { padding-top: 0rem; padding-bottom: 0rem; }
+        .main { background-color: #f4f6f9; }
         
-        /* Estilo do Banner Estreito e Comprido de ponta a ponta */
-        .banner-container {
-            width: 100vw;
-            position: relative;
-            left: 50%;
-            right: 50%;
-            margin-left: -50vw;
-            margin-right: -50vw;
-            margin-top: -6rem; /* Sobe o banner para tirar o espaço em branco do topo */
-            margin-bottom: 30px;
-            overflow: hidden;
+        /* Remove completamente os espaços e margens do Streamlit no topo e laterais */
+        .block-container {
+            padding-top: 0rem !important;
+            padding-bottom: 2rem !important;
+            padding-left: 0rem !important;
+            padding-right: 0rem !important;
         }
-        .banner-imagem {
-            width: 100%;
-            height: auto;
-            max-height: 180px; /* Limita a altura para ficar estreito */
-            object-fit: cover; /* Garante que a imagem se ajuste sem distorcer */
-            display: block;
+        
+        /* Garante que o conteúdo abaixo do banner tenha margem nas laterais para não grudar na tela */
+        .conteudo-pagina {
+            padding-left: 2rem !important;
+            padding-right: 2rem !important;
         }
-
+        
         /* Blocos organizadores das etapas */
         .bloco-etapa {
             background-color: white;
@@ -127,21 +120,20 @@ def carregar_e_limpar_dados():
 df_fretes_fixos = carregar_e_limpar_dados()
 
 # ==========================================
-# BANNER RETANGULAR PONTA A PONTA (FULL WIDTH)
+# BANNER RETANGULAR PONTA A PONTA (NATIVO)
 # ==========================================
-# Altere o link abaixo para a imagem oficial do banner estreito da Cia do Jeans
+# Link da imagem retangular estreita e comprida
 LINK_DO_BANNER = "https://raw.githubusercontent.com/walissoncampos/fretes-cia-do-jeans/main/logo_ciadojeans.png"
 
-st.markdown(f"""
-    <div class="banner-container">
-        <img src="{LINK_DO_BANNER}" class="banner-imagem">
-    </div>
-""", unsafe_allow_html=True)
+st.image(LINK_DO_BANNER, use_container_width=True)
 
 
 # ==========================================
+# ENCAPSULAMENTO DO CONTEÚDO (PARA MANTER AS MARGENS)
+# ==========================================
+st.markdown('<div class="conteudo-pagina">', unsafe_allow_html=True)
+
 # PASSO 1: LOCALIZAÇÃO DO CLIENTE
-# ==========================================
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">📍 PASSO 1: Destino do Pedido</div>', unsafe_allow_html=True)
 col1, col2, col3 = st.columns([1.5, 2, 1])
@@ -173,9 +165,7 @@ with col3:
     uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=desabilitar_campos)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# ==========================================
 # PASSO 2: ENTRADA DE PRODUTOS
-# ==========================================
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">👖 PASSO 2: O que estamos enviando hoje?</div>', unsafe_allow_html=True)
 c1, c2, c3 = st.columns(3)
@@ -220,9 +210,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 btn_calcular = st.button("🚀 CALCULAR FRETE E GERAR WHATSAPP", type="primary", use_container_width=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ==========================================
 # PASSO 3: RESULTADOS E WHATSAPP
-# ==========================================
 if btn_calcular:
     cidade_busca = cidade_automatica.strip().upper()
     uf_busca = uf_automatica.strip().upper()
@@ -250,7 +238,7 @@ if btn_calcular:
                     st.markdown(f"""
                     <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
                         <div>
-                            <strong style="font-size:16px; color:#1e3a8a;"><b>... {row['TRANSPORTADORA']}</b></strong><br>
+                            <strong style="font-size:16px; color:#1e3a8a;"><b>🚛 {row['TRANSPORTADORA']}</b></strong><br>
                             <span style="font-size:13px; color:#4b5563;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Fone: {row['FONE']}</span><br>
                             <span style="font-size:12px; color:#6b7280;">⏱️ Prazo: {print_prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
                         </div>
@@ -267,9 +255,7 @@ if btn_calcular:
             else: 
                 st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_busca}-{uf_busca}.")
 
-        # ==========================================
         # PASSO 4: ENVIAR PARA O WHATSAPP
-        # ==========================================
         if opcoes_whatsapp:
             st.markdown("<br><hr style='border-top: 1px dashed #cbd5e1;'><br>", unsafe_allow_html=True)
             st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #25d366;">', unsafe_allow_html=True)
@@ -280,7 +266,7 @@ if btn_calcular:
             mensagem_vendedor = (
                 f"Olá! Segue a cotação de frete para o seu pedido da *Cia do Jeans*:\n\n"
                 f"📍 *Destino:*\n{cidade_busca} - {uf_busca}\n\n"
-                f"📦 *Volume estimado:*\n{total_pecas} peças ({peso_total_calculado:.2f} kg)\n\n"
+                f"📦 *Volume estimado:*\n{total_pecas} pieces ({peso_total_calculado:.2f} kg)\n\n"
                 f"🛍️ *Embalagem:*\n{tipo_embalagem}\n\n"
                 f"-----------------------------------------\n"
                 f"🚚 *OPÇÕES DE ENVIO:*\n\n"
@@ -301,3 +287,5 @@ if btn_calcular:
                 </a>
             """, unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True) # Fecha a div conteudo-pagina
