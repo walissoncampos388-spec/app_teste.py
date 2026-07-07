@@ -118,7 +118,7 @@ with st.container():
 st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid #e5e7eb;'>", unsafe_allow_html=True)
 
 # ==========================================
-# PASSO 1: LOCALIZAÇÃO DO CLIENTE (MÓDULO ANTERIOR)
+# PASSO 1: LOCALIZAÇÃO DO CLIENTE (INTELIGENTE)
 # ==========================================
 st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">📍 PASSO 1: Destino do Pedido</div>', unsafe_allow_html=True)
@@ -129,25 +129,30 @@ with col1:
 
 cidade_val = ""
 uf_val = ""
+desabilitar_campos = True  # Começa bloqueado para automação
 
 if cep_input:
     cep_limpo = cep_input.replace("-", "").replace(" ", "")
     if len(cep_limpo) == 8 and cep_limpo.isdigit():
         try:
-            url_api = f"https://viacep.com.br/ws/{cep_limpo}/json/"
-            resposta = requests.get(url_api, timeout=4).json()
-            if "erro" not in resposta:
+            # Servidor alternativo super estável
+            url_api = f"https://opencep.com/v1/{cep_limpo}"
+            resposta = requests.get(url_api, timeout=3).json()
+            if "localidade" in resposta:
                 cidade_val = resposta.get("localidade", "").upper()
                 uf_val = resposta.get("uf", "").upper()
             else:
-                st.error("❌ CEP não encontrado.")
+                # Se não achar o CEP, destrava para digitação manual
+                desabilitar_campos = False
         except Exception:
-            pass
+            # Se der qualquer erro de rede, destrava na hora!
+            desabilitar_campos = False
 
 with col2: 
-    cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Aguardando CEP...", disabled=True)
+    # Se a API falhar, o campo deixa de ser "disabled" e vira editável!
+    cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Digite a Cidade se não buscar...", disabled=desabilitar_campos)
 with col3: 
-    uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=True)
+    uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=desabilitar_campos)
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
@@ -193,8 +198,11 @@ st.markdown("<br>", unsafe_allow_html=True)
 # PASSO 3: RESULTADOS E WHATSAPP
 # ==========================================
 if btn_calcular:
-    if not cep_input or not cidade_automatica:
-        st.error("❌ Por favor, digite um CEP válido no Passo 1.")
+    cidade_busca = cidade_automatica.strip().upper()
+    uf_busca = uf_automatica.strip().upper()
+    
+    if not cep_input or not cidade_busca:
+        st.error("❌ Por favor, informe um CEP válido ou preencha a Cidade no Passo 1.")
     elif total_pecas == 0:
         st.error("❌ Insira a quantidade de produtos no Passo 2 para calcular.")
     else:
@@ -205,7 +213,7 @@ if btn_calcular:
         if df_fretes_fixos.empty:
             st.warning("⚠️ Planilha 'SISTEMA_DE_FRETES_AUTOMATIZADO.xlsx' não encontrada no repositório.")
         else:
-            resultados_fixos = df_fretes_fixos[(df_fretes_fixos['CIDADE'] == cidade_automatica) & (df_fretes_fixos['UF'] == uf_automatica)]
+            resultados_fixos = df_fretes_fixos[(df_fretes_fixos['CIDADE'] == cidade_busca) & (df_fretes_fixos['UF'] == uf_busca)]
             
             if not resultados_fixos.empty:
                 for idx, row in resultados_fixos.iterrows():
@@ -231,7 +239,7 @@ if btn_calcular:
                         f"📞 Contato: {row['FONE']}\n"
                     )
             else: 
-                st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_automatica}-{uf_automatica}.")
+                st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_busca}-{uf_busca}.")
 
         # ==========================================
         # PASSO 4: ENVIAR PARA O WHATSAPP
@@ -245,7 +253,7 @@ if btn_calcular:
             
             mensagem_vendedor = (
                 f"Olá! Segue a cotação de frete para o seu pedido da *Cia do Jeans*:\n\n"
-                f"📍 *Destino:*\n{cidade_automatica} - {uf_automatica}\n\n"
+                f"📍 *Destino:*\n{cidade_busca} - {uf_busca}\n\n"
                 f"📦 *Volume estimado:*\n{total_pecas} peças ({peso_total_calculado:.2f} kg)\n\n"
                 f"🛍️ *Embalagem:*\n{tipo_embalagem}\n\n"
                 f"-----------------------------------------\n"
