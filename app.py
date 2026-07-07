@@ -59,8 +59,8 @@ BRASPRESS_CNPJ_CIA_DO_JEANS = "34835571000168"  # CNPJ Cia do Jeans (Tomador)
 BRASPRESS_INSCRICAO_ESTADUAL = "107873130"     # Sua Inscrição Estadual de GO
 CEP_ORIGEM = "76330000"                       # CEP de Jaraguá-GO
 
-# Token Oficial do SuperFrete
-SUPERFRETE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3ODM0Mzc0NzAsInN1YiI6IkROakhlMVJiVDJWMmx2eFZvZ1NOOHRyV3VHdjIifQ.r5BJVLvyPkR9a-W6B_C7ouKOlrSr891NYUEtG938g-4"
+# Novo Token de Desenvolvedor do SuperFrete Atualizado
+SUPERFRETE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3ODM0MzgwMTAsInN1YiI6IkROakhlMVJiVDJWMmx2eFZvZ1NOOHRyV3VHdjIifQ.M3vXT0qnHNENR_rEGcm3-o5E_KjVLVUDhtAvQoiyhoI"
 
 def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
     url_api = "https://www.braspress.com.br/wscalc/calculaFrete.faw"
@@ -105,7 +105,6 @@ def calcular_frete_braspress(cep_destino, peso, valor_nf, cnpj_parceiro=""):
 def calcular_frete_superfrete(cep_destino, peso, comprimento, largura, altura, valor_nf):
     url_api = "https://api.superfrete.com/v1/calculator"
     
-    # Adicionado o User-Agent oficial para evitar o bloqueio e o erro de conexão do servidor
     headers = {
         "Authorization": f"Bearer {SUPERFRETE_TOKEN}",
         "Content-Type": "application/json",
@@ -141,14 +140,13 @@ def calcular_frete_superfrete(cep_destino, peso, comprimento, largura, altura, v
         
         if response.status_code == 200:
             texto = response.text.strip()
-            # Validação: Se a resposta não for um JSON limpo, avisa o erro de formato de forma amigável
             if texto.startswith("<html") or texto.startswith("<!DOCTYPE html"):
-                return {"sucesso": False, "msg": "O painel do SuperFrete retornou uma página de erro temporária. Verifique os fretes fixos."}
+                return {"sucesso": False, "msg": "O painel do SuperFrete retornou uma página de erro temporária."}
             return {"sucesso": True, "dados": response.json()}
         else:
-            return {"sucesso": False, "msg": f"O servidor do SuperFrete recusou os parâmetros (Status: {response.status_code})"}
+            return {"sucesso": False, "msg": f"Erro na API SuperFrete (Status: {response.status_code}). Certifique-se de preencher CEP e produtos corretamente."}
     except Exception as e:
-        return {"sucesso": False, "msg": f"Não foi possível conectar ao SuperFrete no momento. Use as transportadoras fixas."}
+        return {"sucesso": False, "msg": "Instabilidade temporária na conexão do SuperFrete."}
 
 
 # CACHE ULTRA-RÁPIDO: Organização dos dados da planilha de fretes fixos
@@ -289,6 +287,8 @@ st.markdown("<br>", unsafe_allow_html=True)
 if btn_calcular:
     if not cep_input or not cidade_automatica:
         st.error("❌ Por favor, digite um CEP válido no Passo 1.")
+    elif total_pecas == 0:
+        st.error("❌ Insira a quantidade de produtos no Passo 2 para poder calcular.")
     else:
         st.markdown("### 🏁 Opções de Envio Encontradas")
         aba_online, aba_fixa = st.tabs(["⚡ Cotações Online (APIs)", "📋 Transportadoras Fixas da Região"])
@@ -307,7 +307,7 @@ if btn_calcular:
                     <div style="text-align: right;"><span style="font-size:20px; font-weight:700; color:#111827;">{preco_bp}</span></div>
                 </div>
                 """, unsafe_allow_html=True)
-                opcoes_whatsapp.append(f"Resumo frete nacional:\n\n\n\n\n🚛 *BRASPRESS*\n💰 Valor: {preco_bp}\n⏱️ Prazo: {res_braspress['prazo']} dias úteis\n")
+                opcoes_whatsapp.append(f"🚛 *BRASPRESS*\n💰 Valor: {preco_bp}\n⏱️ Prazo: {res_braspress['prazo']} dias úteis\n")
             else:
                 st.info(f"ℹ️ Braspress: {res_braspress['msg']}")
                 
