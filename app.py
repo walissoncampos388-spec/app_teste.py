@@ -169,7 +169,7 @@ if st.session_state.tela_ativa == "cotacao":
 
     cidade_val = ""
     uf_val = ""
-    desabilitar_campos = False  # Destravado por padrão caso a rede ou API falhem
+    desabilitar_campos = False  # Destravado por padrão caso falte rede ou API
 
     if cep_input:
         cep_limpo = cep_input.replace("-", "").replace(" ", "")
@@ -187,9 +187,15 @@ if st.session_state.tela_ativa == "cotacao":
                 desabilitar_campos = False
 
     with col2: 
-        cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Digite a Cidade se não buscar...", disabled=desabilitar_campos, key="cidade_input_fiel")
+        cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val if cidade_val else st.session_state.get("cidade_salva", ""), placeholder="Digite a Cidade se não buscar...", disabled=desabilitar_campos, key="cidade_input_fiel")
+        if cidade_automatica:
+            st.session_state["cidade_salva"] = cidade_automatica
+            
     with col3: 
-        uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=desabilitar_campos, key="uf_input_fiel")
+        uf_automatica = st.text_input("🏳️ UF:", value=uf_val if uf_val else st.session_state.get("uf_salva", ""), placeholder="EX: GO", disabled=desabilitar_campos, key="uf_input_fiel")
+        if uf_automatica:
+            st.session_state["uf_salva"] = uf_automatica
+            
     st.markdown('</div>', unsafe_allow_html=True)
 
     # PASSO 2: ENTRADA DE PRODUTOS
