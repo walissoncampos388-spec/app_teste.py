@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import requests
 import urllib.parse
+import base64
 
 # 1. Configuração de Design da Página
 st.set_page_config(
@@ -105,29 +106,32 @@ def carregar_e_limpar_dados():
 
 df_fretes_fixos = carregar_e_limpar_dados()
 
-# Cabeçalho Centralizado Seguro Nativo
-with st.container():
-    # Grid de 5 colunas para centralizar a imagem perfeitamente em qualquer tela
-    col_vazia1, col_vazia2, col_img, col_vazia3, col_vazia4 = st.columns([1, 1, 1.2, 1, 1])
-    with col_img:
-        try:
-            st.image("logo_ciadojeans.PNG", width=120, use_container_width=False)
-        except Exception:
-            pass
+# Cabeçalho Centralizado Seguro para Mobile e Desktop (Base64)
+def arrumar_imagem_local(caminho):
+    try:
+        with open(caminho, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode()
+    except Exception:
+        return ""
 
-    st.markdown(
-        """
-        <div style='text-align:center; font-family:sans-serif; margin:0; line-height: 1.1;'>
-            <h2 style='color:#1e3a8a; font-weight:800; margin:0; font-size: 1.8rem; display:inline-block; width:100%;'>
-                ⚡ CIA DO JEANS
-            </h2>
-            <p style='color:#1e3a8a; font-weight:800; margin:3px 0 0 0; font-size: 1.2rem; text-transform: uppercase;'>
-                Logística Inteligente
-            </p>
-        </div>
-        """, 
-        unsafe_allow_html=True
-    )
+img_base64 = arrumar_imagem_local("logo_ciadojeans.PNG")
+
+st.markdown(
+    f"""
+    <div style='text-align: center; margin-bottom: 15px;'>
+        <img src="data:image/png;base64,{img_base64}" width="120" style="display: block; margin: 0 auto;">
+    </div>
+    <div style='text-align:center; font-family:sans-serif; margin:0; line-height: 1.1;'>
+        <h2 style='color:#1e3a8a; font-weight:800; margin:0; font-size: 1.8rem; display:inline-block; width:100%;'>
+            ⚡ CIA DO JEANS
+        </h2>
+        <p style='color:#1e3a8a; font-weight:800; margin:3px 0 0 0; font-size: 1.2rem; text-transform: uppercase;'>
+            Logística Inteligente
+        </p>
+    </div>
+    """, 
+    unsafe_allow_html=True
+)
 
 st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid #e5e7eb;'>", unsafe_allow_html=True)
 
