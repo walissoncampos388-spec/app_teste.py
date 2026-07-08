@@ -50,21 +50,21 @@ st.markdown("""
             align-items: center;
         }
         
-        /* Estilização para deixar o botão nativo do Streamlit idêntico ao visual anterior */
+        /* Estilização para deixar o botão nativo do Streamlit idêntico ao visual anterior - Agora em Azul */
         div.stButton > button:first-child {
-            background-color: #fcb103 !important;
+            background-color: #1e3a8a !important;
             color: white !important;
             font-weight: bold !important;
             font-size: 16px !important;
             padding: 14px !important;
             border-radius: 8px !important;
             border: none !important;
-            box-shadow: 0 4px 10px rgba(252,177,3,0.3) !important;
+            box-shadow: 0 4px 10px rgba(30,58,138,0.3) !important;
             cursor: pointer !important;
             width: 100% !important;
         }
         div.stButton > button:first-child:hover {
-            background-color: #e09e02 !important;
+            background-color: #162a65 !important;
             color: white !important;
         }
     </style>
@@ -347,7 +347,7 @@ if st.session_state.tela_ativa == "cotacao":
                     </a>
                 """, unsafe_allow_html=True)
 
-                # CORREÇÃO DEFINITIVA: Botão nativo Streamlit integrado com JS da janela pai externa (Sem iframe block)
+                # Botão nativo Streamlit azul e integrado à janela pai (Funciona 100% Mobile e Computador)
                 if st.button("📋 COPIAR TEXTO DA COTAÇÃO", key="btn_pure_copy_frete"):
                     texto_js_safe = texto_editavel.replace('\\', '\\\\').replace('`', '\\`').replace('$', '\\$').replace('\n', '\\n')
                     st.components.v1.html(f"""
@@ -462,7 +462,7 @@ elif st.session_state.tela_ativa == "rastreio":
             </a>
         """, unsafe_allow_html=True)
         
-        # CORREÇÃO DEFINITIVA: Botão nativo Streamlit integrado com JS da janela pai externa para Rastreio
+        # Botão nativo Streamlit azul e integrado à janela pai (Rastreio)
         if st.button("📋 COPIAR TEXTO DO RASTREIO", key="btn_pure_copy_rastreio"):
             texto_rastreio_js_safe = texto_rastreio_editavel.replace('\\', '\\\\').replace('`', '\\`').replace('$', '\\$').replace('\n', '\\n')
             st.components.v1.html(f"""
