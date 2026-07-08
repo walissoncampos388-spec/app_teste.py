@@ -9,7 +9,7 @@ st.set_page_config(
     page_title="Cia do Jeans - Calculadora Inteligente", 
     page_icon="⚡", 
     layout="wide",
-    initial_sidebar_state="expanded" # Mantém o menu aberto para fácil navegação
+    initial_sidebar_state="collapsed"
 )
 
 # Estilização CSS Premium e Responsiva
@@ -137,18 +137,27 @@ st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid 
 
 
 # ==========================================
-# MENU LATERAL ANTIBUG E ANTIRESET
+# CONTROLE DE NAVEGAÇÃO À PROVA DE REFRESH (SESSION STATE)
 # ==========================================
-with st.sidebar:
-    st.markdown("### 🛠️ MENU DE OPERAÇÕES")
-    opcao_menu = st.radio(
-        "Selecione o que deseja fazer:",
-        ["📊 Cotar Novo Frete", "📦 Rastrear Encomenda"],
-        key="menu_principal_estavel"
-    )
+if "tela_ativa" not in st.session_state:
+    st.session_state.tela_ativa = "cotacao"
 
-# --- CONTEÚDO DA OPÇÃO 1: COTAÇÃO DE FRETE ---
-if opcao_menu == "📊 Cotar Novo Frete":
+# Criamos duas colunas para simular abas perfeitas que salvam a posição
+col_aba1, col_aba2 = st.columns(2)
+
+with col_aba1:
+    if st.button("📊 COTAR NOVO FRETE", use_container_width=True, type="primary" if st.session_state.tela_ativa == "cotacao" else "secondary"):
+        st.session_state.tela_ativa = "cotacao"
+
+with col_aba2:
+    if st.button("📦 RASTREAR ENCOMENDA", use_container_width=True, type="primary" if st.session_state.tela_ativa == "rastreio" else "secondary"):
+        st.session_state.tela_ativa = "rastreio"
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+
+# --- EXIBIÇÃO DA TELA: COTAÇÃO ---
+if st.session_state.tela_ativa == "cotacao":
     
     # PASSO 1: LOCALIZAÇÃO DO CLIENTE
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
@@ -160,7 +169,7 @@ if opcao_menu == "📊 Cotar Novo Frete":
 
     cidade_val = ""
     uf_val = ""
-    desabilitar_campos = False  # Começa destravado para garantir digitação manual caso falte rede
+    desabilitar_campos = False  # Destravado por padrão caso a rede ou API falhem
 
     if cep_input:
         cep_limpo = cep_input.replace("-", "").replace(" ", "")
@@ -171,11 +180,11 @@ if opcao_menu == "📊 Cotar Novo Frete":
                 if "localidade" in resposta and resposta.get("localidade"):
                     cidade_val = resposta.get("localidade", "").upper()
                     uf_val = resposta.get("uf", "").upper()
-                    desabilitar_campos = True  # Só bloqueia se achar os dados automaticamente
+                    desabilitar_campos = True  # Só bloqueia se encontrar automaticamente
                 else:
-                    desabilitar_campos = False  # Libera se a API não encontrar dados
+                    desabilitar_campos = False
             except Exception:
-                desabilitar_campos = False  # Libera se houver erro ou falta de conexão
+                desabilitar_campos = False
 
     with col2: 
         cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Digite a Cidade se não buscar...", disabled=desabilitar_campos, key="cidade_input_fiel")
@@ -307,8 +316,8 @@ if opcao_menu == "📊 Cotar Novo Frete":
                 st.markdown('</div>', unsafe_allow_html=True)
 
 
-# --- CONTEÚDO DA OPÇÃO 2: RASTREAMENTO DE PEDIDOS ---
-elif opcao_menu == "📦 Rastrear Encomenda":
+# --- EXIBIÇÃO DA TELA: RASTREAMENTO ---
+elif st.session_state.tela_ativa == "rastreio":
     st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #1e3a8a;">', unsafe_allow_html=True)
     st.markdown('<div class="titulo-etapa">📦 PASSO ÚNICO: Gerar Rastreio para o Cliente</div>', unsafe_allow_html=True)
 
@@ -391,7 +400,7 @@ elif opcao_menu == "📦 Rastrear Encomenda":
                 )
 
             texto_rastreio_editavel = st.text_area("Pré-visualização da Mensagem de Rastreio:", value=mensagem_rastreio, height=180, key="preview_rastreio_final")
-            texto_rastreio_codificado = urllib.parse.quote(texto_editavel)
+            texto_rastreio_codificado = urllib.parse.quote(texto_rastreio_editavel)
             link_whatsapp_rastreio = f"https://api.whatsapp.com/send?text={texto_rastreio_codificado}"
             
             st.markdown(f"""
