@@ -142,6 +142,12 @@ st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid 
 if "tela_ativa" not in st.session_state:
     st.session_state.tela_ativa = "cotacao"
 
+# Inicializa as chaves da Cidade e UF na memória para evitar travamentos
+if "cidade_input_fiel" not in st.session_state:
+    st.session_state["cidade_input_fiel"] = ""
+if "uf_input_fiel" not in st.session_state:
+    st.session_state["uf_input_fiel"] = ""
+
 # Criamos duas colunas para simular abas perfeitas que salvam a posição
 col_aba1, col_aba2 = st.columns(2)
 
@@ -167,8 +173,6 @@ if st.session_state.tela_ativa == "cotacao":
     with col1:
         cep_input = st.text_input("📬 Digite o CEP do Cliente:", placeholder="00000000", max_chars=9, key="cep_input_fiel")
 
-    cidade_val = ""
-    uf_val = ""
     desabilitar_campos = False  # Destravado por padrão caso falte rede ou API
 
     if cep_input:
@@ -178,8 +182,9 @@ if st.session_state.tela_ativa == "cotacao":
                 url_api = f"https://opencep.com/v1/{cep_limpo}"
                 resposta = requests.get(url_api, timeout=3).json()
                 if "localidade" in resposta and resposta.get("localidade"):
-                    cidade_val = resposta.get("localidade", "").upper()
-                    uf_val = resposta.get("uf", "").upper()
+                    # Força a gravação direta na memória do Streamlit para funcionar na hora
+                    st.session_state["cidade_input_fiel"] = resposta.get("localidade", "").upper()
+                    st.session_state["uf_input_fiel"] = resposta.get("uf", "").upper()
                     desabilitar_campos = True  # Só bloqueia se encontrar automaticamente
                 else:
                     desabilitar_campos = False
@@ -187,14 +192,10 @@ if st.session_state.tela_ativa == "cotacao":
                 desabilitar_campos = False
 
     with col2: 
-        cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val if cidade_val else st.session_state.get("cidade_salva", ""), placeholder="Digite a Cidade se não buscar...", disabled=desabilitar_campos, key="cidade_input_fiel")
-        if cidade_automatica:
-            st.session_state["cidade_salva"] = cidade_automatica
+        cidade_automatica = st.text_input("📍 Cidade Identificada:", placeholder="Digite a Cidade se não buscar...", disabled=desabilitar_campos, key="cidade_input_fiel")
             
     with col3: 
-        uf_automatica = st.text_input("🏳️ UF:", value=uf_val if uf_val else st.session_state.get("uf_salva", ""), placeholder="EX: GO", disabled=desabilitar_campos, key="uf_input_fiel")
-        if uf_automatica:
-            st.session_state["uf_salva"] = uf_automatica
+        uf_automatica = st.text_input("🏳️ UF:", placeholder="EX: GO", disabled=desabilitar_campos, key="uf_input_fiel")
             
     st.markdown('</div>', unsafe_allow_html=True)
 
