@@ -362,12 +362,12 @@ if st.button("📱 GERAR MENSAGEM DE RASTREIO", use_container_width=True):
             )
             
         elif transportadora_rastreio == "Azul Cargo":
-            link_rastreio_final = "https://www.azulcargoexpress.com.br/"
+            # Link direto atualizado conforme solicitado!
+            link_rastreio_final = f"https://www.azullogistica.com.br/Rastreio/Rastrear?awb={codigo_rastreio}"
             mensagem_rastreio = (
                 f"Olá! Seu pedido da *Cia do Jeans* está voando até você pela *Azul Cargo*! ✈️\n\n"
                 f"📦 *Código de Rastreio (AWB):* {codigo_rastreio}\n"
-                f"🔗 *Acesse o site:* {link_rastreio_final}\n"
-                f"📌 _Basta digitar o código AWB no campo 'Rastreie sua carga' na página inicial._"
+                f"🔗 *Clique aqui para acompanhar:* {link_rastreio_final}"
             )
 
         texto_rastreio_editavel = st.text_area("Pré-visualização da Mensagem de Rastreio:", value=mensagem_rastreio, height=150, key="txt_rastreio_area")
