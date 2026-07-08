@@ -327,8 +327,7 @@ if st.button("📱 GERAR MENSAGEM DE RASTREIO", use_container_width=True):
         mensagem_rastreio = ""
         
         if transportadora_rastreio == "Correios":
-            link_rastreio_final = f"https://rastreamento.correios.com.br/app/index.php?codigo={codigo_rastreio}"
-            mensagem_rastreio = (
+            link_rastreio_final = f"https://rastreamento.correios.com.br/app/index.php?objetos= (
                 f"Olá! Seu pedido da *Cia do Jeans* já foi despachado pelos *Correios*! 🚚\n\n"
                 f"📦 *Código de Rastreio:* {codigo_rastreio}\n"
                 f"🔗 *Clique aqui para acompanhar:* {link_rastreio_final}"
