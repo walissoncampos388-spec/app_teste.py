@@ -248,7 +248,6 @@ if st.session_state.tela_ativa == "cotacao":
 
     # PASSO 3: RESULTADOS E WHATSAPP
     if btn_calcular:
-        # CORREÇÃO CRUCIAL AQUI: Busca os valores finais validados diretamente do session_state fixo
         cidade_busca = st.session_state.get("cidade_input_fiel", "").strip().upper()
         uf_busca = st.session_state.get("uf_input_fiel", "").strip().upper()
         
@@ -292,7 +291,7 @@ if st.session_state.tela_ativa == "cotacao":
                 else: 
                     st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_busca}-{uf_busca}.")
 
-            # PASSO 4: ENVIAR PARA O WHATSAPP
+            # PASSO 4: ENVIAR PARA O WHATSAPP E COPIAR
             if opcoes_whatsapp:
                 st.markdown("<br><hr style='border-top: 1px dashed #cbd5e1;'><br>", unsafe_allow_html=True)
                 st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #25d366;">', unsafe_allow_html=True)
@@ -313,12 +312,17 @@ if st.session_state.tela_ativa == "cotacao":
                 )
                 
                 texto_editavel = st.text_area("Pré-visualização da Mensagem:", value=mensagem_vendedor, height=250, key="txt_area_print")
+                
+                # ADICIONADO: Botão rápido de copiar via código nativo do Streamlit
+                st.markdown("<small style='color: #6b7280;'>📋 Toque no ícone no canto superior direito do bloco abaixo para copiar rapidamente no celular:</small>", unsafe_allow_html=True)
+                st.code(texto_editavel, language="text")
+                
                 texto_codificado = urllib.parse.quote(texto_editavel)
                 link_whatsapp = f"https://api.whatsapp.com/send?text={texto_codificado}"
                 
                 st.markdown(f"""
                     <a href="{link_whatsapp}" target="_blank" style="text-decoration: none;">
-                        <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer;">
+                        <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer; margin-top: 10px;">
                             📲 ENVIAR COTAÇÃO PARA O WHATSAPP DO CLIENTE
                         </div>
                     </a>
@@ -415,12 +419,18 @@ elif st.session_state.tela_ativa == "rastreio":
 
         st.markdown("<br>", unsafe_allow_html=True)
         
-        texto_rastreio_codificado = urllib.parse.quote(mensagem_rastreio)
+        # ADICIONADO: Caixa de pré-visualização editável e Bloco de cópia rápida para o Rastreio
+        texto_rastreio_editavel = st.text_area("Pré-visualização da Mensagem de Rastreio:", value=mensagem_rastreio, height=180, key="txt_area_rastreio")
+        
+        st.markdown("<small style='color: #6b7280;'>📋 Toque no ícone no canto superior direito do bloco abaixo para copiar rapidamente no celular:</small>", unsafe_allow_html=True)
+        st.code(texto_rastreio_editavel, language="text")
+        
+        texto_rastreio_codificado = urllib.parse.quote(texto_rastreio_editavel)
         link_whatsapp_rastreio = f"https://api.whatsapp.com/send?text={texto_rastreio_codificado}"
         
         st.markdown(f"""
             <a href="{link_whatsapp_rastreio}" target="_blank" style="text-decoration: none;">
-                <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer; margin-top: 5px; margin-bottom: 25px;">
+                <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer; margin-top: 10px; margin-bottom: 25px;">
                     📲 ENVIAR MENSAGEM DE RASTREIO PARA O WHATSAPP
                 </div>
             </a>
