@@ -113,7 +113,7 @@ with st.container():
             # Criamos uma div HTML interna apenas para garantir que a imagem fique 100% centralizada na coluna
             st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
             st.image(
-                "https://raw.githubusercontent.com/walissoncampos/fretes-cia-do-jeans/main/logo_ciadojeans.png - 3.png", 
+                "https://raw.githubusercontent.com/walissoncampos/fretes-cia-do-jeans/main/logo_ciadojeans.PNG", 
                 width=120
             )
             st.markdown("</div>", unsafe_allow_html=True)
