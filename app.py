@@ -58,7 +58,7 @@ st.markdown("""
         .stTabs [data-baseweb="tab"] {
             background-color: #f1f5f9;
             border-radius: 8px 8px 0px 0px;
-            padding: 10px 20px;
+            padding: 12px 24px;
             font-weight: bold;
             color: #4b5563;
         }
@@ -154,26 +154,12 @@ st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid 
 
 
 # ==========================================
-# GERENCIADOR DE ESTADO DAS ABAS (CORREÇÃO DE BUG MOBILE)
+# SISTEMA DE ABAS NATIVO IMPERMEÁVEL A RESET
 # ==========================================
-if "aba_atual" not in st.session_state:
-    st.session_state.aba_atual = 0
-
-# Criamos botões simulados de abas que salvam o estado corretamente sem dar refresh indesejado
-col_btn1, col_btn2 = st.columns(2)
-with col_btn1:
-    if st.button("📊 COTAR FRETE", use_container_width=True, type="primary" if st.session_state.aba_atual == 0 else "secondary"):
-        st.session_state.aba_atual = 0
-        st.rerun()
-with col_btn2:
-    if st.button("📦 RASTREAR ENCOMENDA", use_container_width=True, type="primary" if st.session_state.aba_atual == 1 else "secondary"):
-        st.session_state.aba_atual = 1
-        st.rerun()
-
-st.markdown("<br>", unsafe_allow_html=True)
+aba_cotacao, aba_rastreio = st.tabs(["📊 COTAR NOVO FRETE", "📦 RASTREAR ENCOMENDA"])
 
 # --- CONTEÚDO DA ABA 1: COTAÇÃO ---
-if st.session_state.aba_atual == 0:
+with aba_cotacao:
     
     # PASSO 1: LOCALIZAÇÃO DO CLIENTE
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
@@ -181,11 +167,11 @@ if st.session_state.aba_atual == 0:
     col1, col2, col3 = st.columns([1.5, 2, 1])
 
     with col1:
-        cep_input = st.text_input("📬 Digite o CEP do Cliente:", placeholder="00000000", max_chars=9, key="cep_cotacao")
+        cep_input = st.text_input("📬 Digite o CEP do Cliente:", placeholder="00000000", max_chars=9, key="cep_input_fiel")
 
     cidade_val = ""
     uf_val = ""
-    desabilitar_campos = True
+    desabilitar_campos = False  # Começa destravado por segurança
 
     if cep_input:
         cep_limpo = cep_input.replace("-", "").replace(" ", "")
@@ -193,18 +179,19 @@ if st.session_state.aba_atual == 0:
             try:
                 url_api = f"https://opencep.com/v1/{cep_limpo}"
                 resposta = requests.get(url_api, timeout=3).json()
-                if "localidade" in resposta:
+                if "localidade" in resposta and resposta.get("localidade"):
                     cidade_val = resposta.get("localidade", "").upper()
                     uf_val = resposta.get("uf", "").upper()
+                    desabilitar_campos = True  # Só trava se a API realmente achar a cidade
                 else:
-                    desabilitar_campos = False
+                    desabilitar_campos = False  # Destrava se o CEP não retornar nada
             except Exception:
-                desabilitar_campos = False
+                desabilitar_campos = False  # Destrava em caso de erro de conexão
 
     with col2: 
-        cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Digite a Cidade se não buscar...", disabled=desabilitar_campos, key="cidade_cotacao")
+        cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Digite a Cidade se não buscar...", disabled=desabilitar_campos, key="cidade_input_fiel")
     with col3: 
-        uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=desabilitar_campos, key="uf_cotacao")
+        uf_automatica = st.text_input("🏳️ UF:", value=uf_val, placeholder="EX: GO", disabled=desabilitar_campos, key="uf_input_fiel")
     st.markdown('</div>', unsafe_allow_html=True)
 
     # PASSO 2: ENTRADA DE PRODUTOS
@@ -212,13 +199,13 @@ if st.session_state.aba_atual == 0:
     st.markdown('<div class="titulo-etapa">👖 PASSO 2: O que estamos enviando hoje?</div>', unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
     with c1:
-        qtd_calcas = st.number_input("Quantidade de Calças:", min_value=0, value=0, step=1, key="qtd_calcas")
-        qtd_bermudas = st.number_input("Quantidade de Bermudas:", min_value=0, value=0, step=1, key="qtd_bermudas")
-        qtd_shorts = st.number_input("Quantidade de Shorts:", min_value=0, value=0, step=1, key="qtd_shorts")
+        qtd_calcas = st.number_input("Quantidade de Calças:", min_value=0, value=0, step=1, key="calc_un")
+        qtd_bermudas = st.number_input("Quantidade de Bermudas:", min_value=0, value=0, step=1, key="berm_un")
+        qtd_shorts = st.number_input("Quantidade de Shorts:", min_value=0, value=0, step=1, key="shor_un")
     with c2:
-        qtd_gola_o = st.number_input("Quantidade de Gola O:", min_value=0, value=0, step=1, key="qtd_gola_o")
-        qtd_tshirt = st.number_input("Quantidade de T-Shirt:", min_value=0, value=0, step=1, key="qtd_tshirt")
-        qtd_polo = st.number_input("Quantidade de Gola Polo:", min_value=0, value=0, step=1, key="qtd_polo")
+        qtd_gola_o = st.number_input("Quantidade de Gola O:", min_value=0, value=0, step=1, key="gola_un")
+        qtd_tshirt = st.number_input("Quantidade de T-Shirt:", min_value=0, value=0, step=1, key="tsh_un")
+        qtd_polo = st.number_input("Quantidade de Gola Polo:", min_value=0, value=0, step=1, key="polo_un")
 
     # Matemática de Pesos e Embalagem
     peso_pecas_puro = (qtd_calcas * 0.60) + (qtd_bermudas * 0.40) + (qtd_shorts * 0.35) + (qtd_gola_o * 0.28) + (qtd_tshirt * 0.20) + (qtd_polo * 0.32)
@@ -233,7 +220,7 @@ if st.session_state.aba_atual == 0:
     valor_nf_meia = (qtd_calcas * 40) + (qtd_bermudas * 33) + (qtd_shorts * 33) + (qtd_gola_o * 18) + (qtd_tshirt * 19) + (qtd_polo * 25)
 
     with c3:
-        valor_manual_nf_txt = st.text_input("✍️ Valor Real da NF (Opcional):", placeholder="Ex: 1250,00", key="nf_cotacao").strip()
+        valor_manual_nf_txt = st.text_input("✍️ Valor Real da NF (Opcional):", placeholder="Ex: 1250,00", key="nf_manual_txt").strip()
         
         valor_manual_nf = 0.0
         if valor_manual_nf_txt:
@@ -249,7 +236,7 @@ if st.session_state.aba_atual == 0:
 
     # DISPARADOR DE CÁLCULO
     st.markdown("<br>", unsafe_allow_html=True)
-    btn_calcular = st.button("🚀 CALCULAR FRETE E GERAR WHATSAPP", type="primary", use_container_width=True, key="btn_calcular_cotacao")
+    btn_calcular = st.button("🚀 CALCULAR FRETE E GERAR WHATSAPP", type="primary", use_container_width=True, key="trigger_calculo")
     st.markdown("<br>", unsafe_allow_html=True)
 
     # PASSO 3: RESULTADOS E WHATSAPP
@@ -258,7 +245,7 @@ if st.session_state.aba_atual == 0:
         uf_busca = uf_automatica.strip().upper()
         
         if not cep_input or not cidade_busca:
-            st.error("❌ Por favor, informe um CEP válido no Passo 1.")
+            st.error("❌ Por favor, informe um CEP ou preencha a Cidade no Passo 1.")
         elif total_pecas == 0:
             st.error("❌ Insira a quantidade de produtos no Passo 2 para calcular.")
         else:
@@ -317,7 +304,7 @@ if st.session_state.aba_atual == 0:
                     f"_Qual destas opções fica melhor para fazermos o despacho?_"
                 )
                 
-                texto_editavel = st.text_area("Pré-visualização da Mensagem:", value=mensagem_vendedor, height=250, key="txt_area_cotacao")
+                texto_editavel = st.text_area("Pré-visualização da Mensagem:", value=mensagem_vendedor, height=250, key="txt_area_print")
                 texto_codificado = urllib.parse.quote(texto_editavel)
                 link_whatsapp = f"https://api.whatsapp.com/send?text={texto_codificado}"
                 
@@ -332,7 +319,7 @@ if st.session_state.aba_atual == 0:
 
 
 # --- CONTEÚDO DA ABA 2: RASTREAMENTO ---
-elif st.session_state.aba_atual == 1:
+with aba_rastreio:
     st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #1e3a8a;">', unsafe_allow_html=True)
     st.markdown('<div class="titulo-etapa">📦 PASSO ÚNICO: Gerar Rastreio para o Cliente</div>', unsafe_allow_html=True)
 
@@ -342,16 +329,19 @@ elif st.session_state.aba_atual == 1:
         transportadora_rastreio = st.selectbox(
             "Selecione a Transportadora:",
             ["Correios", "J&T Express", "Braspress", "Azul Cargo", "Jadlog"],
-            key="select_transportadora_rastreio"
+            key="box_selecao_transportadora_estavel"
         )
 
     with col_cod:
-        codigo_rastreio = st.text_input("Código de Rastreio / Nº Nota Fiscal:", placeholder="Ex: BR123456789X / 4552", key="cod_rastreio").strip()
+        codigo_rastreio = st.text_input("Código de Rastreio / Nº Nota Fiscal:", placeholder="Ex: BR123456789X / 4552", key="campo_codigo_estavel").strip()
 
     with col_doc:
-        doc_cliente = st.text_input("CPF ou CNPJ do Cliente (Se J&T/Braspress):", placeholder="Apenas números", key="doc_rastreio").strip()
+        doc_cliente = st.text_input("CPF ou CNPJ do Cliente (Se J&T/Braspress):", placeholder="Apenas números", key="campo_doc_estavel").strip()
 
-    if st.button("📱 GERAR MENSAGEM DE RASTREIO", use_container_width=True, key="btn_gerar_rastreio"):
+    # Botão de gatilho interno da própria aba
+    btn_gerar_rastreio = st.button("📱 GERAR MENSAGEM DE RASTREIO", use_container_width=True, key="action_rastreio_fiel")
+
+    if btn_gerar_rastreio:
         if not codigo_rastreio:
             st.error("⚠️ Por favor, digite o código de rastreio ou número do documento necessário.")
         else:
@@ -412,7 +402,7 @@ elif st.session_state.aba_atual == 1:
                     f"{link_rastreio_final}"
                 )
 
-            texto_rastreio_editavel = st.text_area("Pré-visualização da Mensagem de Rastreio:", value=mensagem_rastreio, height=180, key="txt_rastreio_area")
+            texto_rastreio_editavel = st.text_area("Pré-visualização da Mensagem de Rastreio:", value=mensagem_rastreio, height=180, key="preview_rastreio_final")
             texto_rastreio_codificado = urllib.parse.quote(texto_rastreio_editavel)
             link_whatsapp_rastreio = f"https://api.whatsapp.com/send?text={texto_rastreio_codificado}"
             
