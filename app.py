@@ -329,48 +329,58 @@ if st.button("📱 GERAR MENSAGEM DE RASTREIO", use_container_width=True):
         if transportadora_rastreio == "Correios":
             link_rastreio_final = f"https://rastreamento.correios.com.br/app/index.php?objetos={codigo_rastreio}"
             mensagem_rastreio = (
-                f"Olá! Seu pedido da *Cia do Jeans* já foi despachado pelos *Correios*! 🚚\n\n"
-                f"📦 *Código de Rastreio:* {codigo_rastreio}\n"
-                f"🔗 *Clique aqui para acompanhar:* {link_rastreio_final}"
+                f"Olá! Seu pedido da *Cia do Jeans* já foi despachado! 🎉\n\n"
+                f"🚚 *Transportadora:* Correios\n"
+                f"📦 *Código de Rastreio:* `{codigo_rastreio}`\n\n"
+                f"🔗 *Clique no link abaixo para acompanhar seu envio:*\n"
+                f"{link_rastreio_final}"
             )
             
         elif transportadora_rastreio == "Jadlog":
             link_rastreio_final = f"https://www.jadlog.com.br/siteInstitucional/tracking.jad?conteudo={codigo_rastreio}"
             mensagem_rastreio = (
-                f"Olá! Seu pedido da *Cia do Jeans* já está a caminho pela *Jadlog*! 🚛\n\n"
-                f"📦 *Código de Rastreio:* {codigo_rastreio}\n"
-                f"🔗 *Clique aqui para acompanhar:* {link_rastreio_final}"
+                f"Olá! Seu pedido da *Cia do Jeans* já está a caminho! 🎉\n\n"
+                f"🚚 *Transportadora:* Jadlog\n"
+                f"📦 *Código de Rastreio:* `{codigo_rastreio}`\n\n"
+                f"🔗 *Clique no link abaixo para acompanhar seu envio:*\n"
+                f"{link_rastreio_final}"
             )
             
         elif transportadora_rastreio == "J&T Express":
             link_rastreio_final = "https://www.jtexpress.com.br/trajectoryQuery"
             mensagem_rastreio = (
-                f"Olá! Seu pedido da *Cia do Jeans* foi despachado pela *J&T Express*! 🚀\n\n"
-                f"📦 *Código de Rastreio:* {codigo_rastreio}\n"
-                f"🔗 *Acesse o site:* {link_rastreio_final}\n"
-                f"📌 _Insira o código acima ou seu CPF/CNPJ para visualizar o rastreamento._"
+                f"Olá! Seu pedido da *Cia do Jeans* já foi despachado! 🎉\n\n"
+                f"🚚 *Transportadora:* J&T Express\n"
+                f"📦 *Código de Rastreio:* `{codigo_rastreio}`\n\n"
+                f"🔗 *Como rastrear:*\n"
+                f"1. Acesse o site: {link_rastreio_final}\n"
+                f"2. Digite o seu código de rastreio acima ou o seu CPF/CNPJ."
             )
             
         elif transportadora_rastreio == "Braspress":
             link_rastreio_final = "https://www.braspress.com.br/"
-            doc_info = f" associado ao seu CNPJ/CPF {doc_cliente}" if doc_cliente else ""
+            doc_info = f" (CNPJ/CPF: {doc_cliente})" if doc_cliente else ""
             mensagem_rastreio = (
-                f"Olá! Seu pedido da *Cia do Jeans* foi coletado pela *Braspress*! 🚛\n\n"
-                f"📄 *Número da Nota Fiscal:* {codigo_rastreio}{doc_info}\n"
-                f"🔗 *Acesse o site:* {link_rastreio_final}\n"
-                f"📌 _No topo do site, clique em 'Rastreie sua Encomenda' e informe o número da NF e seu CPF/CNPJ._"
+                f"Olá! Seu pedido da *Cia do Jeans* já foi coletado! 🎉\n\n"
+                f"🚚 *Transportadora:* Braspress\n"
+                f"📄 *Número da Nota Fiscal:* `{codigo_rastreio}`{doc_info}\n\n"
+                f"🔗 *Como rastrear:*\n"
+                f"1. Acesse o site: {link_rastreio_final}\n"
+                f"2. No topo da página, clique em *'Rastreie sua Encomenda'*\n"
+                f"3. Informe o número da NF acima e o seu CPF/CNPJ."
             )
             
         elif transportadora_rastreio == "Azul Cargo":
-            # Link direto atualizado conforme solicitado!
             link_rastreio_final = f"https://www.azullogistica.com.br/Rastreio/Rastrear?awb={codigo_rastreio}"
             mensagem_rastreio = (
-                f"Olá! Seu pedido da *Cia do Jeans* está voando até você pela *Azul Cargo*! ✈️\n\n"
-                f"📦 *Código de Rastreio (AWB):* {codigo_rastreio}\n"
-                f"🔗 *Clique aqui para acompanhar:* {link_rastreio_final}"
+                f"Olá! Seu pedido da *Cia do Jeans* já está voando até você! 🎉\n\n"
+                f"🚚 *Transportadora:* Azul Cargo Express\n"
+                f"📦 *Código de Rastreio (AWB):* `{codigo_rastreio}`\n\n"
+                f"🔗 *Clique no link abaixo para acompanhar seu envio:*\n"
+                f"{link_rastreio_final}"
             )
 
-        texto_rastreio_editavel = st.text_area("Pré-visualização da Mensagem de Rastreio:", value=mensagem_rastreio, height=150, key="txt_rastreio_area")
+        texto_rastreio_editavel = st.text_area("Pré-visualização da Mensagem de Rastreio:", value=mensagem_rastreio, height=180, key="txt_rastreio_area")
         texto_rastreio_codificado = urllib.parse.quote(texto_rastreio_editavel)
         link_whatsapp_rastreio = f"https://api.whatsapp.com/send?text={texto_rastreio_codificado}"
         
