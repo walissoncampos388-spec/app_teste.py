@@ -291,7 +291,7 @@ if st.session_state.tela_ativa == "cotacao":
                 else: 
                     st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_busca}-{uf_busca}.")
 
-            # PASSO 4: ENVIAR PARA O WHATSAPP E COPIAR
+            # PASSO 4: ENVIAR PARA O WHATSAPP
             if opcoes_whatsapp:
                 st.markdown("<br><hr style='border-top: 1px dashed #cbd5e1;'><br>", unsafe_allow_html=True)
                 st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #25d366;">', unsafe_allow_html=True)
@@ -312,21 +312,28 @@ if st.session_state.tela_ativa == "cotacao":
                 )
                 
                 texto_editavel = st.text_area("Pré-visualização da Mensagem:", value=mensagem_vendedor, height=250, key="txt_area_print")
-                
-                # ADICIONADO: Botão rápido de copiar via código nativo do Streamlit
-                st.markdown("<small style='color: #6b7280;'>📋 Toque no ícone no canto superior direito do bloco abaixo para copiar rapidamente no celular:</small>", unsafe_allow_html=True)
-                st.code(texto_editavel, language="text")
-                
                 texto_codificado = urllib.parse.quote(texto_editavel)
                 link_whatsapp = f"https://api.whatsapp.com/send?text={texto_codificado}"
                 
+                # Botão Original do WhatsApp
                 st.markdown(f"""
                     <a href="{link_whatsapp}" target="_blank" style="text-decoration: none;">
-                        <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer; margin-top: 10px;">
+                        <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer; margin-bottom: 12px;">
                             📲 ENVIAR COTAÇÃO PARA O WHATSAPP DO CLIENTE
                         </div>
                     </a>
                 """, unsafe_allow_html=True)
+
+                # NOVO: Apenas o botão de copiar limpo, com o mesmo estilo padrão
+                if st.button("📋 COPIAR TEXTO DA COTAÇÃO", use_container_width=True):
+                    # Injeta a cópia em segundo plano usando um hack leve e limpo nativo do Streamlit
+                    st.components.v1.html(f"""
+                        <script>
+                        navigator.clipboard.writeText(`{texto_editavel}`);
+                        alert("Texto copiado com sucesso!");
+                        </script>
+                    """, height=0)
+                
                 st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -419,22 +426,26 @@ elif st.session_state.tela_ativa == "rastreio":
 
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # ADICIONADO: Caixa de pré-visualização editável e Bloco de cópia rápida para o Rastreio
-        texto_rastreio_editavel = st.text_area("Pré-visualização da Mensagem de Rastreio:", value=mensagem_rastreio, height=180, key="txt_area_rastreio")
-        
-        st.markdown("<small style='color: #6b7280;'>📋 Toque no ícone no canto superior direito do bloco abaixo para copiar rapidamente no celular:</small>", unsafe_allow_html=True)
-        st.code(texto_rastreio_editavel, language="text")
-        
-        texto_rastreio_codificado = urllib.parse.quote(texto_rastreio_editavel)
+        texto_rastreio_codificado = urllib.parse.quote(mensagem_rastreio)
         link_whatsapp_rastreio = f"https://api.whatsapp.com/send?text={texto_rastreio_codificado}"
         
+        # Botão Original do WhatsApp (Rastreio)
         st.markdown(f"""
             <a href="{link_whatsapp_rastreio}" target="_blank" style="text-decoration: none;">
-                <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer; margin-top: 10px; margin-bottom: 25px;">
+                <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer; margin-top: 5px; margin-bottom: 12px;">
                     📲 ENVIAR MENSAGEM DE RASTREIO PARA O WHATSAPP
                 </div>
             </a>
         """, unsafe_allow_html=True)
+        
+        # NOVO: Botão de copiar limpo para a tela de Rastreio também
+        if st.button("📋 COPIAR TEXTO DO RASTREIO", use_container_width=True):
+            st.components.v1.html(f"""
+                <script>
+                navigator.clipboard.writeText(`{mensagem_rastreio}`);
+                alert("Rastreio copiado com sucesso!");
+                </script>
+            """, height=0)
         
         st.markdown("---")
         btn_abrir_painel = st.checkbox("🖥️ QUER VISUALIZAR O RASTREIO DENTRO DO SITE?", value=False, key="check_painel_integrado")
