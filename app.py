@@ -105,11 +105,11 @@ def carregar_e_limpar_dados():
 
 df_fretes_fixos = carregar_e_limpar_dados()
 
-# Cabeçalho Centralizado Seguro para Mobile e Desktop
+# Cabeçalho Centralizado Seguro com imagem local via Streamlit
 st.markdown(
     """
     <div style='text-align: center; margin-bottom: 10px;'>
-        <img src="https://raw.githubusercontent.com/walissoncampos/fretes-cia-do-jeans/main/logo_ciadojeans.PNG" width="120">
+        <img src="https://images2.imgbox.com/73/4a/G9471f0g_o.png" width="120">
     </div>
     <div style='text-align:center; font-family:sans-serif; margin:0; line-height: 1.1;'>
         <h2 style='color:#1e3a8a; font-weight:800; margin:0; font-size: 1.8rem; display:inline-block; width:100%;'>
