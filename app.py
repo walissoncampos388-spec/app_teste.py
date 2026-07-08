@@ -154,12 +154,26 @@ st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid 
 
 
 # ==========================================
-# CRIAÇÃO DAS ABAS DO TOPO COM ARMAZENAMENTO DE ESTADO (KEY)
+# GERENCIADOR DE ESTADO DAS ABAS (CORREÇÃO DE BUG MOBILE)
 # ==========================================
-aba_cotacao, aba_rastreio = st.tabs(["📊 COTAR NOVO FRETE", "📦 RASTREAR ENCOMENDA"])
+if "aba_atual" not in st.session_state:
+    st.session_state.aba_atual = 0
+
+# Criamos botões simulados de abas que salvam o estado corretamente sem dar refresh indesejado
+col_btn1, col_btn2 = st.columns(2)
+with col_btn1:
+    if st.button("📊 COTAR FRETE", use_container_width=True, type="primary" if st.session_state.aba_atual == 0 else "secondary"):
+        st.session_state.aba_atual = 0
+        st.rerun()
+with col_btn2:
+    if st.button("📦 RASTREAR ENCOMENDA", use_container_width=True, type="primary" if st.session_state.aba_atual == 1 else "secondary"):
+        st.session_state.aba_atual = 1
+        st.rerun()
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 # --- CONTEÚDO DA ABA 1: COTAÇÃO ---
-with aba_cotacao:
+if st.session_state.aba_atual == 0:
     
     # PASSO 1: LOCALIZAÇÃO DO CLIENTE
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
@@ -318,7 +332,7 @@ with aba_cotacao:
 
 
 # --- CONTEÚDO DA ABA 2: RASTREAMENTO ---
-with aba_rastreio:
+elif st.session_state.aba_atual == 1:
     st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #1e3a8a;">', unsafe_allow_html=True)
     st.markdown('<div class="titulo-etapa">📦 PASSO ÚNICO: Gerar Rastreio para o Cliente</div>', unsafe_allow_html=True)
 
