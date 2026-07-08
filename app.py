@@ -12,6 +12,23 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# CONTROLE DE NAVEGAÇÃO À PROVA DE REFRESH (SESSION STATE) - Inicializado no topo
+if "tela_ativa" not in st.session_state:
+    st.session_state.tela_ativa = "cotacao"
+if "cidade_input_fiel" not in st.session_state:
+    st.session_state["cidade_input_fiel"] = ""
+if "uf_input_fiel" not in st.session_state:
+    st.session_state["uf_input_fiel"] = ""
+if "rastreio_gerado" not in st.session_state:
+    st.session_state["rastreio_gerado"] = False
+
+# Funções de clique rápido para limpar o delay do double-click
+def mudar_para_cotacao():
+    st.session_state.tela_ativa = "cotacao"
+
+def mudar_para_rastreio():
+    st.session_state.tela_ativa = "rastreio"
+
 # Estilização CSS Premium e Responsiva
 st.markdown("""
     <style>
@@ -50,8 +67,28 @@ st.markdown("""
             align-items: center;
         }
         
-        /* Estilização para deixar o botão nativo do Streamlit idêntico ao visual anterior - Agora em Azul */
-        div.stButton > button:first-child {
+        /* Estilização das Abas Superiores (Alternância de Cores) */
+        div.stButton > button[key="aba_cot_btn"] {
+            background-color: """ + ("#1e3a8a" if st.session_state.tela_ativa == "cotacao" else "#e5e7eb") + """ !important;
+            color: """ + ("white" if st.session_state.tela_ativa == "cotacao" else "#4b5563") + """ !important;
+            font-weight: bold !important;
+            border: 1px solid #cbd5e1 !important;
+            padding: 12px !important;
+            border-radius: 8px !important;
+            width: 100% !important;
+        }
+        div.stButton > button[key="aba_ras_btn"] {
+            background-color: """ + ("#1e3a8a" if st.session_state.tela_ativa == "rastreio" else "#e5e7eb") + """ !important;
+            color: """ + ("white" if st.session_state.tela_ativa == "rastreio" else "#4b5563") + """ !important;
+            font-weight: bold !important;
+            border: 1px solid #cbd5e1 !important;
+            padding: 12px !important;
+            border-radius: 8px !important;
+            width: 100% !important;
+        }
+        
+        /* Estilização para deixar o botão de COPIAR em Azul Fixo */
+        div.stButton > button[key="btn_pure_copy_frete"], div.stButton > button[key="btn_pure_copy_rastreio"] {
             background-color: #1e3a8a !important;
             color: white !important;
             font-weight: bold !important;
@@ -62,8 +99,9 @@ st.markdown("""
             box-shadow: 0 4px 10px rgba(30,58,138,0.3) !important;
             cursor: pointer !important;
             width: 100% !important;
+            margin-top: 5px !important;
         }
-        div.stButton > button:first-child:hover {
+        div.stButton > button[key="btn_pure_copy_frete"]:hover, div.stButton > button[key="btn_pure_copy_rastreio"]:hover {
             background-color: #162a65 !important;
             color: white !important;
         }
@@ -154,30 +192,14 @@ st.markdown(
 st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid #e5e7eb;'>", unsafe_allow_html=True)
 
 
-# ==========================================
-# CONTROLE DE NAVEGAÇÃO À PROVA DE REFRESH (SESSION STATE)
-# ==========================================
-if "tela_ativa" not in st.session_state:
-    st.session_state.tela_ativa = "cotacao"
-
-# Inicializa as chaves da Cidade e UF na memória para evitar travamentos
-if "cidade_input_fiel" not in st.session_state:
-    st.session_state["cidade_input_fiel"] = ""
-if "uf_input_fiel" not in st.session_state:
-    st.session_state["uf_input_fiel"] = ""
-if "rastreio_gerado" not in st.session_state:
-    st.session_state["rastreio_gerado"] = False
-
-# Criamos duas colunas para simular abas perfeitas que salvam a posição
+# Criamos duas colunas para simular abas perfeitas com gatilho instantâneo (on_click)
 col_aba1, col_aba2 = st.columns(2)
 
 with col_aba1:
-    if st.button("📊 COTAR NOVO FRETE", use_container_width=True, type="primary" if st.session_state.tela_ativa == "cotacao" else "secondary"):
-        st.session_state.tela_ativa = "cotacao"
+    st.button("📊 COTAR NOVO FRETE", use_container_width=True, key="aba_cot_btn", on_click=mudar_para_cotacao)
 
 with col_aba2:
-    if st.button("📦 RASTREAR ENCOMENDA", use_container_width=True, type="primary" if st.session_state.tela_ativa == "rastreio" else "secondary"):
-        st.session_state.tela_ativa = "rastreio"
+    st.button("📦 RASTREAR ENCOMENDA", use_container_width=True, key="aba_ras_btn", on_click=mudar_para_rastreio)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -347,7 +369,7 @@ if st.session_state.tela_ativa == "cotacao":
                     </a>
                 """, unsafe_allow_html=True)
 
-                # Botão nativo Streamlit azul e integrado à janela pai (Funciona 100% Mobile e Computador)
+                # Botão nativo Streamlit azul (Funciona 100% Mobile e Computador)
                 if st.button("📋 COPIAR TEXTO DA COTAÇÃO", key="btn_pure_copy_frete"):
                     texto_js_safe = texto_editavel.replace('\\', '\\\\').replace('`', '\\`').replace('$', '\\$').replace('\n', '\\n')
                     st.components.v1.html(f"""
@@ -462,7 +484,7 @@ elif st.session_state.tela_ativa == "rastreio":
             </a>
         """, unsafe_allow_html=True)
         
-        # Botão nativo Streamlit azul e integrado à janela pai (Rastreio)
+        # Botão nativo Streamlit azul (Rastreio)
         if st.button("📋 COPIAR TEXTO DO RASTREIO", key="btn_pure_copy_rastreio"):
             texto_rastreio_js_safe = texto_rastreio_editavel.replace('\\', '\\\\').replace('`', '\\`').replace('$', '\\$').replace('\n', '\\n')
             st.components.v1.html(f"""
