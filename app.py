@@ -197,10 +197,8 @@ else: tipo_embalagem = "Fardo Comercial"
 valor_nf_meia = (qtd_calcas * 40) + (qtd_bermudas * 33) + (qtd_shorts * 33) + (qtd_gola_o * 18) + (qtd_tshirt * 19) + (qtd_polo * 25)
 
 with c3:
-    # Mudança estratégica: text_input para acabar com os zeros fixos à esquerda
     valor_manual_nf_txt = st.text_input("✍️ Valor Real da NF (Opcional):", placeholder="Ex: 1250,00").strip()
     
-    # Processa o valor digitado de forma segura
     valor_manual_nf = 0.0
     if valor_manual_nf_txt:
         try:
@@ -298,9 +296,11 @@ if btn_calcular:
                     </div>
                 </a>
             """, unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=
-            # ==========================================
-# PASSO 5: RASTREAMENTO DE ENCOMENDAS (OPCIONAL)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+
+# ==========================================
+# PASSO 5: RASTREAMENTO DE ENCOMENDAS
 # ==========================================
 st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #1e3a8a;">', unsafe_allow_html=True)
 st.markdown('<div class="titulo-etapa">📦 PASSO 4: Gerar Rastreio para o Cliente</div>', unsafe_allow_html=True)
@@ -370,7 +370,6 @@ if st.button("📱 GERAR MENSAGEM DE RASTREIO", use_container_width=True):
                 f"📌 _Basta digitar o código AWB no campo 'Rastreie sua carga' na página inicial._"
             )
 
-        # Código corrigido aqui:
         texto_rastreio_editavel = st.text_area("Pré-visualização da Mensagem de Rastreio:", value=mensagem_rastreio, height=150, key="txt_rastreio_area")
         texto_rastreio_codificado = urllib.parse.quote(texto_rastreio_editavel)
         link_whatsapp_rastreio = f"https://api.whatsapp.com/send?text={texto_rastreio_codificado}"
