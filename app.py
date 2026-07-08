@@ -49,6 +49,24 @@ st.markdown("""
             justify-content: space-between;
             align-items: center;
         }
+        
+        /* Estilização para deixar o botão nativo do Streamlit idêntico ao visual anterior */
+        div.stButton > button:first-child {
+            background-color: #fcb103 !important;
+            color: white !important;
+            font-weight: bold !important;
+            font-size: 16px !important;
+            padding: 14px !important;
+            border-radius: 8px !important;
+            border: none !important;
+            box-shadow: 0 4px 10px rgba(252,177,3,0.3) !important;
+            cursor: pointer !important;
+            width: 100% !important;
+        }
+        div.stButton > button:first-child:hover {
+            background-color: #e09e02 !important;
+            color: white !important;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -247,7 +265,8 @@ if st.session_state.tela_ativa == "cotacao":
     st.markdown("<br>", unsafe_allow_html=True)
 
     # PASSO 3: RESULTADOS E WHATSAPP
-    if btn_calcular:
+    if btn_calcular or st.session_state.get('frete_calculado_ok', False):
+        st.session_state['frete_calculado_ok'] = True
         cidade_busca = st.session_state.get("cidade_input_fiel", "").strip().upper()
         uf_busca = st.session_state.get("uf_input_fiel", "").strip().upper()
         
@@ -256,8 +275,6 @@ if st.session_state.tela_ativa == "cotacao":
         elif total_pecas == 0:
             st.error("❌ Insira a quantidade de produtos no Passo 2 para calcular.")
         else:
-            st.markdown("### 🏁 Transportadoras Encontradas para a Região")
-            
             opcoes_whatsapp = []
             
             if df_fretes_fixos.empty:
@@ -266,22 +283,28 @@ if st.session_state.tela_ativa == "cotacao":
                 resultados_fixos = df_fretes_fixos[(df_fretes_fixos['CIDADE'] == cidade_busca) & (df_fretes_fixos['UF'] == uf_busca)]
                 
                 if not resultados_fixos.empty:
+                    if btn_calcular: # Só redesenha os cards se o clique principal foi disparado
+                        st.markdown("### 🏁 Transportadoras Encontradas para a Região")
+                        for idx, row in resultados_fixos.iterrows():
+                            print_prazo = str(row['PRAZO'])
+                            if "cotar" not in print_prazo.lower() and "dias" not in print_prazo.lower() and print_prazo != '-': 
+                                print_prazo = f"{print_prazo} Dias"
+                                
+                            st.markdown(f"""
+                            <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
+                                <div>
+                                    <strong style="font-size:16px; color:#1e3a8a;"><b>🚛 {row['TRANSPORTADORA']}</b></strong><br>
+                                    <span style="font-size:13px; color:#4b5563;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Fone: {row['FONE']}</span><br>
+                                    <span style="font-size:12px; color:#6b7280;">⏱️ Prazo: {print_prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
+                                </div>
+                                <div style="text-align: right;"><span style="font-size:13px; color:#6b7280; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#111827;">R$ {row['VALOR_MINIMO']}</span></div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
                     for idx, row in resultados_fixos.iterrows():
                         print_prazo = str(row['PRAZO'])
                         if "cotar" not in print_prazo.lower() and "dias" not in print_prazo.lower() and print_prazo != '-': 
                             print_prazo = f"{print_prazo} Dias"
-                            
-                        st.markdown(f"""
-                        <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
-                            <div>
-                                <strong style="font-size:16px; color:#1e3a8a;"><b>🚛 {row['TRANSPORTADORA']}</b></strong><br>
-                                <span style="font-size:13px; color:#4b5563;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Fone: {row['FONE']}</span><br>
-                                <span style="font-size:12px; color:#6b7280;">⏱️ Prazo: {print_prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
-                            </div>
-                            <div style="text-align: right;"><span style="font-size:13px; color:#6b7280; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#111827;">R$ {row['VALOR_MINIMO']}</span></div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
                         opcoes_whatsapp.append(
                             f"🚛 *{row['TRANSPORTADORA']}*\n"
                             f"💰 Mínimo: R$ {row['VALOR_MINIMO']}\n"
@@ -318,19 +341,19 @@ if st.session_state.tela_ativa == "cotacao":
                 # Botão Original do WhatsApp
                 st.markdown(f"""
                     <a href="{link_whatsapp}" target="_blank" style="text-decoration: none;">
-                        <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer; margin-bottom: 12px;">
+                        <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer; margin-bottom: 12px; font-family: sans-serif;">
                             📲 ENVIAR COTAÇÃO PARA O WHATSAPP DO CLIENTE
                         </div>
                     </a>
                 """, unsafe_allow_html=True)
 
-                # NOVO: Apenas o botão de copiar limpo, com o mesmo estilo padrão
-                if st.button("📋 COPIAR TEXTO DA COTAÇÃO", use_container_width=True):
-                    # Injeta a cópia em segundo plano usando um hack leve e limpo nativo do Streamlit
+                # CORREÇÃO DEFINITIVA: Botão nativo Streamlit integrado com JS da janela pai externa (Sem iframe block)
+                if st.button("📋 COPIAR TEXTO DA COTAÇÃO", key="btn_pure_copy_frete"):
+                    texto_js_safe = texto_editavel.replace('\\', '\\\\').replace('`', '\\`').replace('$', '\\$').replace('\n', '\\n')
                     st.components.v1.html(f"""
                         <script>
-                        navigator.clipboard.writeText(`{texto_editavel}`);
-                        alert("Texto copiado com sucesso!");
+                        parent.navigator.clipboard.writeText(`{texto_js_safe}`);
+                        alert("Cotação copiada com sucesso! 🎉");
                         </script>
                     """, height=0)
                 
@@ -426,24 +449,26 @@ elif st.session_state.tela_ativa == "rastreio":
 
         st.markdown("<br>", unsafe_allow_html=True)
         
-        texto_rastreio_codificado = urllib.parse.quote(mensagem_rastreio)
+        texto_rastreio_editavel = st.text_area("Pré-visualização da Mensagem de Rastreio:", value=mensagem_rastreio, height=180, key="txt_area_rastreio")
+        texto_rastreio_codificado = urllib.parse.quote(texto_rastreio_editavel)
         link_whatsapp_rastreio = f"https://api.whatsapp.com/send?text={texto_rastreio_codificado}"
         
         # Botão Original do WhatsApp (Rastreio)
         st.markdown(f"""
             <a href="{link_whatsapp_rastreio}" target="_blank" style="text-decoration: none;">
-                <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer; margin-top: 5px; margin-bottom: 12px;">
+                <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer; margin-top: 5px; margin-bottom: 12px; font-family: sans-serif;">
                     📲 ENVIAR MENSAGEM DE RASTREIO PARA O WHATSAPP
                 </div>
             </a>
         """, unsafe_allow_html=True)
         
-        # NOVO: Botão de copiar limpo para a tela de Rastreio também
-        if st.button("📋 COPIAR TEXTO DO RASTREIO", use_container_width=True):
+        # CORREÇÃO DEFINITIVA: Botão nativo Streamlit integrado com JS da janela pai externa para Rastreio
+        if st.button("📋 COPIAR TEXTO DO RASTREIO", key="btn_pure_copy_rastreio"):
+            texto_rastreio_js_safe = texto_rastreio_editavel.replace('\\', '\\\\').replace('`', '\\`').replace('$', '\\$').replace('\n', '\\n')
             st.components.v1.html(f"""
                 <script>
-                navigator.clipboard.writeText(`{mensagem_rastreio}`);
-                alert("Rastreio copiado com sucesso!");
+                parent.navigator.clipboard.writeText(`{texto_rastreio_js_safe}`);
+                alert("Rastreio copiado com sucesso! 🎉");
                 </script>
             """, height=0)
         
