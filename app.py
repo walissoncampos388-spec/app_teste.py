@@ -9,7 +9,7 @@ st.set_page_config(
     page_title="Cia do Jeans - Calculadora Inteligente", 
     page_icon="⚡", 
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded" # Mantém o menu aberto para fácil navegação
 )
 
 # Estilização CSS Premium e Responsiva
@@ -48,23 +48,6 @@ st.markdown("""
             display: flex;
             justify-content: space-between;
             align-items: center;
-        }
-        
-        /* Ajuste visual para as abas do topo ficarem destacadas */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 10px;
-            justify-content: center;
-        }
-        .stTabs [data-baseweb="tab"] {
-            background-color: #f1f5f9;
-            border-radius: 8px 8px 0px 0px;
-            padding: 12px 24px;
-            font-weight: bold;
-            color: #4b5563;
-        }
-        .stTabs [aria-selected="true"] {
-            background-color: #1e3a8a !important;
-            color: white !important;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -154,12 +137,18 @@ st.markdown("<hr style='margin: 15px 0 25px 0; border: 0; border-top: 1px solid 
 
 
 # ==========================================
-# SISTEMA DE ABAS NATIVO IMPERMEÁVEL A RESET
+# MENU LATERAL ANTIBUG E ANTIRESET
 # ==========================================
-aba_cotacao, aba_rastreio = st.tabs(["📊 COTAR NOVO FRETE", "📦 RASTREAR ENCOMENDA"])
+with st.sidebar:
+    st.markdown("### 🛠️ MENU DE OPERAÇÕES")
+    opcao_menu = st.radio(
+        "Selecione o que deseja fazer:",
+        ["📊 Cotar Novo Frete", "📦 Rastrear Encomenda"],
+        key="menu_principal_estavel"
+    )
 
-# --- CONTEÚDO DA ABA 1: COTAÇÃO ---
-with aba_cotacao:
+# --- CONTEÚDO DA OPÇÃO 1: COTAÇÃO DE FRETE ---
+if opcao_menu == "📊 Cotar Novo Frete":
     
     # PASSO 1: LOCALIZAÇÃO DO CLIENTE
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
@@ -171,7 +160,7 @@ with aba_cotacao:
 
     cidade_val = ""
     uf_val = ""
-    desabilitar_campos = False  # Começa destravado por segurança
+    desabilitar_campos = False  # Começa destravado para garantir digitação manual caso falte rede
 
     if cep_input:
         cep_limpo = cep_input.replace("-", "").replace(" ", "")
@@ -182,11 +171,11 @@ with aba_cotacao:
                 if "localidade" in resposta and resposta.get("localidade"):
                     cidade_val = resposta.get("localidade", "").upper()
                     uf_val = resposta.get("uf", "").upper()
-                    desabilitar_campos = True  # Só trava se a API realmente achar a cidade
+                    desabilitar_campos = True  # Só bloqueia se achar os dados automaticamente
                 else:
-                    desabilitar_campos = False  # Destrava se o CEP não retornar nada
+                    desabilitar_campos = False  # Libera se a API não encontrar dados
             except Exception:
-                desabilitar_campos = False  # Destrava em caso de erro de conexão
+                desabilitar_campos = False  # Libera se houver erro ou falta de conexão
 
     with col2: 
         cidade_automatica = st.text_input("📍 Cidade Identificada:", value=cidade_val, placeholder="Digite a Cidade se não buscar...", disabled=desabilitar_campos, key="cidade_input_fiel")
@@ -318,8 +307,8 @@ with aba_cotacao:
                 st.markdown('</div>', unsafe_allow_html=True)
 
 
-# --- CONTEÚDO DA ABA 2: RASTREAMENTO ---
-with aba_rastreio:
+# --- CONTEÚDO DA OPÇÃO 2: RASTREAMENTO DE PEDIDOS ---
+elif opcao_menu == "📦 Rastrear Encomenda":
     st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #1e3a8a;">', unsafe_allow_html=True)
     st.markdown('<div class="titulo-etapa">📦 PASSO ÚNICO: Gerar Rastreio para o Cliente</div>', unsafe_allow_html=True)
 
@@ -338,7 +327,6 @@ with aba_rastreio:
     with col_doc:
         doc_cliente = st.text_input("CPF ou CNPJ do Cliente (Se J&T/Braspress):", placeholder="Apenas números", key="campo_doc_estavel").strip()
 
-    # Botão de gatilho interno da própria aba
     btn_gerar_rastreio = st.button("📱 GERAR MENSAGEM DE RASTREIO", use_container_width=True, key="action_rastreio_fiel")
 
     if btn_gerar_rastreio:
@@ -403,7 +391,7 @@ with aba_rastreio:
                 )
 
             texto_rastreio_editavel = st.text_area("Pré-visualização da Mensagem de Rastreio:", value=mensagem_rastreio, height=180, key="preview_rastreio_final")
-            texto_rastreio_codificado = urllib.parse.quote(texto_rastreio_editavel)
+            texto_rastreio_codificado = urllib.parse.quote(texto_editavel)
             link_whatsapp_rastreio = f"https://api.whatsapp.com/send?text={texto_rastreio_codificado}"
             
             st.markdown(f"""
