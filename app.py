@@ -147,6 +147,8 @@ if "cidade_input_fiel" not in st.session_state:
     st.session_state["cidade_input_fiel"] = ""
 if "uf_input_fiel" not in st.session_state:
     st.session_state["uf_input_fiel"] = ""
+if "rastreio_gerado" not in st.session_state:
+    st.session_state["rastreio_gerado"] = False
 
 # Criamos duas colunas para simular abas perfeitas que salvam a posição
 col_aba1, col_aba2 = st.columns(2)
@@ -173,7 +175,7 @@ if st.session_state.tela_ativa == "cotacao":
     with col1:
         cep_input = st.text_input("📬 Digite o CEP do Cliente:", placeholder="00000000", max_chars=9, key="cep_input_fiel")
 
-    desabilitar_campos = False  # Destravado por padrão caso falte rede ou API
+    desabilitar_campos = False  # Destravado por padrão caso a rede ou API falhem
 
     if cep_input:
         cep_limpo = cep_input.replace("-", "").replace(" ", "")
@@ -246,10 +248,11 @@ if st.session_state.tela_ativa == "cotacao":
 
     # PASSO 3: RESULTADOS E WHATSAPP
     if btn_calcular:
-        cidade_busca = cidade_automatica.strip().upper()
-        uf_busca = uf_automatica.strip().upper()
+        # CORREÇÃO CRUCIAL AQUI: Busca os valores finais validados diretamente do session_state fixo
+        cidade_busca = st.session_state.get("cidade_input_fiel", "").strip().upper()
+        uf_busca = st.session_state.get("uf_input_fiel", "").strip().upper()
         
-        if not cep_input or not cidade_busca:
+        if not cidade_busca:
             st.error("❌ Por favor, informe um CEP ou preencha a Cidade no Passo 1.")
         elif total_pecas == 0:
             st.error("❌ Insira a quantidade de produtos no Passo 2 para calcular.")
@@ -324,7 +327,6 @@ if st.session_state.tela_ativa == "cotacao":
 
 
 # --- EXIBIÇÃO DA TELA: RASTREAMENTO ---
-# --- EXIBIÇÃO DA TELA: RASTREAMENTO COM CHECK-OUT INTEGRADO ---
 elif st.session_state.tela_ativa == "rastreio":
     st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #1e3a8a;">', unsafe_allow_html=True)
     st.markdown('<div class="titulo-etapa">📦 PASSO ÚNICO: Gerar Rastreio para o Cliente</div>', unsafe_allow_html=True)
@@ -344,8 +346,16 @@ elif st.session_state.tela_ativa == "rastreio":
     with col_doc:
         doc_cliente = st.text_input("CPF ou CNPJ do Cliente (Se J&T/Braspress):", placeholder="Apenas números", key="campo_doc_estavel").strip()
 
-    # Se o código já foi digitado, gera o link e o botão na hora de forma direta
-    if codigo_rastreio:
+    btn_gerar_mensagem = st.button("⚙️ GERAR INFORMAÇÕES DE RASTREAMENTO", type="primary", use_container_width=True, key="action_processar_rastreio")
+
+    if btn_gerar_mensagem:
+        if not codigo_rastreio:
+            st.error("⚠️ Por favor, digite o código de rastreio ou número do documento antes de gerar.")
+            st.session_state["rastreio_gerado"] = False
+        else:
+            st.session_state["rastreio_gerado"] = True
+
+    if st.session_state["rastreio_gerado"] and codigo_rastreio:
         link_rastreio_final = ""
         mensagem_rastreio = ""
         
@@ -403,19 +413,19 @@ elif st.session_state.tela_ativa == "rastreio":
                 f"{link_rastreio_final}"
             )
 
-        # Codifica diretamente o texto correto sem depender de caixas extras intermediárias
+        st.markdown("<br>", unsafe_allow_html=True)
+        
         texto_rastreio_codificado = urllib.parse.quote(mensagem_rastreio)
         link_whatsapp_rastreio = f"https://api.whatsapp.com/send?text={texto_rastreio_codificado}"
         
         st.markdown(f"""
             <a href="{link_whatsapp_rastreio}" target="_blank" style="text-decoration: none;">
-                <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer; margin-top: 15px; margin-bottom: 25px;">
+                <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); cursor: pointer; margin-top: 5px; margin-bottom: 25px;">
                     📲 ENVIAR MENSAGEM DE RASTREIO PARA O WHATSAPP
                 </div>
             </a>
         """, unsafe_allow_html=True)
         
-        # Painel Integrado Opcional abaixo do botão do WhatsApp
         st.markdown("---")
         btn_abrir_painel = st.checkbox("🖥️ QUER VISUALIZAR O RASTREIO DENTRO DO SITE?", value=False, key="check_painel_integrado")
         
