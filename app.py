@@ -7,7 +7,7 @@ import base64
 # ==============================================================================
 # CONFIGURAÇÕES E CREDENCIAIS DA API DOS CORREIOS
 # ==============================================================================
-CORREIOS_USUARIO = "unicammodas38"  # Se falhar, você pode tentar colocar o CNPJ da empresa (apenas números) aqui
+CORREIOS_USUARIO = "34835571000168"  # Se falhar, você pode tentar colocar o CNPJ da empresa (apenas números) aqui
 CORREIOS_API_KEY = "cws-ch1_jPwQYCEq4SnUZnvUEo6dW5pY2FtbW9kYXMzODo5OTEyNTYzNTQ4_MTpCejA6V1bgYXicLa2np0C"
 CORREIOS_CONTRATO = "9912563548" 
 CORREIOS_CEP_ORIGEM = "76320464"  # CEP de Origem (Jaraguá - GO)
