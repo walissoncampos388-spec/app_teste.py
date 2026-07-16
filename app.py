@@ -5,7 +5,7 @@ import urllib.parse
 import base64
 
 # ==============================================================================
-# CONFIGURAÇÕES E CREDENCIAIS DA API DOS CORREIOS (Ajuste com os seus dados)
+# CONFIGURAÇÕES E CREDENCIAIS DA API DOS CORREIOS (Inseridas com Sucesso)
 # ==============================================================================
 CORREIOS_USUARIO = "unicammodas38"
 CORREIOS_API_KEY = "cws-ch1_jPwQYCEq4SnUZnvUEo6dW5pY2FtbW9kYXMzODo5OTEyNTYzNTQ4_MTpCejA6V1bgYXicLa2np0C"
@@ -203,7 +203,7 @@ def calcular_frete_correios(token, cep_destino, peso, largura, altura, comprimen
     }
     
     # Códigos de Serviço Padrão (Sem contrato / Balcão)
-    # Se você tiver contrato, altere para os códigos do seu contrato (Ex: SEDEX=03298, PAC=03220)
+    # Se tiver contrato ativo, alteramos para as faixas de envio de contrato
     codigo_sedex = "03298" if CORREIOS_CONTRATO else "04014"
     codigo_pac = "03220" if CORREIOS_CONTRATO else "04510"
     
@@ -216,7 +216,7 @@ def calcular_frete_correios(token, cep_destino, peso, largura, altura, comprimen
         "nuAltura": int(altura),
         "nuComprimento": int(comprimento),
         "vlDeclarado": f"{seguro_valor:.2f}".replace(".", ","),
-        "coServico": f"{codigo_sedex},{codigo_pac}"  # Consulta os dois simultaneamente
+        "coServico": f"{codigo_sedex},{codigo_pac}"  # Consulta simultânea
     }
     
     if CORREIOS_CONTRATO:
@@ -439,13 +439,13 @@ if st.session_state.tela_ativa == "cotacao":
                         if "cotar" not in print_prazo.lower() and "dias" not in print_prazo.lower() and print_prazo != '-': 
                             print_prazo = f"{print_prazo} Dias"
                             
-                        # Determina a cor da borda do card de frete
+                        # Determina a cor da borda do card de frete (Dourado para Correios, Azul Cia do Jeans para as outras)
                         cor_borda = "#ffcc00" if "Correios" in servico['TRANSPORTADORA'] else "#1e3a8a"
                         
                         st.markdown(f"""
                         <div class="card-frete" style="border-left: 5px solid {cor_borda};">
                             <div>
-                                <strong style="font-size:16px; color:#1e3a8a;"><b>🚛 {servico['TRANSPORTADORA']}</b></strong><br>
+                                <strong style="font-size:16px; color:#1e3a8a;"><b>{servico['TRANSPORTADORA']}</b></strong><br>
                                 <span style="font-size:13px; color:#4b5563;">📍 Rota: {servico['ROTA_ENVIO']} | 📞 Fone: {servico['FONE']}</span><br>
                                 <span style="font-size:12px; color:#6b7280;">⏱️ Prazo: {print_prazo} | 📄 Exige NF: {servico['EXIGE_NF']}</span>
                             </div>
