@@ -7,10 +7,10 @@ import base64
 # ==============================================================================
 # CONFIGURAÇÕES E CREDENCIAIS DA API DOS CORREIOS (Ajuste com os seus dados)
 # ==============================================================================
-CORREIOS_USUARIO = "SEU_USUARIO_AQUI"
-CORREIOS_API_KEY = "SUA_API_KEY_AQUI"  # Chave de acesso gerada no portal dos Correios
-CORREIOS_CONTRATO = "SEU_NUMERO_CONTRATO" # Opcional: Se tiver contrato corporativo (ex: 9912345678)
-CORREIOS_CEP_ORIGEM = "75400000"  # CEP de Origem (Jaraguá - GO)
+CORREIOS_USUARIO = "unicammodas38"
+CORREIOS_API_KEY = "cws-ch1_jPwQYCEq4SnUZnvUEo6dW5pY2FtbW9kYXMzODo5OTEyNTYzNTQ4_MTpCejA6V1bgYXicLa2np0C"
+CORREIOS_CONTRATO = "9912563548" 
+CORREIOS_CEP_ORIGEM = "76320464"  # CEP de Origem (Jaraguá - GO)
 
 # 1. Configuração de Design da Página
 st.set_page_config(
