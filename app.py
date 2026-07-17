@@ -376,25 +376,34 @@ if st.session_state.tela_ativa == "cotacao":
 </div>
 """
 
-                # Renderização da Pessoa em vetor SVG limpo (Camisa Azul, Calça Preta, Sem contornos pretos e alinhado por baixo)
+                # RECONSTRUÇÃO DA PESSOA: Usando DIVs estruturadas em CSS Puro. 
+                # Perfeito alinhamento, sem contorno preto, camisa azul e calça preta garantido!
                 st.html(f"""
-<div style="display: flex; align-items: flex-end; justify-content: center; gap: 30px; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; height: 250px;">
+<div style="display: flex; align-items: flex-end; justify-content: center; gap: 35px; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; height: 250px;">
 <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
 <div style="font-family: sans-serif; font-size: 11px; color: #6b7280; margin-bottom: 4px;">Pessoa (1.75m)</div>
-<svg width="60" height="228" viewBox="0 0 24 84" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: 0px; display: block;">
-<!-- Cabeça -->
-<circle cx="12" cy="10" r="6" fill="#f3c693"/>
-<!-- Camisa Azul -->
-<path d="M6 18C6 16.5 7.5 16 9 16H15C16.5 16 18 16.5 18 18V40H6V18Z" fill="#1e3a8a"/>
-<!-- Braços -->
-<path d="M4 18V32H6V18H4Z" fill="#f3c693"/>
-<path d="M18 18V32H20V18H18Z" fill="#f3c693"/>
-<!-- Calça Preta -->
-<path d="M6 40V82H11V52H13V82H18V40H6Z" fill="#1c1917"/>
-<!-- Pés -->
-<path d="M5 82H11V84H5V82Z" fill="#f3c693"/>
-<path d="M13 82H19V84H13V82Z" fill="#f3c693"/>
-</svg>
+<div style="width: 50px; height: 215px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-bottom: 0px;">
+    <!-- Cabeça -->
+    <div style="width: 26px; height: 26px; background-color: #f3c693; border-radius: 50%; margin-bottom: 4px;"></div>
+    <!-- Tronco (Camisa Azul) -->
+    <div style="width: 38px; height: 65px; background-color: #1e3a8a; border-radius: 4px 4px 0 0; position: relative;">
+        <!-- Braço Esquerdo -->
+        <div style="width: 6px; height: 45px; background-color: #f3c693; position: absolute; left: -7px; top: 0; border-radius: 3px;"></div>
+        <!-- Braço Direito -->
+        <div style="width: 6px; height: 45px; background-color: #f3c693; position: absolute; right: -7px; top: 0; border-radius: 3px;"></div>
+    </div>
+    <!-- Pernas (Calça Preta) -->
+    <div style="width: 34px; height: 105px; display: flex; justify-content: space-between;">
+        <div style="width: 14px; height: 105px; background-color: #1c1917; border-radius: 0 0 2px 2px; position: relative;">
+            <!-- Pé Esquerdo -->
+            <div style="width: 18px; height: 6px; background-color: #f3c693; position: absolute; bottom: 0; left: -2px; border-radius: 2px 0 0 0;"></div>
+        </div>
+        <div style="width: 14px; height: 105px; background-color: #1c1917; border-radius: 0 0 2px 2px; position: relative;">
+            <!-- Pé Direito -->
+            <div style="width: 18px; height: 6px; background-color: #f3c693; position: absolute; bottom: 0; right: -2px; border-radius: 0 2px 0 0;"></div>
+        </div>
+    </div>
+</div>
 </div>
 {html_fardos_render}
 </div>
