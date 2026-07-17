@@ -259,53 +259,6 @@ if st.session_state.tela_ativa == "cotacao":
     peso_total_calculado = peso_pecas_puro + (0.4 if peso_pecas_puro > 0 else 0)
     total_pecas = qtd_calcas + qtd_bermudas + qtd_shorts + qtd_gola_o + qtd_tshirt + qtd_polo
 
-    # Lógica Inteligente de Divisão de Volumes e Medidas
-    num_volumes = 1
-    peso_por_volume = peso_total_calculado
-    pecas_por_volume = total_pecas
-
-    if peso_total_calculado > 50.0:
-        num_volumes = 2
-        peso_por_volume = peso_total_calculado / 2
-        pecas_por_volume = total_pecas // 2
-
-    if total_pecas == 0:
-        tipo_embalagem = "Nenhum produto"
-        comp, larg, alt = 0, 0, 0
-        classificacao_tamanho = "Sem Carga"
-    elif pecas_por_volume <= 15:
-        tipo_embalagem = "Caixa Pequena" if num_volumes == 1 else "2 Caixas Pequenas"
-        comp, larg, alt = 40, 30, 20
-        classificacao_tamanho = "PP (Caixa Pequena)"
-    elif pecas_por_volume <= 30:
-        tipo_embalagem = "Caixa Média" if num_volumes == 1 else "2 Caixas Médias"
-        comp, larg, alt = 50, 40, 30
-        classificacao_tamanho = "P (Caixa Média)"
-    elif pecas_por_volume <= 60:
-        tipo_embalagem = "Fardo Comercial" if num_volumes == 1 else "2 Fardos Comerciais"
-        comp, larg, alt = 60, 45, 35
-        classificacao_tamanho = "M (Fardo Padrão)"
-    elif pecas_por_volume <= 120:
-        tipo_embalagem = "Fardo Comercial" if num_volumes == 1 else "2 Fardos Comerciais"
-        comp, larg, alt = 80, 50, 40
-        classificacao_tamanho = "G (Fardo Grande)"
-    else:
-        tipo_embalagem = "Fardo Comercial" if num_volumes == 1 else "2 Fardos Comerciais"
-        comp, larg, alt = 100, 60, 50
-        classificacao_tamanho = "XG (Fardo Master)"
-
-    # Regra: Se o tamanho for G ou XG, o comprimento fica na vertical (em pé) e largura na horizontal
-    if "G" in classificacao_tamanho:
-        visual_altura = comp
-        visual_largura = larg
-        orientacao_texto = "Fardo em Pé"
-    else:
-        visual_altura = alt
-        visual_largura = larg
-        orientacao_texto = "Fardo Deitado"
-
-    valor_nf_meia = (qtd_calcas * 40) + (qtd_bermudas * 33) + (qtd_shorts * 33) + (qtd_gola_o * 18) + (qtd_tshirt * 19) + (qtd_polo * 25)
-
     with c3:
         valor_manual_nf_txt = st.text_input("✍️ Valor Real da NF (Opcional):", placeholder="Ex: 1250,00", key="nf_manual_txt").strip()
         
@@ -316,6 +269,61 @@ if st.session_state.tela_ativa == "cotacao":
             except ValueError:
                 st.error("⚠️ Digite um valor numérico válido para a NF.")
                 
+        # --- NOVA OPÇÃO SELETORA DE MEIO DE ENVIO / REGRA DE DIVISÃO ---
+        meio_envio_selecionado = st.selectbox(
+            "📦 Regra de Divisão do Fardo:",
+            ["Padrão (Dividir acima de 50 kg)", "Correios / J&T / Azul Cargo (Dividir acima de 30 kg)", "Não Dividir fardo"],
+            key="box_regra_divisao_fardo"
+        )
+        
+        # Aplicação das novas regras com base no meio de envio selecionado
+        num_volumes = 1
+        if meio_envio_selecionado == "Padrão (Dividir acima de 50 kg)" and peso_total_calculado > 50.0:
+            num_volumes = 2
+        elif meio_envio_selecionado == "Correios / J&T / Azul Cargo (Dividir acima de 30 kg)" and peso_total_calculado > 30.0:
+            num_volumes = 2
+        elif meio_envio_selecionado == "Não Dividir fardo":
+            num_volumes = 1
+
+        peso_por_volume = peso_total_calculado / num_volumes
+        pecas_por_volume = total_pecas // num_volumes
+
+        if total_pecas == 0:
+            tipo_embalagem = "Nenhum produto"
+            comp, larg, alt = 0, 0, 0
+            classificacao_tamanho = "Sem Carga"
+        elif pecas_por_volume <= 15:
+            tipo_embalagem = "Caixa Pequena" if num_volumes == 1 else f"{num_volumes} Caixas Pequenas"
+            comp, larg, alt = 40, 30, 20
+            classificacao_tamanho = "PP (Caixa Pequena)"
+        elif pecas_por_volume <= 30:
+            tipo_embalagem = "Caixa Média" if num_volumes == 1 else f"{num_volumes} Caixas Médias"
+            comp, larg, alt = 50, 40, 30
+            classificacao_tamanho = "P (Caixa Média)"
+        elif pecas_por_volume <= 60:
+            tipo_embalagem = "Fardo Comercial" if num_volumes == 1 else f"{num_volumes} Fardos Comerciais"
+            comp, larg, alt = 60, 45, 35
+            classificacao_tamanho = "M (Fardo Padrão)"
+        elif pecas_por_volume <= 120:
+            tipo_embalagem = "Fardo Comercial" if num_volumes == 1 else f"{num_volumes} Fardos Comerciais"
+            comp, larg, alt = 80, 50, 40
+            classificacao_tamanho = "G (Fardo Grande)"
+        else:
+            tipo_embalagem = "Fardo Comercial" if num_volumes == 1 else f"{num_volumes} Fardos Comerciais"
+            comp, larg, alt = 100, 60, 50
+            classificacao_tamanho = "XG (Fardo Master)"
+
+        # Regra: Se o tamanho for G ou XG, o comprimento fica na vertical (em pé) e largura na horizontal
+        if "G" in classificacao_tamanho:
+            visual_altura = comp
+            visual_largura = larg
+            orientacao_texto = "Fardo em Pé"
+        else:
+            visual_altura = alt
+            visual_largura = larg
+            orientacao_texto = "Fardo Deitado"
+
+        valor_nf_meia = (qtd_calcas * 40) + (qtd_bermudas * 33) + (qtd_shorts * 33) + (qtd_gola_o * 18) + (qtd_tshirt * 19) + (qtd_polo * 25)
         valor_para_seguro = valor_manual_nf if valor_manual_nf > 0 else valor_nf_meia
         
         txt_volumes_resumo = f" ({num_volumes} Vol. de {peso_por_volume:.2f} kg)" if num_volumes > 1 else ""
@@ -346,7 +354,7 @@ if st.session_state.tela_ativa == "cotacao":
             v_col1, v_col2 = st.columns([1, 1.2])
             
             with v_col1:
-                txt_vol_detalhe = f"<p style='margin: 0 0 8px 0; font-size: 15px; color: #b45309;'><b>⚠️ Carga Superior a 50kg: Dividida em {num_volumes} Volumes</b></p>" if num_volumes > 1 else ""
+                txt_vol_detalhe = f"<p style='margin: 0 0 8px 0; font-size: 15px; color: #b45309;'><b>⚠️ Carga Dividida: {num_volumes} Volumes ({meio_envio_selecionado})</b></p>" if num_volumes > 1 else ""
                 st.html(f"""
 <div style="background-color: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fef3c7; font-family: sans-serif;">
 {txt_vol_detalhe}
@@ -376,8 +384,7 @@ if st.session_state.tela_ativa == "cotacao":
 </div>
 """
 
-                # RECONSTRUÇÃO DA PESSOA: Usando DIVs estruturadas em CSS Puro. 
-                # Perfeito alinhamento, sem contorno preto, camisa azul e calça preta garantido!
+                # Pessoa utilizando DIVs estruturadas em CSS Puro. (Camisa Azul, Calça Preta, Alinhamento na Base)
                 st.html(f"""
 <div style="display: flex; align-items: flex-end; justify-content: center; gap: 35px; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; height: 250px;">
 <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
@@ -387,19 +394,16 @@ if st.session_state.tela_ativa == "cotacao":
     <div style="width: 26px; height: 26px; background-color: #f3c693; border-radius: 50%; margin-bottom: 4px;"></div>
     <!-- Tronco (Camisa Azul) -->
     <div style="width: 38px; height: 65px; background-color: #1e3a8a; border-radius: 4px 4px 0 0; position: relative;">
-        <!-- Braço Esquerdo -->
+        <!-- Braços -->
         <div style="width: 6px; height: 45px; background-color: #f3c693; position: absolute; left: -7px; top: 0; border-radius: 3px;"></div>
-        <!-- Braço Direito -->
         <div style="width: 6px; height: 45px; background-color: #f3c693; position: absolute; right: -7px; top: 0; border-radius: 3px;"></div>
     </div>
     <!-- Pernas (Calça Preta) -->
     <div style="width: 34px; height: 105px; display: flex; justify-content: space-between;">
         <div style="width: 14px; height: 105px; background-color: #1c1917; border-radius: 0 0 2px 2px; position: relative;">
-            <!-- Pé Esquerdo -->
             <div style="width: 18px; height: 6px; background-color: #f3c693; position: absolute; bottom: 0; left: -2px; border-radius: 2px 0 0 0;"></div>
         </div>
         <div style="width: 14px; height: 105px; background-color: #1c1917; border-radius: 0 0 2px 2px; position: relative;">
-            <!-- Pé Direito -->
             <div style="width: 18px; height: 6px; background-color: #f3c693; position: absolute; bottom: 0; right: -2px; border-radius: 0 2px 0 0;"></div>
         </div>
     </div>
@@ -423,7 +427,7 @@ if st.session_state.tela_ativa == "cotacao":
                         for idx, row in resultados_fixos.iterrows():
                             print_prazo = str(row['PRAZO'])
                             if "cotar" not in print_prazo.lower() and "dias" not in print_prazo.lower() and print_prazo != '-': 
-                                print_prazo = f"{print_prazo} Dias"
+                                print_prazo = f"{print_prazo} Days"
                                 
                             st.markdown(f"""
                             <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
@@ -609,7 +613,7 @@ elif st.session_state.tela_ativa == "rastreio":
             """, height=0)
         
         st.markdown("---")
-        btn_abrir_painel = st.checkbox("🖥️ QUER VISUALIZAR O RASTREIO DENTRO DO SITE?", value=False, key="check_painel_integrado")
+        btn_abrir_painel = st.checkbox("🖥️ QUER VISUALIZAR O RASTREIO DENTRO DO SITE?", value=False, key="check_painel_integrated")
         
         if btn_abrir_painel:
             st.markdown(f"### 🖥️ Painel de Rastreio em Tempo Real - {transportadora_rastreio}")
