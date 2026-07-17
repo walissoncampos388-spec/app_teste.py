@@ -269,24 +269,25 @@ if st.session_state.tela_ativa == "cotacao":
             except ValueError:
                 st.error("⚠️ Digite um valor numérico válido para a NF.")
                 
-        # --- NOVA OPÇÃO SELETORA DE MEIO DE ENVIO / REGRA DE DIVISÃO ---
+        # Opção seletora de meio de envio / regra de divisão
         meio_envio_selecionado = st.selectbox(
             "📦 Regra de Divisão do Fardo:",
             ["Padrão (Dividir acima de 50 kg)", "Correios / J&T / Azul Cargo (Dividir acima de 30 kg)", "Não Dividir fardo"],
             key="box_regra_divisao_fardo"
         )
         
-        # Aplicação das novas regras com base no meio de envio selecionado
+        # --- CORREÇÃO: DIVISÃO DINÂMICA DE VOLUMES (N: VOLUMES) ---
         num_volumes = 1
-        if meio_envio_selecionado == "Padrão (Dividir acima de 50 kg)" and peso_total_calculado > 50.0:
-            num_volumes = 2
-        elif meio_envio_selecionado == "Correios / J&T / Azul Cargo (Dividir acima de 30 kg)" and peso_total_calculado > 30.0:
-            num_volumes = 2
-        elif meio_envio_selecionado == "Não Dividir fardo":
-            num_volumes = 1
+        if total_pecas > 0:
+            if meio_envio_selecionado == "Padrão (Dividir acima de 50 kg)" and peso_total_calculado > 50.0:
+                num_volumes = int(peso_total_calculado // 50) + (1 if peso_total_calculado % 50 > 0 else 0)
+            elif meio_envio_selecionado == "Correios / J&T / Azul Cargo (Dividir acima de 30 kg)" and peso_total_calculado > 30.0:
+                num_volumes = int(peso_total_calculado // 30) + (1 if peso_total_calculado % 30 > 0 else 0)
+            elif meio_envio_selecionado == "Não Dividir fardo":
+                num_volumes = 1
 
-        peso_por_volume = peso_total_calculado / num_volumes
-        pecas_por_volume = total_pecas // num_volumes
+        peso_por_volume = peso_total_calculado / num_volumes if num_volumes > 0 else 0
+        pecas_por_volume = total_pecas // num_volumes if num_volumes > 0 else 0
 
         if total_pecas == 0:
             tipo_embalagem = "Nenhum produto"
@@ -386,8 +387,8 @@ if st.session_state.tela_ativa == "cotacao":
 
                 # Pessoa utilizando DIVs estruturadas em CSS Puro. (Camisa Azul, Calça Preta, Alinhamento na Base)
                 st.html(f"""
-<div style="display: flex; align-items: flex-end; justify-content: center; gap: 35px; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; height: 250px;">
-<div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
+<div style="display: flex; align-items: flex-end; justify-content: center; gap: 20px; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; height: 250px; overflow-x: auto;">
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; flex-shrink: 0;">
 <div style="font-family: sans-serif; font-size: 11px; color: #6b7280; margin-bottom: 4px;">Pessoa (1.75m)</div>
 <div style="width: 50px; height: 215px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-bottom: 0px;">
     <!-- Cabeça -->
@@ -443,7 +444,7 @@ if st.session_state.tela_ativa == "cotacao":
                     for idx, row in resultados_fixos.iterrows():
                         print_prazo = str(row['PRAZO'])
                         if "cotar" not in print_prazo.lower() and "dias" not in print_prazo.lower() and print_prazo != '-': 
-                            print_prazo = f"{print_prazo} Dias"
+                            print_prazo = f"{print_prazo} Days"
                         opcoes_whatsapp.append(
                             f"🚛 *{row['TRANSPORTADORA']}*\n"
                             f"💰 Mínimo: R$ {row['VALOR_MINIMO']}\n"
