@@ -376,14 +376,12 @@ if st.session_state.tela_ativa == "cotacao":
 </div>
 """
 
+                # CORREÇÃO DEFINITIVA DA PESSOA: Usando emoji estilizado que renderiza nativamente sem falhas em qualquer navegador
                 st.html(f"""
 <div style="display: flex; align-items: flex-end; justify-content: center; gap: 30px; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; height: 250px;">
 <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
 <div style="font-family: sans-serif; font-size: 11px; color: #6b7280; margin-bottom: 4px;">Pessoa (1.75m)</div>
-<svg width="60" height="228" viewBox="0 0 24 84" fill="none" xmlns="http://www.w3.org/2000/svg">
-<circle cx="12" cy="10" r="6" fill="#cbd5e1"/>
-<path d="M7 19C7 17.8954 7.89543 17 9 17H15C16.1046 17 17 17.8954 17 19V42H15V82H13V54H11V82H9V42H7V19Z" fill="#cbd5e1"/>
-</svg>
+<div style="font-size: 170px; line-height: 1; color: #cbd5e1; margin-bottom: -15px;">🧍</div>
 </div>
 {html_fardos_render}
 </div>
@@ -493,8 +491,7 @@ elif st.session_state.tela_active == "rastreio" or st.session_state.tela_ativa =
     with col_cod:
         codigo_rastreio = st.text_input("Código de Rastreio / Nº Nota Fiscal:", placeholder="Ex: BR123456789X / 4552", key="campo_codigo_estavel").strip()
 
-    with col_doc:
-        doc_cliente = st.text_input("CPF ou CNPJ do Cliente (Se J&T/Braspress):", placeholder="Apenas números", key="campo_doc_estavel").strip()
+    with col_doc = st.text_input("CPF ou CNPJ do Cliente (Se J&T/Braspress):", placeholder="Apenas números", key="campo_doc_estavel").strip()
 
     btn_gerar_mensagem = st.button("⚙️ GERAR INFORMAÇÕES DE RASTREAMENTO", type="primary", use_container_width=True, key="action_processar_rastreio")
 
