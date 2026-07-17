@@ -251,6 +251,8 @@ if st.session_state.tela_ativa == "cotacao":
         qtd_shorts = st.number_input("Quantidade de Shorts:", min_value=0, value=0, step=1, key="shor_un")
         qtd_camisas = st.number_input("Quantidade de Camisas:", min_value=0, value=0, step=1, key="cam_un")
         qtd_saias = st.number_input("Quantidade de Saias:", min_value=0, value=0, step=1, key="saia_un")
+        # Campo Croppeds movido para debaixo de saias
+        qtd_croppeds = st.number_input("Quantidade de Croppeds:", min_value=0, value=0, step=1, key="crop_un")
         
     with c2:
         qtd_gola_o = st.number_input("Quantidade de Gola O:", min_value=0, value=0, step=1, key="gola_un")
@@ -259,7 +261,6 @@ if st.session_state.tela_ativa == "cotacao":
         qtd_vestidos = st.number_input("Quantidade de Vestidos:", min_value=0, value=0, step=1, key="vest_un")
         qtd_conjuntos = st.number_input("Quantidade de Conjuntos:", min_value=0, value=0, step=1, key="conj_un")
         qtd_bones = st.number_input("Quantidade de Bonés:", min_value=0, value=0, step=1, key="bone_un")
-        qtd_croppeds = st.number_input("Quantidade de Croppeds:", min_value=0, value=0, step=1, key="crop_un")
 
     # Matemática de Pesos e Embalagem (Vestido=0.55kg, Conjunto=0.50kg, Camisa=0.25kg, Saia=0.30kg, Cropped=0.15kg, Boné=0.10kg)
     peso_pecas_puro = (
@@ -449,7 +450,7 @@ if st.session_state.tela_ativa == "cotacao":
                         for idx, row in resultados_fixos.iterrows():
                             print_prazo = str(row['PRAZO'])
                             if "cotar" not in print_prazo.lower() and "dias" not in print_prazo.lower() and print_prazo != '-': 
-                                print_prazo = f"{print_prazo} Dias"
+                                print_prazo = f"{print_prazo} Days"
                                 
                             st.markdown(f"""
                             <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
@@ -465,7 +466,7 @@ if st.session_state.tela_ativa == "cotacao":
                     for idx, row in resultados_fixos.iterrows():
                         print_prazo = str(row['PRAZO'])
                         if "cotar" not in print_prazo.lower() and "dias" not in print_prazo.lower() and print_prazo != '-': 
-                            print_prazo = f"{print_prazo} Dias"
+                            print_prazo = f"{print_prazo} Days"
                         opcoes_whatsapp.append(
                             f"🚛 *{row['TRANSPORTADORA']}*\n"
                             f"💰 Mínimo: R$ {row['VALOR_MINIMO']}\n"
