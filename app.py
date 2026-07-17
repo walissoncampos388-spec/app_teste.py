@@ -370,18 +370,31 @@ if st.session_state.tela_ativa == "cotacao":
                     html_fardos_render += f"""
 <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
 <div style="font-family: sans-serif; font-size: 11px; color: #1e3a8a; font-weight: bold; margin-bottom: 4px;">{comp}x{larg}x{alt} cm</div>
-<div style="width: {px_larg_fardo}px; height: {px_alt_fardo}px; background-color: #f59e0b; border: 2px solid #d97706; border-radius: 4px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+<div style="width: {px_larg_fardo}px; height: {px_alt_fardo}px; background-color: #f59e0b; border: 2px solid #d97706; border-radius: 4px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 0px;">
 <span style="color: white; font-size: 10px; font-weight: bold; text-align: center; font-family: sans-serif; padding: 2px;">{label_fardo}</span>
 </div>
 </div>
 """
 
-                # Pessoa utilizando Emoji gigante para garantir renderização estável
+                # Renderização da Pessoa em vetor SVG limpo (Camisa Azul, Calça Preta, Sem contornos pretos e alinhado por baixo)
                 st.html(f"""
 <div style="display: flex; align-items: flex-end; justify-content: center; gap: 30px; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; height: 250px;">
 <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
 <div style="font-family: sans-serif; font-size: 11px; color: #6b7280; margin-bottom: 4px;">Pessoa (1.75m)</div>
-<div style="font-size: 170px; line-height: 1; color: #cbd5e1; margin-bottom: -15px;">🧍</div>
+<svg width="60" height="228" viewBox="0 0 24 84" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: 0px; display: block;">
+<!-- Cabeça -->
+<circle cx="12" cy="10" r="6" fill="#f3c693"/>
+<!-- Camisa Azul -->
+<path d="M6 18C6 16.5 7.5 16 9 16H15C16.5 16 18 16.5 18 18V40H6V18Z" fill="#1e3a8a"/>
+<!-- Braços -->
+<path d="M4 18V32H6V18H4Z" fill="#f3c693"/>
+<path d="M18 18V32H20V18H18Z" fill="#f3c693"/>
+<!-- Calça Preta -->
+<path d="M6 40V82H11V52H13V82H18V40H6Z" fill="#1c1917"/>
+<!-- Pés -->
+<path d="M5 82H11V84H5V82Z" fill="#f3c693"/>
+<path d="M13 82H19V84H13V82Z" fill="#f3c693"/>
+</svg>
 </div>
 {html_fardos_render}
 </div>
