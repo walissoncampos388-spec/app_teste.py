@@ -259,31 +259,50 @@ if st.session_state.tela_ativa == "cotacao":
     peso_total_calculado = peso_pecas_puro + (0.4 if peso_pecas_puro > 0 else 0)
     total_pecas = qtd_calcas + qtd_bermudas + qtd_shorts + qtd_gola_o + qtd_tshirt + qtd_polo
 
-    # Lógica Inteligente de Dimensões e Classificação de Fardos
+    # Lógica Inteligente de Divisão de Volumes e Medidas
+    num_volumes = 1
+    peso_por_volume = peso_total_calculado
+    pecas_por_volume = total_pecas
+
+    if peso_total_calculado > 50.0:
+        num_volumes = 2
+        peso_por_volume = peso_total_calculado / 2
+        pecas_por_volume = total_pecas // 2
+
     if total_pecas == 0:
         tipo_embalagem = "Nenhum produto"
         comp, larg, alt = 0, 0, 0
         classificacao_tamanho = "Sem Carga"
-    elif total_pecas <= 15:
-        tipo_embalagem = "Caixa Pequena"
+    elif pecas_por_volume <= 15:
+        tipo_embalagem = "Caixa Pequena" if num_volumes == 1 else "2 Caixas Pequenas"
         comp, larg, alt = 40, 30, 20
         classificacao_tamanho = "PP (Caixa Pequena)"
-    elif total_pecas <= 30:
-        tipo_embalagem = "Caixa Média"
+    elif pecas_por_volume <= 30:
+        tipo_embalagem = "Caixa Média" if num_volumes == 1 else "2 Caixas Médias"
         comp, larg, alt = 50, 40, 30
         classificacao_tamanho = "P (Caixa Média)"
-    elif total_pecas <= 60:
-        tipo_embalagem = "Fardo Comercial"
+    elif pecas_por_volume <= 60:
+        tipo_embalagem = "Fardo Comercial" if num_volumes == 1 else "2 Fardos Comerciais"
         comp, larg, alt = 60, 45, 35
         classificacao_tamanho = "M (Fardo Padrão)"
-    elif total_pecas <= 120:
-        tipo_embalagem = "Fardo Comercial"
+    elif pecas_por_volume <= 120:
+        tipo_embalagem = "Fardo Comercial" if num_volumes == 1 else "2 Fardos Comerciais"
         comp, larg, alt = 80, 50, 40
         classificacao_tamanho = "G (Fardo Grande)"
     else:
-        tipo_embalagem = "Fardo Comercial"
+        tipo_embalagem = "Fardo Comercial" if num_volumes == 1 else "2 Fardos Comerciais"
         comp, larg, alt = 100, 60, 50
         classificacao_tamanho = "XG (Fardo Master)"
+
+    # Regra: Se o tamanho for G ou XG, o comprimento fica na vertical (em pé) e largura na horizontal
+    if "G" in classificacao_tamanho:
+        visual_altura = comp
+        visual_largura = larg
+        orientacao_texto = "Fardo em Pé"
+    else:
+        visual_altura = alt
+        visual_largura = larg
+        orientacao_texto = "Fardo Deitado"
 
     valor_nf_meia = (qtd_calcas * 40) + (qtd_bermudas * 33) + (qtd_shorts * 33) + (qtd_gola_o * 18) + (qtd_tshirt * 19) + (qtd_polo * 25)
 
@@ -299,7 +318,8 @@ if st.session_state.tela_ativa == "cotacao":
                 
         valor_para_seguro = valor_manual_nf if valor_manual_nf > 0 else valor_nf_meia
         
-        st.info(f"**📊 Resumo do Pedido:**\n* **Carga:** {total_pecas} un | {peso_total_calculado:.2f} kg\n* **Embalagem:** {tipo_embalagem}\n* **Seguro:** R$ {valor_para_seguro:.2f}")
+        txt_volumes_resumo = f" ({num_volumes} Vol. de {peso_por_volume:.2f} kg)" if num_volumes > 1 else ""
+        st.info(f"**📊 Resumo do Pedido:**\n* **Carga:** {total_pecas} un | {peso_total_calculado:.2f} kg{txt_volumes_resumo}\n* **Embalagem:** {tipo_embalagem}\n* **Seguro:** R$ {valor_para_seguro:.2f}")
     st.markdown('</div>', unsafe_allow_html=True)
 
     # DISPARADOR DE CÁLCULO
@@ -319,47 +339,55 @@ if st.session_state.tela_ativa == "cotacao":
             st.error("❌ Insira a quantidade de produtos no Passo 2 para calcular.")
         else:
             
-            # --- NOVO BLOCO VISUAL: CALCULADORA DE VOLUMETRIA E ESCALA HUMANA ---
+            # --- BLOCO VISUAL: CALCULADORA DE VOLUMETRIA E ESCALA HUMANA ---
             st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #f59e0b;">', unsafe_allow_html=True)
-            st.markdown('<div class="titulo-etapa" style="color: #d97706;">📐 Dimensões e Comparativo de Escala do Volume</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="titulo-etapa" style="color: #d97706;">📐 Dimensões e Comparativo de Escala ({orientacao_texto})</div>', unsafe_allow_html=True)
             
             v_col1, v_col2 = st.columns([1, 1.2])
             
             with v_col1:
-                st.markdown(f"""
-                <div style="background-color: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fef3c7; font-family: sans-serif;">
-                    <p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Classificação:</b> {classificacao_tamanho}</p>
-                    <p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Peso Estimado Total:</b> {peso_total_calculado:.2f} kg</p>
-                    <p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Comprimento:</b> {comp} cm</p>
-                    <p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Largura:</b> {larg} cm</p>
-                    <p style="margin: 0 0 0 0; font-size: 14px; color: #92400e;"><b>Altura:</b> {alt} cm</p>
-                </div>
-                """, unsafe_allow_html=True)
+                txt_vol_detalhe = f"<p style='margin: 0 0 8px 0; font-size: 15px; color: #b45309;'><b>⚠️ Carga Superior a 50kg: Dividida em {num_volumes} Volumes</b></p>" if num_volumes > 1 else ""
+                st.html(f"""
+<div style="background-color: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fef3c7; font-family: sans-serif;">
+{txt_vol_detalhe}
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Quantidade Total de Volumes:</b> {num_volumes} volume(s)</p>
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Classificação (por volume):</b> {classificacao_tamanho}</p>
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Peso por Volume:</b> {peso_por_volume:.2f} kg</p>
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Comprimento:</b> {comp} cm</p>
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Largura:</b> {larg} cm</p>
+<p style="margin: 0 0 0 0; font-size: 14px; color: #92400e;"><b>Altura:</b> {alt} cm</p>
+</div>
+""")
             
             with v_col2:
-                # Desenho dinâmico via CSS. O fardo e a pessoa escalados na proporção real de pixel por centímetro (1cm = 1.3px)
-                px_alt_fardo = int(alt * 1.3)
-                px_larg_fardo = int(larg * 1.3)
+                # Proporção matemática de escala (1cm = 1.3px)
+                px_alt_fardo = int(visual_altura * 1.3)
+                px_larg_fardo = int(visual_largura * 1.3)
                 
-                st.markdown(f"""
-                <div style="display: flex; align-items: flex-end; justify-content: center; gap: 40px; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; height: 250px;">
-                    <!-- Silhueta Humana Referência de 1.75m (228px de altura proporcional) -->
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
-                        <div style="font-family: sans-serif; font-size: 11px; color: #6b7280; margin-bottom: 4px;">Pessoa (1.75m)</div>
-                        <svg width="60" height="228" viewBox="0 0 24 84" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="12" cy="10" r="6" fill="#cbd5e1"/>
-                            <path d="M7 19C7 17.8954 7.89543 17 9 17H15C16.1046 17 17 17.8954 17 19V42H15V82H13V54H11V82H9V42H7V19Z" fill="#cbd5e1"/>
-                        </svg>
-                    </div>
-                    <!-- Fardo Dinâmico Gerado de acordo com a quantidade de peças -->
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
-                        <div style="font-family: sans-serif; font-size: 11px; color: #1e3a8a; font-weight: bold; margin-bottom: 4px;">{comp}x{larg}x{alt} cm</div>
-                        <div style="width: {px_larg_fardo}px; height: {px_alt_fardo}px; background-color: #f59e0b; border: 2px solid #d97706; border-radius: 4px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-                            <span style="color: white; font-size: 10px; font-weight: bold; text-align: center; font-family: sans-serif; padding: 2px;">FARDO</span>
-                        </div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                html_fardos_render = ""
+                for vol_i in range(num_volumes):
+                    label_fardo = "FARDO" if num_volumes == 1 else f"VOL {vol_i+1}"
+                    html_fardos_render += f"""
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
+<div style="font-family: sans-serif; font-size: 11px; color: #1e3a8a; font-weight: bold; margin-bottom: 4px;">{comp}x{larg}x{alt} cm</div>
+<div style="width: {px_larg_fardo}px; height: {px_alt_fardo}px; background-color: #f59e0b; border: 2px solid #d97706; border-radius: 4px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+<span style="color: white; font-size: 10px; font-weight: bold; text-align: center; font-family: sans-serif; padding: 2px;">{label_fardo}</span>
+</div>
+</div>
+"""
+
+                st.html(f"""
+<div style="display: flex; align-items: flex-end; justify-content: center; gap: 30px; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; height: 250px;">
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
+<div style="font-family: sans-serif; font-size: 11px; color: #6b7280; margin-bottom: 4px;">Pessoa (1.75m)</div>
+<svg width="60" height="228" viewBox="0 0 24 84" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="12" cy="10" r="6" fill="#cbd5e1"/>
+<path d="M7 19C7 17.8954 7.89543 17 9 17H15C16.1046 17 17 17.8954 17 19V42H15V82H13V54H11V82H9V42H7V19Z" fill="#cbd5e1"/>
+</svg>
+</div>
+{html_fardos_render}
+</div>
+""")
             st.markdown('</div>', unsafe_allow_html=True)
             
             opcoes_whatsapp = []
@@ -370,7 +398,7 @@ if st.session_state.tela_ativa == "cotacao":
                 resultados_fixos = df_fretes_fixos[(df_fretes_fixos['CIDADE'] == cidade_busca) & (df_fretes_fixos['UF'] == uf_busca)]
                 
                 if not resultados_fixos.empty:
-                    if btn_calcular: # Só redesenha os cards se o clique principal foi disparado
+                    if btn_calcular: 
                         st.markdown("### 🏁 Transportadoras Encontradas para a Região")
                         for idx, row in resultados_fixos.iterrows():
                             print_prazo = str(row['PRAZO'])
@@ -409,11 +437,12 @@ if st.session_state.tela_ativa == "cotacao":
                 
                 texto_opcoes = "\n".join(opcoes_whatsapp)
                 
+                txt_whatsapp_volumes = f"{num_volumes} fardos" if num_volumes > 1 else "1 fardo"
                 mensagem_vendedor = (
                     f"Olá! Segue a cotação de frete para o seu pedido da *Cia do Jeans*:\n\n"
                     f"📍 *Destino:*\n{cidade_busca} - {uf_busca}\n\n"
-                    f"📦 *Volume estimado:*\n{total_pecas} peças ({peso_total_calculado:.2f} kg)\n\n"
-                    f"🛍️ *Embalagem:*\n{tipo_embalagem} ({classificacao_tamanho}) - Medidas: {comp}x{larg}x{alt} cm\n\n"
+                    f"📦 *Volume estimado:*\n{total_pecas} peças ({peso_total_calculado:.2f} kg) - Dividido em {txt_whatsapp_volumes}\n\n"
+                    f"🛍️ *Embalagem:*\n{tipo_embalagem} ({classificacao_tamanho}) - Medidas unitárias: {comp}x{larg}x{alt} cm ({orientacao_texto})\n\n"
                     f"-----------------------------------------\n"
                     f"🚚 *OPÇÕES DE ENVIO:*\n\n"
                     f"{texto_opcoes}"
@@ -434,7 +463,7 @@ if st.session_state.tela_ativa == "cotacao":
                     </a>
                 """, unsafe_allow_html=True)
 
-                # Botão nativo Streamlit azul (Funciona 100% Mobile e Computador)
+                # Botão nativo Streamlit azul 
                 if st.button("📋 COPIAR TEXTO DA COTAÇÃO", key="btn_pure_copy_frete"):
                     texto_js_safe = texto_editavel.replace('\\', '\\\\').replace('`', '\\`').replace('$', '\\$').replace('\n', '\\n')
                     st.components.v1.html(f"""
@@ -448,7 +477,7 @@ if st.session_state.tela_ativa == "cotacao":
 
 
 # --- EXIBIÇÃO DA TELA: RASTREAMENTO ---
-elif st.session_state.tela_ativa == "rastreio":
+elif st.session_state.tela_active == "rastreio" or st.session_state.tela_ativa == "rastreio":
     st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #1e3a8a;">', unsafe_allow_html=True)
     st.markdown('<div class="titulo-etapa">📦 PASSO ÚNICO: Gerar Rastreio para o Cliente</div>', unsafe_allow_html=True)
 
