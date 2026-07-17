@@ -376,7 +376,7 @@ if st.session_state.tela_ativa == "cotacao":
 </div>
 """
 
-                # CORREÇÃO DEFINITIVA DA PESSOA: Usando emoji estilizado que renderiza nativamente sem falhas em qualquer navegador
+                # Pessoa utilizando Emoji gigante para garantir renderização estável
                 st.html(f"""
 <div style="display: flex; align-items: flex-end; justify-content: center; gap: 30px; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; height: 250px;">
 <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
@@ -475,7 +475,7 @@ if st.session_state.tela_ativa == "cotacao":
 
 
 # --- EXIBIÇÃO DA TELA: RASTREAMENTO ---
-elif st.session_state.tela_active == "rastreio" or st.session_state.tela_ativa == "rastreio":
+elif st.session_state.tela_ativa == "rastreio":
     st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #1e3a8a;">', unsafe_allow_html=True)
     st.markdown('<div class="titulo-etapa">📦 PASSO ÚNICO: Gerar Rastreio para o Cliente</div>', unsafe_allow_html=True)
 
@@ -491,7 +491,8 @@ elif st.session_state.tela_active == "rastreio" or st.session_state.tela_ativa =
     with col_cod:
         codigo_rastreio = st.text_input("Código de Rastreio / Nº Nota Fiscal:", placeholder="Ex: BR123456789X / 4552", key="campo_codigo_estavel").strip()
 
-    with col_doc = st.text_input("CPF ou CNPJ do Cliente (Se J&T/Braspress):", placeholder="Apenas números", key="campo_doc_estavel").strip()
+    with col_doc:
+        doc_cliente = st.text_input("CPF ou CNPJ do Cliente (Se J&T/Braspress):", placeholder="Apenas números", key="campo_doc_estavel").strip()
 
     btn_gerar_mensagem = st.button("⚙️ GERAR INFORMAÇÕES DE RASTREAMENTO", type="primary", use_container_width=True, key="action_processar_rastreio")
 
