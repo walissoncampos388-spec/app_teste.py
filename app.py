@@ -294,7 +294,7 @@ if st.session_state.tela_ativa == "cotacao":
         comp, larg, alt = 100, 60, 50
         classificacao_tamanho = "XG (Fardo Master)"
 
-    # Definição do Fardo EM PÉ (Maior medida na vertical para a visualização gráfica)
+    # Definição do Fardo EM PÉ (Maior medida na vertical)
     visual_altura = max(comp, larg, alt)
     visual_largura = min(comp, larg, alt)
 
@@ -333,7 +333,7 @@ if st.session_state.tela_ativa == "cotacao":
             st.error("❌ Insira a quantidade de produtos no Passo 2 para calcular.")
         else:
             
-            # --- NOVO BLOCO VISUAL: CALCULADORA DE VOLUMETRIA E ESCALA HUMANA ---
+            # --- CORREÇÃO: USO DE ST.HTML SEM PARÁGRAFOS PARA EVITAR LEAK DE CÓDIGO ---
             st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #f59e0b;">', unsafe_allow_html=True)
             st.markdown('<div class="titulo-etapa" style="color: #d97706;">📐 Dimensões e Comparativo de Escala (Fardo em Pé)</div>', unsafe_allow_html=True)
             
@@ -341,50 +341,47 @@ if st.session_state.tela_ativa == "cotacao":
             
             with v_col1:
                 txt_vol_detalhe = f"<p style='margin: 0 0 8px 0; font-size: 15px; color: #b45309;'><b>⚠️ Carga Superior a 50kg: Dividida em {num_volumes} Volumes</b></p>" if num_volumes > 1 else ""
-                st.markdown(f"""
-                <div style="background-color: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fef3c7; font-family: sans-serif;">
-                    {txt_vol_detalhe}
-                    <p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Quantidade Total de Volumes:</b> {num_volumes} volume(s)</p>
-                    <p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Classificação (por volume):</b> {classificacao_tamanho}</p>
-                    <p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Peso por Volume:</b> {peso_por_volume:.2f} kg</p>
-                    <p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Comprimento (Vertical):</b> {comp} cm</p>
-                    <p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Largura:</b> {larg} cm</p>
-                    <p style="margin: 0 0 0 0; font-size: 14px; color: #92400e;"><b>Altura:</b> {alt} cm</p>
-                </div>
-                """, unsafe_allow_html=True)
+                st.html(f"""
+<div style="background-color: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fef3c7; font-family: sans-serif;">
+{txt_vol_detalhe}
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Quantidade Total de Volumes:</b> {num_volumes} volume(s)</p>
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Classificação (por volume):</b> {classificacao_tamanho}</p>
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Peso por Volume:</b> {peso_por_volume:.2f} kg</p>
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Comprimento (Vertical):</b> {comp} cm</p>
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Largura:</b> {larg} cm</p>
+<p style="margin: 0 0 0 0; font-size: 14px; color: #92400e;"><b>Altura:</b> {alt} cm</p>
+</div>
+""")
             
             with v_col2:
-                # Conversão matemática de escala (1cm = 1.3px) mantendo a maior medida em pé (na vertical)
+                # Proporção matemática de escala (1cm = 1.3px)
                 px_alt_fardo = int(visual_altura * 1.3)
                 px_larg_fardo = int(visual_largura * 1.3)
                 
-                # Gera um ou dois fardos visuais dependendo da pesagem
                 html_fardos_render = ""
                 for vol_i in range(num_volumes):
                     label_fardo = "FARDO" if num_volumes == 1 else f"VOL {vol_i+1}"
                     html_fardos_render += f"""
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
-                        <div style="font-family: sans-serif; font-size: 11px; color: #1e3a8a; font-weight: bold; margin-bottom: 4px;">{comp}x{larg}x{alt} cm</div>
-                        <div style="width: {px_larg_fardo}px; height: {px_alt_fardo}px; background-color: #f59e0b; border: 2px solid #d97706; border-radius: 4px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-                            <span style="color: white; font-size: 10px; font-weight: bold; text-align: center; font-family: sans-serif; padding: 2px;">{label_fardo}</span>
-                        </div>
-                    </div>
-                    """
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
+<div style="font-family: sans-serif; font-size: 11px; color: #1e3a8a; font-weight: bold; margin-bottom: 4px;">{comp}x{larg}x{alt} cm</div>
+<div style="width: {px_larg_fardo}px; height: {px_alt_fardo}px; background-color: #f59e0b; border: 2px solid #d97706; border-radius: 4px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+<span style="color: white; font-size: 10px; font-weight: bold; text-align: center; font-family: sans-serif; padding: 2px;">{label_fardo}</span>
+</div>
+</div>
+"""
 
-                st.markdown(f"""
-                <div style="display: flex; align-items: flex-end; justify-content: center; gap: 30px; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; height: 250px;">
-                    <!-- Silhueta Humana Referência de 1.75m -->
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
-                        <div style="font-family: sans-serif; font-size: 11px; color: #6b7280; margin-bottom: 4px;">Pessoa (1.75m)</div>
-                        <svg width="60" height="228" viewBox="0 0 24 84" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="12" cy="10" r="6" fill="#cbd5e1"/>
-                            <path d="M7 19C7 17.8954 7.89543 17 9 17H15C16.1046 17 17 17.8954 17 19V42H15V82H13V54H11V82H9V42H7V19Z" fill="#cbd5e1"/>
-                        </svg>
-                    </div>
-                    <!-- Fardos Dinâmicos em Pé -->
-                    {html_fardos_render}
-                </div>
-                """, unsafe_allow_html=True)
+                st.html(f"""
+<div style="display: flex; align-items: flex-end; justify-content: center; gap: 30px; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; height: 250px;">
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
+<div style="font-family: sans-serif; font-size: 11px; color: #6b7280; margin-bottom: 4px;">Pessoa (1.75m)</div>
+<svg width="60" height="228" viewBox="0 0 24 84" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="12" cy="10" r="6" fill="#cbd5e1"/>
+<path d="M7 19C7 17.8954 7.89543 17 9 17H15C16.1046 17 17 17.8954 17 19V42H15V82H13V54H11V82H9V42H7V19Z" fill="#cbd5e1"/>
+</svg>
+</div>
+{html_fardos_render}
+</div>
+""")
             st.markdown('</div>', unsafe_allow_html=True)
             
             opcoes_whatsapp = []
@@ -395,7 +392,7 @@ if st.session_state.tela_ativa == "cotacao":
                 resultados_fixos = df_fretes_fixos[(df_fretes_fixos['CIDADE'] == cidade_busca) & (df_fretes_fixos['UF'] == uf_busca)]
                 
                 if not resultados_fixos.empty:
-                    if btn_calcular: # Só redesenha os cards se o clique principal foi disparado
+                    if btn_calcular: 
                         st.markdown("### 🏁 Transportadoras Encontradas para a Região")
                         for idx, row in resultados_fixos.iterrows():
                             print_prazo = str(row['PRAZO'])
@@ -460,7 +457,7 @@ if st.session_state.tela_ativa == "cotacao":
                     </a>
                 """, unsafe_allow_html=True)
 
-                # Botão nativo Streamlit azul (Funciona 100% Mobile e Computador)
+                # Botão nativo Streamlit azul 
                 if st.button("📋 COPIAR TEXTO DA COTAÇÃO", key="btn_pure_copy_frete"):
                     texto_js_safe = texto_editavel.replace('\\', '\\\\').replace('`', '\\`').replace('$', '\\$').replace('\n', '\\n')
                     st.components.v1.html(f"""
