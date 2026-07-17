@@ -4,111 +4,7 @@ import requests
 import urllib.parse
 import base64
 
-# ==============================================================================
-# CONFIGURAÇÕES E CREDENCIAIS DA API DOS CORREIOS
-# ==============================================================================
-CORREIOS_USUARIO = "34835571000168"  # Se falhar, você pode tentar colocar o CNPJ da empresa (apenas números) aqui
-CORREIOS_API_KEY = "cws-ch1_jPwQYCEq4SnUZnvUEo6dW5pY2FtbW9kYXMzODo5OTEyNTYzNTQ4_MTpCejA6V1bgYXicLa2np0C"
-CORREIOS_CONTRATO = "9912563548" 
-CORREIOS_CEP_ORIGEM = "76320464"  # CEP de Origem (Jaraguá - GO)
-
-# ==============================================================================
-# FUNÇÕES DA API DOS CORREIOS (ORQUESTRAÇÃO ROBUSTA DE LOGIN)
-# ==============================================================================
-@st.cache_data(ttl=600)  # Faz cache do token por 10 minutos
-def obter_token_correios(usuario, api_key):
-    """Autentica na API oficial dos Correios testando múltiplos formatos de credenciais."""
-    urls = [
-        {"ambiente": "PROD", "url": "https://api.correios.com.br/token/v1/autentica"},
-        {"ambiente": "SANDBOX", "url": "https://sandbox.correios.com.br/token/v1/autentica"}
-    ]
-    
-    # Formato 1: usuario:api_key (Padrão)
-    credenciais_1 = f"{usuario}:{api_key}"
-    token_1 = base64.b64encode(credenciais_1.encode()).decode()
-    
-    # Formato 2: Apenas a API Key (Para chaves que já possuem o usuário embutido)
-    token_2 = base64.b64encode(api_key.encode()).decode()
-
-    formatos_headers = [
-        {"Authorization": f"Basic {token_1}"},
-        {"Authorization": f"Basic {token_2}"}
-    ]
-    
-    for tentativa in urls:
-        for headers_auth in formatos_headers:
-            headers = {
-                "Authorization": headers_auth["Authorization"],
-                "Content-Type": "application/json"
-            }
-            try:
-                response = requests.post(tentativa["url"], headers=headers, json={}, timeout=5)
-                if response.status_code in [200, 201]:
-                    token = response.json().get("token")
-                    st.session_state["correios_ambiente"] = tentativa["ambiente"]
-                    return token
-            except Exception:
-                continue
-            
-    return None
-
-def calcular_frete_correios(token, cep_destino, peso, largura, altura, comprimento, seguro_valor):
-    """Consulta a precificação de fretes nacionais (SEDEX e PAC) via API Correios."""
-    ambiente = st.session_state.get("correios_ambiente", "PROD")
-    base_url = "https://api.correios.com.br" if ambiente == "PROD" else "https://sandbox.correios.com.br"
-    
-    url = f"{base_url}/preco/v1/nacional"
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
-    
-    codigo_sedex = "03298" if CORREIOS_CONTRATO else "04014"
-    codigo_pac = "03220" if CORREIOS_CONTRATO else "04510"
-    
-    payload = {
-        "cepOrigem": CORREIOS_CEP_ORIGEM,
-        "cepDestino": cep_destino,
-        "psObjeto": str(int(peso * 1000)),  # Em gramas
-        "tpObjeto": "1",  # Caixa/Pacote
-        "nuLargura": int(largura),
-        "nuAltura": int(altura),
-        "nuComprimento": int(comprimento),
-        "vlDeclarado": f"{seguro_valor:.2f}".replace(".", ","),
-        "coServico": f"{codigo_sedex},{codigo_pac}"
-    }
-    
-    if CORREIOS_CONTRATO:
-        payload["nuContrato"] = CORREIOS_CONTRATO
-
-    resultados = []
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=6)
-        if response.status_code == 200:
-            dados = response.json()
-            for servico in dados:
-                co_servico = servico.get("coServico")
-                nome_servico = "Correios SEDEX ⚡" if co_servico in [codigo_sedex, "04014", "03298"] else "Correios PAC 📦"
-                
-                valor = servico.get("pcProduto", "0").replace(",", ".")
-                prazo = servico.get("prazoEntrega", "-")
-                
-                if float(valor) > 0:
-                    resultados.append({
-                        "TRANSPORTADORA": nome_servico,
-                        "ROTA_ENVIO": "Correios Nacional",
-                        "FONE": "3003-0100",
-                        "PRAZO": f"{prazo} Dias",
-                        "EXIGE_NF": "Não",
-                        "VALOR_MINIMO": f"{float(valor):.2f}"
-                    })
-    except Exception:
-        pass
-    return resultados
-
-# ==============================================================================
-# CONFIGURAÇÃO DE DESIGN DA PÁGINA DO STREAMLIT
-# ==============================================================================
+# 1. Configuração de Design da Página
 st.set_page_config(
     page_title="Cia do Jeans - Calculadora Inteligente", 
     page_icon="⚡", 
@@ -266,7 +162,6 @@ def carregar_e_limpar_dados():
 
 df_fretes_fixos = carregar_e_limpar_dados()
 
-
 # Cabeçalho Centralizado Seguro para Mobile e Desktop (Base64)
 def arrumar_imagem_local(caminho):
     try:
@@ -364,19 +259,31 @@ if st.session_state.tela_ativa == "cotacao":
     peso_total_calculado = peso_pecas_puro + (0.4 if peso_pecas_puro > 0 else 0)
     total_pecas = qtd_calcas + qtd_bermudas + qtd_shorts + qtd_gola_o + qtd_tshirt + qtd_polo
 
-    # Lógica inteligente de dimensões para cálculo Correios (Comp x Larg x Alt) em cm
-    if total_pecas == 0: 
+    # Lógica Inteligente de Dimensões e Classificação de Fardos
+    if total_pecas == 0:
         tipo_embalagem = "Nenhum produto"
-        dim_largura, dim_altura, dim_comprimento = 0, 0, 0
-    elif total_pecas <= 15: 
+        comp, larg, alt = 0, 0, 0
+        classificacao_tamanho = "Sem Carga"
+    elif total_pecas <= 15:
         tipo_embalagem = "Caixa Pequena"
-        dim_largura, dim_altura, dim_comprimento = 20, 15, 20  # Padrão aproximado
-    elif total_pecas <= 30: 
+        comp, larg, alt = 40, 30, 20
+        classificacao_tamanho = "PP (Caixa Pequena)"
+    elif total_pecas <= 30:
         tipo_embalagem = "Caixa Média"
-        dim_largura, dim_altura, dim_comprimento = 30, 20, 30
-    else: 
+        comp, larg, alt = 50, 40, 30
+        classificacao_tamanho = "P (Caixa Média)"
+    elif total_pecas <= 60:
         tipo_embalagem = "Fardo Comercial"
-        dim_largura, dim_altura, dim_comprimento = 40, 30, 40
+        comp, larg, alt = 60, 45, 35
+        classificacao_tamanho = "M (Fardo Padrão)"
+    elif total_pecas <= 120:
+        tipo_embalagem = "Fardo Comercial"
+        comp, larg, alt = 80, 50, 40
+        classificacao_tamanho = "G (Fardo Grande)"
+    else:
+        tipo_embalagem = "Fardo Comercial"
+        comp, larg, alt = 100, 60, 50
+        classificacao_tamanho = "XG (Fardo Master)"
 
     valor_nf_meia = (qtd_calcas * 40) + (qtd_bermudas * 33) + (qtd_shorts * 33) + (qtd_gola_o * 18) + (qtd_tshirt * 19) + (qtd_polo * 25)
 
@@ -405,80 +312,94 @@ if st.session_state.tela_ativa == "cotacao":
         st.session_state['frete_calculado_ok'] = True
         cidade_busca = st.session_state.get("cidade_input_fiel", "").strip().upper()
         uf_busca = st.session_state.get("uf_input_fiel", "").strip().upper()
-        cep_limpo_destino = st.session_state.get("cep_input_fiel", "").replace("-", "").replace(" ", "")
         
         if not cidade_busca:
             st.error("❌ Por favor, informe um CEP ou preencha a Cidade no Passo 1.")
         elif total_pecas == 0:
             st.error("❌ Insira a quantidade de produtos no Passo 2 para calcular.")
         else:
-            opcoes_whatsapp = []
-            lista_todas_cotacoes = [] # Agrupa dados das transportadoras e Correios para exibição
             
-            # --- 1. BUSCA NA PLANILHA FISCAL ---
+            # --- NOVO BLOCO VISUAL: CALCULADORA DE VOLUMETRIA E ESCALA HUMANA ---
+            st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #f59e0b;">', unsafe_allow_html=True)
+            st.markdown('<div class="titulo-etapa" style="color: #d97706;">📐 Dimensões e Comparativo de Escala do Volume</div>', unsafe_allow_html=True)
+            
+            v_col1, v_col2 = st.columns([1, 1.2])
+            
+            with v_col1:
+                st.markdown(f"""
+                <div style="background-color: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fef3c7; font-family: sans-serif;">
+                    <p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Classificação:</b> {classificacao_tamanho}</p>
+                    <p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Peso Estimado Total:</b> {peso_total_calculado:.2f} kg</p>
+                    <p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Comprimento:</b> {comp} cm</p>
+                    <p style="margin: 0 0 8px 0; font-size: 14px; color: #92400e;"><b>Largura:</b> {larg} cm</p>
+                    <p style="margin: 0 0 0 0; font-size: 14px; color: #92400e;"><b>Altura:</b> {alt} cm</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with v_col2:
+                # Desenho dinâmico via CSS. O fardo e a pessoa escalados na proporção real de pixel por centímetro (1cm = 1.3px)
+                px_alt_fardo = int(alt * 1.3)
+                px_larg_fardo = int(larg * 1.3)
+                
+                st.markdown(f"""
+                <div style="display: flex; align-items: flex-end; justify-content: center; gap: 40px; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; height: 250px;">
+                    <!-- Silhueta Humana Referência de 1.75m (228px de altura proporcional) -->
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
+                        <div style="font-family: sans-serif; font-size: 11px; color: #6b7280; margin-bottom: 4px;">Pessoa (1.75m)</div>
+                        <svg width="60" height="228" viewBox="0 0 24 84" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="10" r="6" fill="#cbd5e1"/>
+                            <path d="M7 19C7 17.8954 7.89543 17 9 17H15C16.1046 17 17 17.8954 17 19V42H15V82H13V54H11V82H9V42H7V19Z" fill="#cbd5e1"/>
+                        </svg>
+                    </div>
+                    <!-- Fardo Dinâmico Gerado de acordo com a quantidade de peças -->
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
+                        <div style="font-family: sans-serif; font-size: 11px; color: #1e3a8a; font-weight: bold; margin-bottom: 4px;">{comp}x{larg}x{alt} cm</div>
+                        <div style="width: {px_larg_fardo}px; height: {px_alt_fardo}px; background-color: #f59e0b; border: 2px solid #d97706; border-radius: 4px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                            <span style="color: white; font-size: 10px; font-weight: bold; text-align: center; font-family: sans-serif; padding: 2px;">FARDO</span>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            opcoes_whatsapp = []
+            
             if df_fretes_fixos.empty:
                 st.warning("⚠️ Planilha 'SISTEMA_DE_FRETES_AUTOMATIZADO.xlsx' não encontrada.")
             else:
                 resultados_fixos = df_fretes_fixos[(df_fretes_fixos['CIDADE'] == cidade_busca) & (df_fretes_fixos['UF'] == uf_busca)]
-                for idx, row in resultados_fixos.iterrows():
-                    lista_todas_cotacoes.append({
-                        "TRANSPORTADORA": row['TRANSPORTADORA'],
-                        "ROTA_ENVIO": row['ROTA_ENVIO'],
-                        "FONE": row['FONE'],
-                        "PRAZO": row['PRAZO'],
-                        "EXIGE_NF": row['EXIGE_NF'],
-                        "VALOR_MINIMO": row['VALOR_MINIMO']
-                    })
-
-            # --- 2. CONSULTA API CORREIOS (Calculando em tempo real se o CEP for válido) ---
-            if len(cep_limpo_destino) == 8 and cep_limpo_destino.isdigit():
-                token_correios = obter_token_correios(CORREIOS_USUARIO, CORREIOS_API_KEY)
-                if token_correios:
-                    with st.spinner("Buscando taxas atualizadas dos Correios..."):
-                        resultados_correios = calcular_frete_correios(
-                            token=token_correios,
-                            cep_destino=cep_limpo_destino,
-                            peso=peso_total_calculado,
-                            largura=dim_largura,
-                            altura=dim_altura,
-                            comprimento=dim_comprimento,
-                            seguro_valor=valor_para_seguro
-                        )
-                        lista_todas_cotacoes.extend(resultados_correios)
-                else:
-                    st.warning("⚠️ Não foi possível autenticar com a API dos Correios. Verifique se as credenciais estão corretas ou tente usar seu CNPJ como usuário.")
-
-            # --- 3. RENDERIZAÇÃO DOS CARDS ---
-            if lista_todas_cotacoes:
-                if btn_calcular: # Só redesenha os cards se o clique principal foi disparado
-                    st.markdown("### 🏁 Transportadoras & Serviços Encontrados")
-                    for servico in lista_todas_cotacoes:
-                        print_prazo = str(servico['PRAZO'])
+                
+                if not resultados_fixos.empty:
+                    if btn_calcular: # Só redesenha os cards se o clique principal foi disparado
+                        st.markdown("### 🏁 Transportadoras Encontradas para a Região")
+                        for idx, row in resultados_fixos.iterrows():
+                            print_prazo = str(row['PRAZO'])
+                            if "cotar" not in print_prazo.lower() and "dias" not in print_prazo.lower() and print_prazo != '-': 
+                                print_prazo = f"{print_prazo} Dias"
+                                
+                            st.markdown(f"""
+                            <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
+                                <div>
+                                    <strong style="font-size:16px; color:#1e3a8a;"><b>🚛 {row['TRANSPORTADORA']}</b></strong><br>
+                                    <span style="font-size:13px; color:#4b5563;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Fone: {row['FONE']}</span><br>
+                                    <span style="font-size:12px; color:#6b7280;">⏱️ Prazo: {print_prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
+                                </div>
+                                <div style="text-align: right;"><span style="font-size:13px; color:#6b7280; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#111827;">R$ {row['VALOR_MINIMO']}</span></div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                    for idx, row in resultados_fixos.iterrows():
+                        print_prazo = str(row['PRAZO'])
                         if "cotar" not in print_prazo.lower() and "dias" not in print_prazo.lower() and print_prazo != '-': 
                             print_prazo = f"{print_prazo} Dias"
-                            
-                        # Determina a cor da borda do card de frete (Dourado para Correios, Azul Cia do Jeans para as outras)
-                        cor_borda = "#ffcc00" if "Correios" in servico['TRANSPORTADORA'] else "#1e3a8a"
-                        
-                        st.markdown(f"""
-                        <div class="card-frete" style="border-left: 5px solid {cor_borda};">
-                            <div>
-                                <strong style="font-size:16px; color:#1e3a8a;"><b>{servico['TRANSPORTADORA']}</b></strong><br>
-                                <span style="font-size:13px; color:#4b5563;">📍 Rota: {servico['ROTA_ENVIO']} | 📞 Fone: {servico['FONE']}</span><br>
-                                <span style="font-size:12px; color:#6b7280;">⏱️ Prazo: {print_prazo} | 📄 Exige NF: {servico['EXIGE_NF']}</span>
-                            </div>
-                            <div style="text-align: right;"><span style="font-size:13px; color:#6b7280; font-weight:600;">Custo</span><br><span style="font-size:18px; font-weight:700; color:#111827;">R$ {servico['VALOR_MINIMO']}</span></div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
                         opcoes_whatsapp.append(
-                            f"District 🚛 *{servico['TRANSPORTADORA']}*\n"
-                            f"💰 Custo: R$ {servico['VALOR_MINIMO']}\n"
+                            f"🚛 *{row['TRANSPORTADORA']}*\n"
+                            f"💰 Mínimo: R$ {row['VALOR_MINIMO']}\n"
                             f"⏱️ Prazo: {print_prazo}\n"
-                            f"📞 Contato: {servico['FONE']}\n"
+                            f"📞 Contato: {row['FONE']}\n"
                         )
-            else: 
-                st.warning(f"Nenhuma opção de transporte encontrada para {cidade_busca}-{uf_busca}.")
+                else: 
+                    st.warning(f"Nenhuma transportadora cadastrada no Excel regional para {cidade_busca}-{uf_busca}.")
 
             # PASSO 4: ENVIAR PARA O WHATSAPP
             if opcoes_whatsapp:
@@ -492,7 +413,7 @@ if st.session_state.tela_ativa == "cotacao":
                     f"Olá! Segue a cotação de frete para o seu pedido da *Cia do Jeans*:\n\n"
                     f"📍 *Destino:*\n{cidade_busca} - {uf_busca}\n\n"
                     f"📦 *Volume estimado:*\n{total_pecas} peças ({peso_total_calculado:.2f} kg)\n\n"
-                    f"🛍️ *Embalagem:*\n{tipo_embalagem}\n\n"
+                    f"🛍️ *Embalagem:*\n{tipo_embalagem} ({classificacao_tamanho}) - Medidas: {comp}x{larg}x{alt} cm\n\n"
                     f"-----------------------------------------\n"
                     f"🚚 *OPÇÕES DE ENVIO:*\n\n"
                     f"{texto_opcoes}"
