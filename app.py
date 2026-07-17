@@ -258,13 +258,8 @@ if st.session_state.tela_ativa == "cotacao":
         qtd_polo = st.number_input("Quantidade de Gola Polo:", min_value=0, value=0, step=1, key="polo_un")
         qtd_vestidos = st.number_input("Quantidade de Vestidos:", min_value=0, value=0, step=1, key="vest_un")
         qtd_conjuntos = st.number_input("Quantidade de Conjuntos:", min_value=0, value=0, step=1, key="conj_un")
-        
-        # Subcolunas para dispor Boné e Cropped Lado a Lado de forma organizada
-        sub_c1, sub_c2 = st.columns(2)
-        with sub_c1:
-            qtd_bones = st.number_input("Bonés:", min_value=0, value=0, step=1, key="bone_un")
-        with sub_c2:
-            qtd_croppeds = st.number_input("Croppeds:", min_value=0, value=0, step=1, key="crop_un")
+        qtd_bones = st.number_input("Quantidade de Bonés:", min_value=0, value=0, step=1, key="bone_un")
+        qtd_croppeds = st.number_input("Quantidade de Croppeds:", min_value=0, value=0, step=1, key="crop_un")
 
     # Matemática de Pesos e Embalagem (Vestido=0.55kg, Conjunto=0.50kg, Camisa=0.25kg, Saia=0.30kg, Cropped=0.15kg, Boné=0.10kg)
     peso_pecas_puro = (
