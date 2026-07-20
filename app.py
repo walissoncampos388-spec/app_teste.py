@@ -584,14 +584,13 @@ elif st.session_state.tela_ativa == "rastreio":
             )
             
         elif transportadora_rastreio == "J&T Express":
-            link_rastreio_final = "https://www.jtexpress.com.br/trajectoryQuery"
+            link_rastreio_final = f"https://www.jttexpress.com.br/trajectoryQuery?cxBts={codigo_rastreio}"
             mensagem_rastreio = (
                 f"{txt_saudacao} Seu pedido da *Cia do Jeans* já foi despachado! 🎉\n\n"
                 f"🚚 *Transportadora:* J&T Express\n"
                 f"📦 *Código de Rastreio:* `{codigo_rastreio}`\n\n"
-                f"🔗 *Como rastrear:*\n"
-                f"1. Acesse o site: {link_rastreio_final}\n"
-                f"2. Digite o seu código de rastreio acima ou o seu CPF/CNPJ."
+                f"🔗 *Clique no link abaixo para rastrear diretamente seu envio:*\n"
+                f"{link_rastreio_final}"
             )
             
         elif transportadora_rastreio == "Braspress":
