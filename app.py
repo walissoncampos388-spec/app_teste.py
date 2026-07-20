@@ -584,13 +584,13 @@ elif st.session_state.tela_ativa == "rastreio":
             )
             
         elif transportadora_rastreio == "J&T Express":
-            # URL pública direta e simplificada do rastreamento global/nacional
-            link_rastreio_final = f"https://www.jtexpress.com.br/trajectoryQuery?billNo={codigo_rastreio}"
+            # URL limpa e oficial que obriga o roteamento correto no servidor da J&T
+            link_rastreio_final = "https://www.jtexpress.com.br/trajectoryQuery"
             mensagem_rastreio = (
                 f"{txt_saudacao} Seu pedido da *Cia do Jeans* já foi despachado! 🎉\n\n"
                 f"🚚 *Transportadora:* J&T Express\n"
                 f"📦 *Código de Rastreio:* `{codigo_rastreio}`\n\n"
-                f"🔗 *Clique no link abaixo para rastrear diretamente seu envio:*\n"
+                f"🔗 *Para rastrear é super fácil, basta dar 1 clique no link abaixo e colar o seu código:*\n"
                 f"{link_rastreio_final}"
             )
             
