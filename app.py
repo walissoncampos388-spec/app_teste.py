@@ -6,7 +6,7 @@ import base64
 
 # 1. Configuração de Design da Página
 st.set_page_config(
-    page_title="Cia do Jeans - Rastreio Unificado", 
+    page_title="Cia do Jeans - Calculadora Inteligente", 
     page_icon="⚡", 
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -29,126 +29,140 @@ def mudar_para_cotacao():
 def mudar_para_rastreio():
     st.session_state.tela_ativa = "rastreio"
 
-# Estilização CSS EXATA da Imagem
+# Estilização CSS Ultra Moderna & Autêntica Cia do Jeans
 st.markdown("""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         
         .stDeployButton {display:none;}
         footer {visibility: hidden;}
         
-        /* Remove margens e paddings padrão do Streamlit para encaixar o Hero na tela toda */
-        .block-container {
-            padding-top: 0rem !important;
-            padding-bottom: 2rem !important;
-            padding-left: 0rem !important;
-            padding-right: 0rem !important;
-            max-width: 100% !important;
-        }
-        
-        /* Container interno para o conteúdo abaixo do banner */
-        .content-area {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        
+        /* Reset e Background Global */
         html, body, [data-testid="stAppViewContainer"] {
-            background-color: #f0f2f5 !important;
-            font-family: 'Segoe UI', Roboto, sans-serif !important;
-            color: #333333;
+            background-color: #f8fafc !important;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+            color: #0f172a;
         }
         
-        /* Blocos organizadores das etapas */
+        .block-container {
+            padding-top: 2rem !important;
+            padding-bottom: 3rem !important;
+            max-width: 1140px !important;
+        }
+        
+        /* Card Contêiner Moderno */
         .bloco-etapa {
             background-color: #ffffff;
-            padding: 24px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+            padding: 28px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
             margin-bottom: 24px;
-            border-top: 4px solid #3498db;
+            border: 1px solid #e2e8f0;
+            position: relative;
+            overflow: hidden;
         }
-        .titulo-etapa {
-            color: #2c3e50;
-            font-size: 17px;
-            font-weight: 700;
-            margin-bottom: 18px;
-            font-family: 'Segoe UI', sans-serif;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .bloco-etapa::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%);
         }
         
-        /* Cards de exibição do frete final */
+        .titulo-etapa {
+            color: #0f172a;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* Cards de Frete */
         .card-frete {
             background-color: #ffffff;
-            padding: 18px 22px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+            padding: 20px 24px;
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
             margin-bottom: 14px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border: 1px solid #f0f0f0;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+        .card-frete:hover {
+            border-color: #cbd5e1;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.06);
         }
         
-        /* Estilização das Abas Superiores */
+        /* Abas Estilo Segment Control */
         div.stButton > button[key="aba_cot_btn"] {
-            background-color: """ + ("#2c3e50" if st.session_state.tela_ativa == "cotacao" else "#ffffff") + """ !important;
-            color: """ + ("#ffffff" if st.session_state.tela_ativa == "cotacao" else "#7f8c8d") + """ !important;
+            background-color: """ + ("#1e3a8a" if st.session_state.tela_ativa == "cotacao" else "#ffffff") + """ !important;
+            color: """ + ("#ffffff" if st.session_state.tela_ativa == "cotacao" else "#64748b") + """ !important;
             font-weight: 700 !important;
-            border: """ + ("none" if st.session_state.tela_ativa == "cotacao" else "1px solid #e0e0e0") + """ !important;
-            padding: 14px !important;
-            border-radius: 50px !important;
+            font-size: 15px !important;
+            border: """ + ("none" if st.session_state.tela_ativa == "cotacao" else "1px solid #e2e8f0") + """ !important;
+            padding: 16px 20px !important;
+            border-radius: 12px !important;
             width: 100% !important;
-            box-shadow: """ + ("0 4px 15px rgba(44,62,80,0.2)" if st.session_state.tela_ativa == "cotacao" else "none") + """ !important;
-            transition: all 0.3s ease !important;
+            box-shadow: """ + ("0 10px 25px -5px rgba(30, 58, 138, 0.3)" if st.session_state.tela_ativa == "cotacao" else "0 2px 4px rgba(0,0,0,0.02)") + """ !important;
+            transition: all 0.2s ease !important;
         }
         div.stButton > button[key="aba_ras_btn"] {
-            background-color: """ + ("#2c3e50" if st.session_state.tela_ativa == "rastreio" else "#ffffff") + """ !important;
-            color: """ + ("#ffffff" if st.session_state.tela_ativa == "rastreio" else "#7f8c8d") + """ !important;
+            background-color: """ + ("#1e3a8a" if st.session_state.tela_ativa == "rastreio" else "#ffffff") + """ !important;
+            color: """ + ("#ffffff" if st.session_state.tela_ativa == "rastreio" else "#64748b") + """ !important;
             font-weight: 700 !important;
-            border: """ + ("none" if st.session_state.tela_ativa == "rastreio" else "1px solid #e0e0e0") + """ !important;
-            padding: 14px !important;
-            border-radius: 50px !important;
+            font-size: 15px !important;
+            border: """ + ("none" if st.session_state.tela_ativa == "rastreio" else "1px solid #e2e8f0") + """ !important;
+            padding: 16px 20px !important;
+            border-radius: 12px !important;
             width: 100% !important;
-            box-shadow: """ + ("0 4px 15px rgba(44,62,80,0.2)" if st.session_state.tela_ativa == "rastreio" else "none") + """ !important;
-            transition: all 0.3s ease !important;
+            box-shadow: """ + ("0 10px 25px -5px rgba(30, 58, 138, 0.3)" if st.session_state.tela_ativa == "rastreio" else "0 2px 4px rgba(0,0,0,0.02)") + """ !important;
+            transition: all 0.2s ease !important;
         }
         
-        /* Botões Principais de Ação */
+        /* Botão Disparador Principal */
         div.stButton > button[key="trigger_calculo"], div.stButton > button[key="action_processar_rastreio"] {
-            background-color: #27ae60 !important;
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%) !important;
             color: white !important;
-            font-weight: bold !important;
+            font-weight: 700 !important;
             font-size: 16px !important;
-            padding: 14px !important;
-            border-radius: 50px !important;
+            padding: 16px 28px !important;
+            border-radius: 12px !important;
             border: none !important;
-            box-shadow: 0 8px 20px rgba(39,174,96,0.25) !important;
-            transition: 0.3s !important;
+            box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4) !important;
+            transition: all 0.2s ease !important;
         }
         div.stButton > button[key="trigger_calculo"]:hover, div.stButton > button[key="action_processar_rastreio"]:hover {
-            background-color: #219150 !important;
-            box-shadow: 0 10px 25px rgba(39,174,96,0.35) !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 14px 30px -5px rgba(37, 99, 235, 0.5) !important;
         }
 
-        /* Botão de COPIAR */
+        /* Botão de Copiar Texto */
         div.stButton > button[key="btn_pure_copy_frete"], div.stButton > button[key="btn_pure_copy_rastreio"] {
-            background-color: #3498db !important;
-            color: white !important;
-            font-weight: bold !important;
+            background-color: #0f172a !important;
+            color: #ffffff !important;
+            font-weight: 600 !important;
             font-size: 15px !important;
             padding: 14px !important;
-            border-radius: 8px !important;
+            border-radius: 10px !important;
             border: none !important;
-            box-shadow: 0 4px 12px rgba(52,152,219,0.25) !important;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15) !important;
             cursor: pointer !important;
             width: 100% !important;
-            margin-top: 5px !important;
-            transition: 0.3s !important;
+            margin-top: 8px !important;
+            transition: all 0.2s ease !important;
         }
         div.stButton > button[key="btn_pure_copy_frete"]:hover, div.stButton > button[key="btn_pure_copy_rastreio"]:hover {
-            background-color: #2980b9 !important;
+            background-color: #1e293b !important;
+            transform: translateY(-1px) !important;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -207,7 +221,7 @@ def carregar_e_limpar_dados():
 
 df_fretes_fixos = carregar_e_limpar_dados()
 
-# Carregar Imagem
+# Imagem
 def arrumar_imagem_local(caminho):
     try:
         with open(caminho, "rb") as image_file:
@@ -217,42 +231,28 @@ def arrumar_imagem_local(caminho):
 
 img_base64 = arrumar_imagem_local("logo_ciadojeans.PNG")
 
-# 1. HEADER SUPERIOR BRANCO (Filtro limpo do topo da imagem)
+# Cabeçalho Premium & Autêntico Cia do Jeans
 st.markdown(
     f"""
-    <div style='background: #ffffff; padding: 15px 5%; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 0;'>
-        <div style='display: flex; align-items: center; gap: 12px;'>
-            {"<img src='data:image/png;base64," + img_base64 + "' width='40'>" if img_base64 else ""}
-            <div>
-                <div style='font-size: 22px; font-weight: bold; color: #2c3e50; line-height: 1;'>
-                    <span style='color: #d4a017;'>Cia</span> <span style='color: #3498db;'>do Jeans</span>
-                </div>
-                <small style='font-size: 10px; color: #7f8c8d; letter-spacing: 1px; display: block; margin-top: 2px;'>RASTREIO UNIFICADO</small>
-            </div>
+    <div style='background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1e40af 100%); padding: 36px 28px; border-radius: 20px; text-align: center; margin-bottom: 28px; box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.2); position: relative; overflow: hidden;'>
+        <div style='position: absolute; top: -50px; right: -50px; width: 150px; height: 150px; background: rgba(59, 130, 246, 0.15); border-radius: 50%; blur: 40px;'></div>
+        <div style='margin-bottom: 12px; position: relative; z-index: 2;'>
+            <img src="data:image/png;base64,{img_base64}" width="120" style="display: block; margin: 0 auto; filter: drop-shadow(0px 8px 16px rgba(0,0,0,0.3));">
         </div>
-        <div style='font-size: 14px; color: #7f8c8d; font-family: "Segoe UI", sans-serif;'>
-            Suporte: (11) 9999-9999
+        <div style='position: relative; z-index: 2;'>
+            <h1 style='color: #ffffff; font-weight: 800; margin: 0; font-size: 2.1rem; letter-spacing: -0.5px;'>
+                CIA DO JEANS
+            </h1>
+            <p style='color: #93c5fd; font-weight: 600; margin: 6px 0 0 0; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 2px;'>
+                ⚡ Logística & Cotação Inteligente
+            </p>
         </div>
     </div>
     """, 
     unsafe_allow_html=True
 )
 
-# 2. HERO BANNER AZUL FULL WIDTH (IGUAL À IMAGEM)
-st.markdown(
-    """
-    <div style='background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%); padding: 70px 20px; text-align: center; color: white; margin-bottom: 40px;'>
-        <h1 style='font-size: 2.3rem; margin-bottom: 12px; font-weight: 700; color: #ffffff;'>Onde está sua encomenda?</h1>
-        <p style='opacity: 0.9; margin-bottom: 0px; font-size: 1.1rem;'>Acompanhe suas entregas em tempo real com a Cia do Jeans.</p>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-# 3. CONTAINER DE CONTEÚDO PRINCIPAL
-st.markdown('<div class="content-area">', unsafe_allow_html=True)
-
-# Criamos duas colunas para simular abas perfeitas com gatilho instantâneo (on_click)
+# Criamos duas colunas para simular abas com gatilho instantâneo
 col_aba1, col_aba2 = st.columns(2)
 
 with col_aba1:
@@ -275,7 +275,7 @@ if st.session_state.tela_ativa == "cotacao":
     with col1:
         cep_input = st.text_input("📬 Digite o CEP do Cliente:", placeholder="00000000", max_chars=9, key="cep_input_fiel")
 
-    desabilitar_campos = False  # Destravado por padrão caso a rede ou API falhem
+    desabilitar_campos = False
 
     if cep_input:
         cep_limpo = cep_input.replace("-", "").replace(" ", "")
@@ -284,10 +284,9 @@ if st.session_state.tela_ativa == "cotacao":
                 url_api = f"https://opencep.com/v1/{cep_limpo}"
                 resposta = requests.get(url_api, timeout=3).json()
                 if "localidade" in resposta and resposta.get("localidade"):
-                    # Força a gravação direta na memória do Streamlit para funcionar na hora
                     st.session_state["cidade_input_fiel"] = resposta.get("localidade", "").upper()
                     st.session_state["uf_input_fiel"] = resposta.get("uf", "").upper()
-                    desabilitar_campos = True  # Só bloqueia se encontrar automaticamente
+                    desabilitar_campos = True
                 else:
                     desabilitar_campos = False
             except Exception:
@@ -311,7 +310,6 @@ if st.session_state.tela_ativa == "cotacao":
         qtd_shorts = st.number_input("Quantidade de Shorts:", min_value=0, value=0, step=1, key="shor_un")
         qtd_camisas = st.number_input("Quantidade de Camisas:", min_value=0, value=0, step=1, key="cam_un")
         qtd_saias = st.number_input("Quantidade de Saias:", min_value=0, value=0, step=1, key="saia_un")
-        # Campo Croppeds movido para debaixo de saias
         qtd_croppeds = st.number_input("Quantidade de Croppeds:", min_value=0, value=0, step=1, key="crop_un")
         
     with c2:
@@ -322,7 +320,6 @@ if st.session_state.tela_ativa == "cotacao":
         qtd_conjuntos = st.number_input("Quantidade de Conjuntos:", min_value=0, value=0, step=1, key="conj_un")
         qtd_bones = st.number_input("Quantidade de Bonés:", min_value=0, value=0, step=1, key="bone_un")
 
-    # Matemática de Pesos e Embalagem (Vestido=0.55kg, Conjunto=0.50kg, Camisa=0.25kg, Saia=0.30kg, Cropped=0.15kg, Boné=0.10kg)
     peso_pecas_puro = (
         (qtd_calcas * 0.60) + (qtd_bermudas * 0.40) + (qtd_shorts * 0.35) + 
         (qtd_gola_o * 0.28) + (qtd_tshirt * 0.20) + (qtd_polo * 0.32) +
@@ -346,14 +343,12 @@ if st.session_state.tela_ativa == "cotacao":
             except ValueError:
                 st.error("⚠️ Digite um valor numérico válido para a NF.")
                 
-        # Opção seletora de meio de envio / regra de divisão
         meio_envio_selecionado = st.selectbox(
             "📦 Regra de Divisão do Fardo:",
             ["Padrão (Dividir acima de 50 kg)", "Correios / J&T / Azul Cargo (Dividir acima de 30 kg)", "Não Dividir fardo"],
             key="box_regra_divisao_fardo"
         )
         
-        # Divisão dinâmica de volumes
         num_volumes = 1
         if total_pecas > 0:
             if meio_envio_selecionado == "Padrão (Dividir acima de 50 kg)" and peso_total_calculado > 50.0:
@@ -391,7 +386,6 @@ if st.session_state.tela_ativa == "cotacao":
             comp, larg, alt = 100, 60, 50
             classificacao_tamanho = "XG (Fardo Master)"
 
-        # Regra: Se o tamanho for G ou XG, o comprimento fica na vertical (em pé) e largura na horizontal
         if "G" in classificacao_tamanho:
             visual_altura = comp
             visual_largura = larg
@@ -431,27 +425,26 @@ if st.session_state.tela_ativa == "cotacao":
         else:
             
             # --- BLOCO VISUAL: CALCULADORA DE VOLUMETRIA E ESCALA HUMANA ---
-            st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #d4a017;">', unsafe_allow_html=True)
-            st.markdown(f'<div class="titulo-etapa" style="color: #2c3e50;">📐 Dimensões e Comparativo de Escala ({orientacao_texto})</div>', unsafe_allow_html=True)
+            st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
+            st.markdown(f'<div class="titulo-etapa">📐 Dimensões e Comparativo de Escala ({orientacao_texto})</div>', unsafe_allow_html=True)
             
             v_col1, v_col2 = st.columns([1, 1.2])
             
             with v_col1:
-                txt_vol_detalhe = f"<p style='margin: 0 0 8px 0; font-size: 15px; color: #d4a017;'><b>⚠️ Carga Dividida: {num_volumes} Volumes ({meio_envio_selecionado})</b></p>" if num_volumes > 1 else ""
+                txt_vol_detalhe = f"<p style='margin: 0 0 8px 0; font-size: 14px; color: #b45309; font-weight: 600;'>⚠️ Carga Dividida: {num_volumes} Volumes ({meio_envio_selecionado})</p>" if num_volumes > 1 else ""
                 st.html(f"""
-<div style="background-color: #f8f9fa; padding: 18px; border-radius: 12px; border: 1px solid #e0e0e0; font-family: sans-serif;">
+<div style="background-color: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; font-family: sans-serif;">
 {txt_vol_detalhe}
-<p style="margin: 0 0 8px 0; font-size: 14px; color: #2c3e50;"><b>Quantidade Total de Volumes:</b> {num_volumes} volume(s)</p>
-<p style="margin: 0 0 8px 0; font-size: 14px; color: #2c3e50;"><b>Classificação (por volume):</b> {classificacao_tamanho}</p>
-<p style="margin: 0 0 8px 0; font-size: 14px; color: #2c3e50;"><b>Peso por Volume:</b> {peso_por_volume:.2f} kg</p>
-<p style="margin: 0 0 8px 0; font-size: 14px; color: #2c3e50;"><b>Comprimento:</b> {comp} cm</p>
-<p style="margin: 0 0 8px 0; font-size: 14px; color: #2c3e50;"><b>Largura:</b> {larg} cm</p>
-<p style="margin: 0 0 0 0; font-size: 14px; color: #2c3e50;"><b>Altura:</b> {alt} cm</p>
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #334155;"><b>Quantidade Total de Volumes:</b> {num_volumes} volume(s)</p>
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #334155;"><b>Classificação (por volume):</b> {classificacao_tamanho}</p>
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #334155;"><b>Peso por Volume:</b> {peso_por_volume:.2f} kg</p>
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #334155;"><b>Comprimento:</b> {comp} cm</p>
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #334155;"><b>Largura:</b> {larg} cm</p>
+<p style="margin: 0 0 0 0; font-size: 14px; color: #334155;"><b>Altura:</b> {alt} cm</p>
 </div>
 """)
             
             with v_col2:
-                # Proporção matemática de escala (1cm = 1.3px)
                 px_alt_fardo = int(visual_altura * 1.3)
                 px_larg_fardo = int(visual_largura * 1.3)
                 
@@ -460,33 +453,32 @@ if st.session_state.tela_ativa == "cotacao":
                     label_fardo = "FARDO" if num_volumes == 1 else f"VOL {vol_i+1}"
                     html_fardos_render += f"""
 <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
-<div style="font-family: sans-serif; font-size: 11px; color: #3498db; font-weight: bold; margin-bottom: 4px;">{comp}x{larg}x{alt} cm</div>
-<div style="width: {px_larg_fardo}px; height: {px_alt_fardo}px; background-color: #d4a017; border: 2px solid #b8860b; border-radius: 6px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.08); margin-bottom: 0px;">
+<div style="font-family: sans-serif; font-size: 11px; color: #1e3a8a; font-weight: bold; margin-bottom: 4px;">{comp}x{larg}x{alt} cm</div>
+<div style="width: {px_larg_fardo}px; height: {px_alt_fardo}px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 6px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(217,119,6,0.3); margin-bottom: 0px;">
 <span style="color: white; font-size: 10px; font-weight: bold; text-align: center; font-family: sans-serif; padding: 2px;">{label_fardo}</span>
 </div>
 </div>
 """
 
-                # Pessoa utilizando DIVs estruturadas em CSS Puro.
                 st.html(f"""
-<div style="display: flex; align-items: flex-end; justify-content: center; gap: 20px; background: #ffffff; padding: 15px; border-radius: 12px; border: 1px solid #e5e7eb; height: 250px; overflow-x: auto;">
+<div style="display: flex; align-items: flex-end; justify-content: center; gap: 20px; background: #ffffff; padding: 18px; border-radius: 12px; border: 1px solid #e2e8f0; height: 250px; overflow-x: auto;">
 <div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; flex-shrink: 0;">
-<div style="font-family: sans-serif; font-size: 11px; color: #7f8c8d; margin-bottom: 4px;">Pessoa (1.75m)</div>
+<div style="font-family: sans-serif; font-size: 11px; color: #64748b; margin-bottom: 4px;">Pessoa (1.75m)</div>
 <div style="width: 50px; height: 215px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-bottom: 0px;">
     <!-- Cabeça -->
     <div style="width: 26px; height: 26px; background-color: #f3c693; border-radius: 50%; margin-bottom: 4px;"></div>
-    <!-- Tronco (Camisa Azul UniLog) -->
-    <div style="width: 38px; height: 65px; background-color: #3498db; border-radius: 4px 4px 0 0; position: relative;">
+    <!-- Tronco (Camisa Azul) -->
+    <div style="width: 38px; height: 65px; background-color: #1e3a8a; border-radius: 4px 4px 0 0; position: relative;">
         <!-- Braços -->
         <div style="width: 6px; height: 45px; background-color: #f3c693; position: absolute; left: -7px; top: 0; border-radius: 3px;"></div>
         <div style="width: 6px; height: 45px; background-color: #f3c693; position: absolute; right: -7px; top: 0; border-radius: 3px;"></div>
     </div>
     <!-- Pernas (Calça Escura) -->
     <div style="width: 34px; height: 105px; display: flex; justify-content: space-between;">
-        <div style="width: 14px; height: 105px; background-color: #2c3e50; border-radius: 0 0 2px 2px; position: relative;">
+        <div style="width: 14px; height: 105px; background-color: #0f172a; border-radius: 0 0 2px 2px; position: relative;">
             <div style="width: 18px; height: 6px; background-color: #f3c693; position: absolute; bottom: 0; left: -2px; border-radius: 2px 0 0 0;"></div>
         </div>
-        <div style="width: 14px; height: 105px; background-color: #2c3e50; border-radius: 0 0 2px 2px; position: relative;">
+        <div style="width: 14px; height: 105px; background-color: #0f172a; border-radius: 0 0 2px 2px; position: relative;">
             <div style="width: 18px; height: 6px; background-color: #f3c693; position: absolute; bottom: 0; right: -2px; border-radius: 0 2px 0 0;"></div>
         </div>
     </div>
@@ -513,13 +505,13 @@ if st.session_state.tela_ativa == "cotacao":
                                 print_prazo = f"{print_prazo} Dias"
                                 
                             st.markdown(f"""
-                            <div class="card-frete" style="border-left: 5px solid #3498db;">
+                            <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
                                 <div>
-                                    <strong style="font-size:16px; color:#2c3e50;"><b>🚛 {row['TRANSPORTADORA']}</b></strong><br>
-                                    <span style="font-size:13px; color:#7f8c8d;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Fone: {row['FONE']}</span><br>
-                                    <span style="font-size:12px; color:#95a5a6;">⏱️ Prazo: {print_prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
+                                    <strong style="font-size:16px; color:#0f172a;"><b>🚛 {row['TRANSPORTADORA']}</b></strong><br>
+                                    <span style="font-size:13px; color:#64748b;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Fone: {row['FONE']}</span><br>
+                                    <span style="font-size:12px; color:#94a3b8;">⏱️ Prazo: {print_prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
                                 </div>
-                                <div style="text-align: right;"><span style="font-size:12px; color:#7f8c8d; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#2c3e50;">R$ {row['VALOR_MINIMO']}</span></div>
+                                <div style="text-align: right;"><span style="font-size:12px; color:#64748b; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#0f172a;">R$ {row['VALOR_MINIMO']}</span></div>
                             </div>
                             """, unsafe_allow_html=True)
                             
@@ -538,9 +530,9 @@ if st.session_state.tela_ativa == "cotacao":
 
             # PASSO 4: ENVIAR PARA O WHATSAPP
             if opcoes_whatsapp:
-                st.markdown("<br><hr style='border-top: 1px dashed #cbd5e1;'><br>", unsafe_allow_html=True)
-                st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #25d366;">', unsafe_allow_html=True)
-                st.markdown('<div class="titulo-etapa" style="color: #27ae60;">💬 PASSO 3: Enviar Cotação ao Cliente</div>', unsafe_allow_html=True)
+                st.markdown("<br><hr style='border-top: 1px dashed #e2e8f0;'><br>", unsafe_allow_html=True)
+                st.markdown('<div class="bloco-etapa" style="border-top-color: #25d366;">', unsafe_allow_html=True)
+                st.markdown('<div class="titulo-etapa" style="color: #16a34a;">💬 PASSO 3: Enviar Cotação ao Cliente</div>', unsafe_allow_html=True)
                 
                 texto_opcoes = "\n".join(opcoes_whatsapp)
                 
@@ -561,16 +553,15 @@ if st.session_state.tela_ativa == "cotacao":
                 texto_codificado = urllib.parse.quote(texto_editavel)
                 link_whatsapp = f"https://api.whatsapp.com/send?text={texto_codificado}"
                 
-                # Botão Original do WhatsApp
+                # Botão do WhatsApp Moderno
                 st.markdown(f"""
                     <a href="{link_whatsapp}" target="_blank" style="text-decoration: none;">
-                        <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 50px; font-weight: bold; font-size: 16px; box-shadow: 0 8px 20px rgba(37,211,102,0.25); cursor: pointer; margin-bottom: 12px; font-family: sans-serif; transition: 0.3s;">
+                        <div style="background: linear-gradient(135deg, #25d366 0%, #16a34a 100%); color: white; text-align: center; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 10px 25px -5px rgba(37,211,102,0.4); cursor: pointer; margin-bottom: 12px; font-family: sans-serif; transition: all 0.2s ease;">
                             📲 ENVIAR COTAÇÃO PARA O WHATSAPP DO CLIENTE
                         </div>
                     </a>
                 """, unsafe_allow_html=True)
 
-                # Botão nativo Streamlit azul 
                 if st.button("📋 COPIAR TEXTO DA COTAÇÃO", key="btn_pure_copy_frete"):
                     texto_js_safe = texto_editavel.replace('\\', '\\\\').replace('`', '\\`').replace('$', '\\$').replace('\n', '\\n')
                     st.components.v1.html(f"""
@@ -585,7 +576,7 @@ if st.session_state.tela_ativa == "cotacao":
 
 # --- EXIBIÇÃO DA TELA: RASTREAMENTO ---
 elif st.session_state.tela_ativa == "rastreio":
-    st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #2c3e50;">', unsafe_allow_html=True)
+    st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
     st.markdown('<div class="titulo-etapa">📦 PASSO ÚNICO: Gerar Rastreio para o Cliente</div>', unsafe_allow_html=True)
 
     col_nome_cli, col_transp, col_cod, col_doc = st.columns([1.2, 1.2, 1.2, 1])
@@ -681,16 +672,14 @@ elif st.session_state.tela_ativa == "rastreio":
         texto_rastreio_codificado = urllib.parse.quote(texto_rastreio_editavel)
         link_whatsapp_rastreio = f"https://api.whatsapp.com/send?text={texto_rastreio_codificado}"
         
-        # Botão Original do WhatsApp (Rastreio)
         st.markdown(f"""
             <a href="{link_whatsapp_rastreio}" target="_blank" style="text-decoration: none;">
-                <div style="background-color: #25d366; color: white; text-align: center; padding: 14px; border-radius: 50px; font-weight: bold; font-size: 16px; box-shadow: 0 8px 20px rgba(37,211,102,0.25); cursor: pointer; margin-top: 5px; margin-bottom: 12px; font-family: sans-serif; transition: 0.3s;">
+                <div style="background: linear-gradient(135deg, #25d366 0%, #16a34a 100%); color: white; text-align: center; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 10px 25px -5px rgba(37,211,102,0.4); cursor: pointer; margin-top: 5px; margin-bottom: 12px; font-family: sans-serif; transition: all 0.2s ease;">
                     📲 ENVIAR MENSAGEM DE RASTREIO PARA O WHATSAPP
                 </div>
             </a>
         """, unsafe_allow_html=True)
         
-        # Botão nativo Streamlit azul (Rastreio)
         if st.button("📋 COPIAR TEXTO DO RASTREIO", key="btn_pure_copy_rastreio"):
             texto_rastreio_js_safe = texto_rastreio_editavel.replace('\\', '\\\\').replace('`', '\\`').replace('$', '\\$').replace('\n', '\\n')
             st.components.v1.html(f"""
@@ -717,5 +706,3 @@ elif st.session_state.tela_ativa == "rastreio":
         st.info("✍️ Digite o código de rastreio acima para gerar o link de envio imediatamente.")
 
     st.markdown('</div>', unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True) # Fechamento content-area
