@@ -360,15 +360,15 @@ def arrumar_imagem_local(caminho):
 
 img_base64 = arrumar_imagem_local("logo_ciadojeans.PNG")
 
-# Cabeçalho Ajustado: Logo ampliada preenchendo 100% do espaço vertical até o texto
+# Cabeçalho Ajustado: Logo Dobrada de Tamanho Preenchendo o Banner Azul sem Transbordar
 st.markdown(
     f"""
     <div style='background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1e40af 100%); padding: 12px 16px 14px 16px; border-radius: 16px; text-align: center; margin-bottom: 24px; box-shadow: 0 12px 20px -5px rgba(15, 23, 42, 0.2); position: relative; overflow: hidden;'>
         <div style='position: absolute; top: -50px; right: -50px; width: 150px; height: 150px; background: rgba(59, 130, 246, 0.15); border-radius: 50%; blur: 40px;'></div>
         <div style='margin: 0 auto; position: relative; z-index: 2;'>
-            <img src="data:image/png;base64,{img_base64}" style="display: block; margin: 0 auto; max-width: 95%; height: 180px; object-fit: contain; filter: drop-shadow(0px 6px 12px rgba(0,0,0,0.3));">
+            <img src="data:image/png;base64,{img_base64}" style="display: block; margin: 0 auto; width: 900px; max-width: 98%; height: auto; max-height: 280px; object-fit: contain; filter: drop-shadow(0px 8px 16px rgba(0,0,0,0.3));">
         </div>
-        <div style='position: relative; z-index: 2; margin-top: 0px;'>
+        <div style='position: relative; z-index: 2; margin-top: -6px;'>
             <p style='color: #93c5fd; font-weight: 600; margin: 0; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 2px;'>
                 ⚡ Logística & Cotação Inteligente
             </p>
@@ -461,7 +461,7 @@ if st.session_state.tela_ativa == "cotacao":
     # PASSO 2: ENTRADA DE PRODUTOS
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
     st.markdown(
-        '<div class="titulo-etapa">👖 PASSO 2: O que estamos enviando'
+        '<div class="titulo-etapa">GB PASSO 2: O que estamos enviando'
         ' hoje?</div>',
         unsafe_allow_html=True,
     )
