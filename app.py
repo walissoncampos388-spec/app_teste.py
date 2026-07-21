@@ -6,7 +6,7 @@ import base64
 
 # 1. Configuração de Design da Página
 st.set_page_config(
-    page_title="Cia do Jeans - Calculadora Inteligente", 
+    page_title="Cia do Jeans - Rastreio Unificado", 
     page_icon="⚡", 
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -29,7 +29,7 @@ def mudar_para_cotacao():
 def mudar_para_rastreio():
     st.session_state.tela_ativa = "rastreio"
 
-# Estilização CSS baseada no Padrão UniLog (Paleta: #2c3e50, #3498db, #27ae60, #f0f2f5)
+# Estilização CSS EXATA da Imagem
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700;800&display=swap');
@@ -37,13 +37,29 @@ st.markdown("""
         .stDeployButton {display:none;}
         footer {visibility: hidden;}
         
+        /* Remove margens e paddings padrão do Streamlit para encaixar o Hero na tela toda */
+        .block-container {
+            padding-top: 0rem !important;
+            padding-bottom: 2rem !important;
+            padding-left: 0rem !important;
+            padding-right: 0rem !important;
+            max-width: 100% !important;
+        }
+        
+        /* Container interno para o conteúdo abaixo do banner */
+        .content-area {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
         html, body, [data-testid="stAppViewContainer"] {
             background-color: #f0f2f5 !important;
             font-family: 'Segoe UI', Roboto, sans-serif !important;
             color: #333333;
         }
         
-        /* Blocos organizadores das etapas (Estilo Card UniLog) */
+        /* Blocos organizadores das etapas */
         .bloco-etapa {
             background-color: #ffffff;
             padding: 24px;
@@ -99,7 +115,7 @@ st.markdown("""
             transition: all 0.3s ease !important;
         }
         
-        /* Botões Principais de Ação (Aparência UniLog - Verde Verde de Ação) */
+        /* Botões Principais de Ação */
         div.stButton > button[key="trigger_calculo"], div.stButton > button[key="action_processar_rastreio"] {
             background-color: #27ae60 !important;
             color: white !important;
@@ -116,7 +132,7 @@ st.markdown("""
             box-shadow: 0 10px 25px rgba(39,174,96,0.35) !important;
         }
 
-        /* Estilização para o botão de COPIAR (Azul UniLog) */
+        /* Botão de COPIAR */
         div.stButton > button[key="btn_pure_copy_frete"], div.stButton > button[key="btn_pure_copy_rastreio"] {
             background-color: #3498db !important;
             color: white !important;
@@ -191,7 +207,7 @@ def carregar_e_limpar_dados():
 
 df_fretes_fixos = carregar_e_limpar_dados()
 
-# Cabeçalho Centralizado Seguro para Mobile e Desktop (Estilo Hero UniLog)
+# Carregar Imagem
 def arrumar_imagem_local(caminho):
     try:
         with open(caminho, "rb") as image_file:
@@ -201,22 +217,40 @@ def arrumar_imagem_local(caminho):
 
 img_base64 = arrumar_imagem_local("logo_ciadojeans.PNG")
 
+# 1. HEADER SUPERIOR BRANCO (Filtro limpo do topo da imagem)
 st.markdown(
     f"""
-    <div style='background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%); padding: 35px 20px; border-radius: 18px; text-align: center; margin-bottom: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.15);'>
-        <div style='margin-bottom: 12px;'>
-            <img src="data:image/png;base64,{img_base64}" width="110" style="display: block; margin: 0 auto; filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.2));">
+    <div style='background: #ffffff; padding: 15px 5%; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 0;'>
+        <div style='display: flex; align-items: center; gap: 12px;'>
+            {"<img src='data:image/png;base64," + img_base64 + "' width='40'>" if img_base64 else ""}
+            <div>
+                <div style='font-size: 22px; font-weight: bold; color: #2c3e50; line-height: 1;'>
+                    <span style='color: #d4a017;'>Cia</span> <span style='color: #3498db;'>do Jeans</span>
+                </div>
+                <small style='font-size: 10px; color: #7f8c8d; letter-spacing: 1px; display: block; margin-top: 2px;'>RASTREIO UNIFICADO</small>
+            </div>
         </div>
-        <h1 style='color: #ffffff; font-weight: 800; margin: 0; font-size: 2.0rem; letter-spacing: -0.5px; font-family: "Segoe UI", sans-serif;'>
-            ⚡ CIA DO JEANS
-        </h1>
-        <p style='color: #ffffff; opacity: 0.9; margin: 5px 0 0 0; font-size: 1.0rem; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;'>
-            Logística Inteligente
-        </p>
+        <div style='font-size: 14px; color: #7f8c8d; font-family: "Segoe UI", sans-serif;'>
+            Suporte: (11) 9999-9999
+        </div>
     </div>
     """, 
     unsafe_allow_html=True
 )
+
+# 2. HERO BANNER AZUL FULL WIDTH (IGUAL À IMAGEM)
+st.markdown(
+    """
+    <div style='background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%); padding: 70px 20px; text-align: center; color: white; margin-bottom: 40px;'>
+        <h1 style='font-size: 2.3rem; margin-bottom: 12px; font-weight: 700; color: #ffffff;'>Onde está sua encomenda?</h1>
+        <p style='opacity: 0.9; margin-bottom: 0px; font-size: 1.1rem;'>Acompanhe suas entregas em tempo real com a Cia do Jeans.</p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+# 3. CONTAINER DE CONTEÚDO PRINCIPAL
+st.markdown('<div class="content-area">', unsafe_allow_html=True)
 
 # Criamos duas colunas para simular abas perfeitas com gatilho instantâneo (on_click)
 col_aba1, col_aba2 = st.columns(2)
@@ -554,7 +588,6 @@ elif st.session_state.tela_ativa == "rastreio":
     st.markdown('<div class="bloco-etapa" style="border-top: 4px solid #2c3e50;">', unsafe_allow_html=True)
     st.markdown('<div class="titulo-etapa">📦 PASSO ÚNICO: Gerar Rastreio para o Cliente</div>', unsafe_allow_html=True)
 
-    # Reajustado layout de colunas para adicionar o campo do Nome do Cliente mantendo proporção limpa
     col_nome_cli, col_transp, col_cod, col_doc = st.columns([1.2, 1.2, 1.2, 1])
 
     with col_nome_cli:
@@ -586,7 +619,6 @@ elif st.session_state.tela_ativa == "rastreio":
         link_rastreio_final = ""
         mensagem_rastreio = ""
         
-        # Define saudação inicial com base na presença do nome do cliente
         txt_saudacao = f"Olá, *{nome_cliente_rastreio}*!" if nome_cliente_rastreio else "Olá!"
         
         if transportadora_rastreio == "Correios":
@@ -685,3 +717,5 @@ elif st.session_state.tela_ativa == "rastreio":
         st.info("✍️ Digite o código de rastreio acima para gerar o link de envio imediatamente.")
 
     st.markdown('</div>', unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True) # Fechamento content-area
