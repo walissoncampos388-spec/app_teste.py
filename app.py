@@ -360,15 +360,15 @@ def arrumar_imagem_local(caminho):
 
 img_base64 = arrumar_imagem_local("logo_ciadojeans.PNG")
 
-# Cabeçalho Ajustado: Logo Dobrada de Tamanho
+# Cabeçalho Ajustado: Banner Menor e Logo Mantida em Tamanho Grande
 st.markdown(
     f"""
-    <div style='background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1e40af 100%); padding: 12px 20px 16px 20px; border-radius: 20px; text-align: center; margin-bottom: 28px; box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.2); position: relative; overflow: hidden;'>
+    <div style='background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1e40af 100%); padding: 4px 12px 8px 12px; border-radius: 16px; text-align: center; margin-bottom: 24px; box-shadow: 0 15px 20px -5px rgba(15, 23, 42, 0.2); position: relative; overflow: visible;'>
         <div style='position: absolute; top: -50px; right: -50px; width: 150px; height: 150px; background: rgba(59, 130, 246, 0.15); border-radius: 50%; blur: 40px;'></div>
-        <div style='margin-bottom: 2px; position: relative; z-index: 2;'>
+        <div style='margin-bottom: 0px; position: relative; z-index: 2;'>
             <img src="data:image/png;base64,{img_base64}" style="display: block; margin: 0 auto; width: 760px; max-width: 95%; height: auto; max-height: 240px; object-fit: contain; filter: drop-shadow(0px 8px 16px rgba(0,0,0,0.3));">
         </div>
-        <div style='position: relative; z-index: 2;'>
+        <div style='position: relative; z-index: 2; margin-top: -10px;'>
             <p style='color: #93c5fd; font-weight: 600; margin: 0; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 2px;'>
                 ⚡ Logística & Cotação Inteligente
             </p>
