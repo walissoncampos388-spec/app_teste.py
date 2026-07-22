@@ -16,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# CONTROLE DE NAVEGAÇÃO À PROVA DE REFRESH (SESSION STATE) - Inicializado no topo
+# CONTROLE DE NAVEGAÇÃO À PROVA DE REFRESH (SESSION STATE)
 if "tela_ativa" not in st.session_state:
     st.session_state.tela_ativa = "cotacao"
 if "cidade_input_fiel" not in st.session_state:
@@ -56,7 +56,7 @@ def cotar_frenet(
     }
 
     try:
-        res = requests.post(url, json=payload, headers=headers, timeout=5)
+        res = requests.post(url, json=payload, headers=headers, timeout=4)
         if res.status_code == 200:
             dados = res.json()
             servicos = []
@@ -80,7 +80,7 @@ def cotar_frenet(
     return []
 
 
-# Funções de clique rápido para limpar o delay do double-click
+# Funções de clique rápido
 def mudar_para_cotacao():
     st.session_state.tela_ativa = "cotacao"
 
@@ -89,7 +89,7 @@ def mudar_para_rastreio():
     st.session_state.tela_ativa = "rastreio"
 
 
-# Estilização CSS Ultra Moderna & Autêntica Cia do Jeans
+# Estilização CSS Ultra Moderna
 st.markdown(
     """
     <style>
@@ -98,7 +98,6 @@ st.markdown(
         .stDeployButton {display:none;}
         footer {visibility: hidden;}
         
-        /* Reset e Background Global */
         html, body, [data-testid="stAppViewContainer"] {
             background-color: #f8fafc !important;
             font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
@@ -111,12 +110,11 @@ st.markdown(
             max-width: 1140px !important;
         }
         
-        /* Card Contêiner Moderno */
         .bloco-etapa {
             background-color: #ffffff;
             padding: 28px;
             border-radius: 16px;
-            box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
+            box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
             margin-bottom: 24px;
             border: 1px solid #e2e8f0;
             position: relative;
@@ -144,7 +142,6 @@ st.markdown(
             gap: 8px;
         }
         
-        /* Cards de Frete */
         .card-frete {
             background-color: #ffffff;
             padding: 20px 24px;
@@ -157,87 +154,7 @@ st.markdown(
             border: 1px solid #e2e8f0;
             transition: all 0.2s ease;
         }
-        .card-frete:hover {
-            border-color: #cbd5e1;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.06);
-        }
         
-        /* Abas Estilo Segment Control */
-        div.stButton > button[key="aba_cot_btn"] {
-            background-color: """
-    + (
-        "#1e3a8a"
-        if st.session_state.tela_ativa == "cotacao"
-        else "#ffffff"
-    )
-    + """ !important;
-            color: """
-    + (
-        "#ffffff"
-        if st.session_state.tela_ativa == "cotacao"
-        else "#64748b"
-    )
-    + """ !important;
-            font-weight: 700 !important;
-            font-size: 15px !important;
-            border: """
-    + (
-        "none"
-        if st.session_state.tela_ativa == "cotacao"
-        else "1px solid #e2e8f0"
-    )
-    + """ !important;
-            padding: 16px 20px !important;
-            border-radius: 12px !important;
-            width: 100% !important;
-            box-shadow: """
-    + (
-        "0 10px 25px -5px rgba(30, 58, 138, 0.3)"
-        if st.session_state.tela_ativa == "cotacao"
-        else "0 2px 4px rgba(0,0,0,0.02)"
-    )
-    + """ !important;
-            transition: all 0.2s ease !important;
-        }
-        div.stButton > button[key="aba_ras_btn"] {
-            background-color: """
-    + (
-        "#1e3a8a"
-        if st.session_state.tela_ativa == "rastreio"
-        else "#ffffff"
-    )
-    + """ !important;
-            color: """
-    + (
-        "#ffffff"
-        if st.session_state.tela_ativa == "rastreio"
-        else "#64748b"
-    )
-    + """ !important;
-            font-weight: 700 !important;
-            font-size: 15px !important;
-            border: """
-    + (
-        "none"
-        if st.session_state.tela_ativa == "rastreio"
-        else "1px solid #e2e8f0"
-    )
-    + """ !important;
-            padding: 16px 20px !important;
-            border-radius: 12px !important;
-            width: 100% !important;
-            box-shadow: """
-    + (
-        "0 10px 25px -5px rgba(30, 58, 138, 0.3)"
-        if st.session_state.tela_ativa == "rastreio"
-        else "0 2px 4px rgba(0,0,0,0.02)"
-    )
-    + """ !important;
-            transition: all 0.2s ease !important;
-        }
-        
-        /* Botão Disparador Principal */
         div.stButton > button[key="trigger_calculo"], div.stButton > button[key="action_processar_rastreio"] {
             background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%) !important;
             color: white !important;
@@ -247,14 +164,8 @@ st.markdown(
             border-radius: 12px !important;
             border: none !important;
             box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4) !important;
-            transition: all 0.2s ease !important;
-        }
-        div.stButton > button[key="trigger_calculo"]:hover, div.stButton > button[key="action_processar_rastreio"]:hover {
-            transform: translateY(-2px) !important;
-            box-shadow: 0 14px 30px -5px rgba(37, 99, 235, 0.5) !important;
         }
 
-        /* Botão de Copiar Texto */
         div.stButton > button[key="btn_pure_copy_frete"], div.stButton > button[key="btn_pure_copy_rastreio"] {
             background-color: #0f172a !important;
             color: #ffffff !important;
@@ -263,15 +174,8 @@ st.markdown(
             padding: 14px !important;
             border-radius: 10px !important;
             border: none !important;
-            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15) !important;
-            cursor: pointer !important;
             width: 100% !important;
             margin-top: 8px !important;
-            transition: all 0.2s ease !important;
-        }
-        div.stButton > button[key="btn_pure_copy_frete"]:hover, div.stButton > button[key="btn_pure_copy_rastreio"]:hover {
-            background-color: #1e293b !important;
-            transform: translateY(-1px) !important;
         }
     </style>
 """,
@@ -279,7 +183,7 @@ st.markdown(
 )
 
 
-# CACHE ULTRA-RÁPIDO: Organização dos dados da planilha de fretes fixos
+# CACHE: Organização dos dados da planilha de fretes fixos
 @st.cache_data(ttl=3600)
 def carregar_e_limpar_dados():
     try:
@@ -417,13 +321,12 @@ def arrumar_imagem_local(caminho):
 
 img_base64 = arrumar_imagem_local("logo_ciadojeans.PNG")
 
-# Cabeçalho Ajustado: Logo Ampliada Preenchendo o Banner Azul Sem Transbordar
+# Cabeçalho
 st.markdown(
     f"""
     <div style='background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1e40af 100%); padding: 12px 16px 14px 16px; border-radius: 16px; text-align: center; margin-bottom: 24px; box-shadow: 0 12px 20px -5px rgba(15, 23, 42, 0.2); position: relative; overflow: hidden;'>
-        <div style='position: absolute; top: -50px; right: -50px; width: 150px; height: 150px; background: rgba(59, 130, 246, 0.15); border-radius: 50%; blur: 40px;'></div>
         <div style='margin: 0 auto; position: relative; z-index: 2;'>
-            <img src="data:image/png;base64,{img_base64}" style="display: block; margin: 0 auto; width: 900px; max-width: 98%; height: auto; max-height: 280px; object-fit: contain; filter: drop-shadow(0px 8px 16px rgba(0,0,0,0.3));">
+            <img src="data:image/png;base64,{img_base64}" style="display: block; margin: 0 auto; width: 900px; max-width: 98%; height: auto; max-height: 280px; object-fit: contain;">
         </div>
         <div style='position: relative; z-index: 2; margin-top: -6px;'>
             <p style='color: #93c5fd; font-weight: 600; margin: 0; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 2px;'>
@@ -435,7 +338,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Criamos duas colunas para simular abas com gatilho instantâneo
+# Abas
 col_aba1, col_aba2 = st.columns(2)
 
 with col_aba1:
@@ -457,10 +360,10 @@ with col_aba2:
 st.markdown("<br>", unsafe_allow_html=True)
 
 
-# --- EXIBIÇÃO DA TELA: COTAÇÃO ---
+# --- COTAÇÃO ---
 if st.session_state.tela_ativa == "cotacao":
 
-    # PASSO 1: LOCALIZAÇÃO DO CLIENTE
+    # PASSO 1: LOCALIZAÇÃO
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
     st.markdown(
         '<div class="titulo-etapa">📍 PASSO 1: Destino do Pedido</div>',
@@ -515,7 +418,7 @@ if st.session_state.tela_ativa == "cotacao":
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # PASSO 2: ENTRADA DE PRODUTOS
+    # PASSO 2: PRODUTOS
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
     st.markdown(
         '<div class="titulo-etapa">👖 PASSO 2: O que estamos enviando'
@@ -753,7 +656,7 @@ if st.session_state.tela_ativa == "cotacao":
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # DISPARADOR DE CÁLCULO
+    # DISPARADOR
     st.markdown("<br>", unsafe_allow_html=True)
     btn_calcular = st.button(
         "🚀 CALCULAR FRETE E GERAR WHATSAPP",
@@ -763,7 +666,7 @@ if st.session_state.tela_ativa == "cotacao":
     )
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # PASSO 3: RESULTADOS E WHATSAPP
+    # RESULTADOS
     if btn_calcular or st.session_state.get("frete_calculado_ok", False):
         st.session_state["frete_calculado_ok"] = True
         cidade_busca = (
@@ -780,87 +683,9 @@ if st.session_state.tela_ativa == "cotacao":
                 "❌ Insira a quantidade de produtos no Passo 2 para calcular."
             )
         else:
-
-            # --- BLOCO VISUAL: CALCULADORA DE VOLUMETRIA E ESCALA HUMANA ---
-            st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
-            st.markdown(
-                f'<div class="titulo-etapa">📐 Dimensões e Comparativo de'
-                f" Escala ({orientacao_texto})</div>",
-                unsafe_allow_html=True,
-            )
-
-            v_col1, v_col2 = st.columns([1, 1.2])
-
-            with v_col1:
-                txt_vol_detalhe = (
-                    "<p style='margin: 0 0 8px 0; font-size: 14px; color:"
-                    " #b45309; font-weight: 600;'>⚠️ Carga Dividida:"
-                    f" {num_volumes} Volumes ({meio_envio_selecionado})</p>"
-                    if num_volumes > 1
-                    else ""
-                )
-                st.html(f"""
-<div style="background-color: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; font-family: sans-serif;">
-{txt_vol_detalhe}
-<p style="margin: 0 0 8px 0; font-size: 14px; color: #334155;"><b>Quantidade Total de Volumes:</b> {num_volumes} volume(s)</p>
-<p style="margin: 0 0 8px 0; font-size: 14px; color: #334155;"><b>Classificação (por volume):</b> {classificacao_tamanho}</p>
-<p style="margin: 0 0 8px 0; font-size: 14px; color: #334155;"><b>Peso por Volume:</b> {peso_por_volume:.2f} kg</p>
-<p style="margin: 0 0 8px 0; font-size: 14px; color: #334155;"><b>Comprimento:</b> {comp} cm</p>
-<p style="margin: 0 0 8px 0; font-size: 14px; color: #334155;"><b>Largura:</b> {larg} cm</p>
-<p style="margin: 0 0 0 0; font-size: 14px; color: #334155;"><b>Altura:</b> {alt} cm</p>
-</div>
-""")
-
-            with v_col2:
-                px_alt_fardo = int(visual_altura * 1.3)
-                px_larg_fardo = int(visual_largura * 1.3)
-
-                html_fardos_render = ""
-                for vol_i in range(num_volumes):
-                    label_fardo = (
-                        "FARDO" if num_volumes == 1 else f"VOL {vol_i+1}"
-                    )
-                    html_fardos_render += f"""
-<div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
-<div style="font-family: sans-serif; font-size: 11px; color: #1e3a8a; font-weight: bold; margin-bottom: 4px;">{comp}x{larg}x{alt} cm</div>
-<div style="width: {px_larg_fardo}px; height: {px_alt_fardo}px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 6px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(217,119,6,0.3); margin-bottom: 0px;">
-<span style="color: white; font-size: 10px; font-weight: bold; text-align: center; font-family: sans-serif; padding: 2px;">{label_fardo}</span>
-</div>
-</div>
-"""
-
-                st.html(f"""
-<div style="display: flex; align-items: flex-end; justify-content: center; gap: 20px; background: #ffffff; padding: 18px; border-radius: 12px; border: 1px solid #e2e8f0; height: 250px; overflow-x: auto;">
-<div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; flex-shrink: 0;">
-<div style="font-family: sans-serif; font-size: 11px; color: #64748b; margin-bottom: 4px;">Pessoa (1.75m)</div>
-<div style="width: 50px; height: 215px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-bottom: 0px;">
-    <!-- Cabeça -->
-    <div style="width: 26px; height: 26px; background-color: #f3c693; border-radius: 50%; margin-bottom: 4px;"></div>
-    <!-- Tronco (Camisa Azul) -->
-    <div style="width: 38px; height: 65px; background-color: #1e3a8a; border-radius: 4px 4px 0 0; position: relative;">
-        <!-- Braços -->
-        <div style="width: 6px; height: 45px; background-color: #f3c693; position: absolute; left: -7px; top: 0; border-radius: 3px;"></div>
-        <div style="width: 6px; height: 45px; background-color: #f3c693; position: absolute; right: -7px; top: 0; border-radius: 3px;"></div>
-    </div>
-    <!-- Pernas (Calça Escura) -->
-    <div style="width: 34px; height: 105px; display: flex; justify-content: space-between;">
-        <div style="width: 14px; height: 105px; background-color: #0f172a; border-radius: 0 0 2px 2px; position: relative;">
-            <div style="width: 18px; height: 6px; background-color: #f3c693; position: absolute; bottom: 0; left: -2px; border-radius: 2px 0 0 0;"></div>
-        </div>
-        <div style="width: 14px; height: 105px; background-color: #0f172a; border-radius: 0 0 2px 2px; position: relative;">
-            <div style="width: 18px; height: 6px; background-color: #f3c693; position: absolute; bottom: 0; right: -2px; border-radius: 0 2px 0 0;"></div>
-        </div>
-    </div>
-</div>
-</div>
-{html_fardos_render}
-</div>
-""")
-            st.markdown("</div>", unsafe_allow_html=True)
-
             opcoes_whatsapp = []
 
-            # 1. COTAÇÃO VIA API FRENET (ONLINE)
+            # 1. COTAÇÃO FRENET (ONLINE)
             if cep_input:
                 cotacoes_api = cotar_frenet(
                     cep_input,
@@ -877,62 +702,31 @@ if st.session_state.tela_ativa == "cotacao":
                         f" R$ {item['VALOR_MINIMO']}\n⏱️ Prazo:"
                         f" {item['PRAZO']}\n"
                     )
-                    if btn_calcular:
-                        st.markdown(
-                            f"""
-                        <div class="card-frete" style="border-left: 5px solid #2563eb;">
-                            <div>
-                                <strong style="font-size:16px; color:#0f172a;"><b>🚛 {item['TRANSPORTADORA']}</b></strong><br>
-                                <span style="font-size:13px; color:#64748b;">📍 Rota: {item['ROTA_ENVIO']} | 📞 {item['FONE']}</span><br>
-                                <span style="font-size:12px; color:#94a3b8;">⏱️ Prazo: {item['PRAZO']} | 📄 Exige NF: {item['EXIGE_NF']}</span>
-                            </div>
-                            <div style="text-align: right;"><span style="font-size:12px; color:#64748b; font-weight:600;">Valor Frete</span><br><span style="font-size:18px; font-weight:700; color:#0f172a;">R$ {item['VALOR_MINIMO']}</span></div>
+                    st.markdown(
+                        f"""
+                    <div class="card-frete" style="border-left: 5px solid #2563eb;">
+                        <div>
+                            <strong style="font-size:16px; color:#0f172a;"><b>🚛 {item['TRANSPORTADORA']}</b></strong><br>
+                            <span style="font-size:13px; color:#64748b;">📍 Rota: {item['ROTA_ENVIO']} | 📞 {item['FONE']}</span><br>
+                            <span style="font-size:12px; color:#94a3b8;">⏱️ Prazo: {item['PRAZO']} | 📄 Exige NF: {item['EXIGE_NF']}</span>
                         </div>
-                        """,
-                            unsafe_allow_html=True,
-                        )
-
-            # 2. COTAÇÃO LOCAL VIA PLANILHA REGIONAL
-            if df_fretes_fixos.empty:
-                if not opcoes_whatsapp:
-                    st.warning(
-                        "⚠️ Planilha 'SISTEMA_DE_FRETES_AUTOMATIZADO.xlsx' não"
-                        " encontrada."
+                        <div style="text-align: right;"><span style="font-size:12px; color:#64748b; font-weight:600;">Valor Frete</span><br><span style="font-size:18px; font-weight:700; color:#0f172a;">R$ {item['VALOR_MINIMO']}</span></div>
+                    </div>
+                    """,
+                        unsafe_allow_html=True,
                     )
-            else:
+
+            # 2. COTAÇÃO PLANILHA LOCAL
+            if not df_fretes_fixos.empty:
                 resultados_fixos = df_fretes_fixos[
                     (df_fretes_fixos["CIDADE"] == cidade_busca)
                     & (df_fretes_fixos["UF"] == uf_busca)
                 ]
 
                 if not resultados_fixos.empty:
-                    if btn_calcular:
-                        st.markdown(
-                            "### 🏁 Transportadoras Encontradas para a Região"
-                        )
-                        for idx, row in resultados_fixos.iterrows():
-                            print_prazo = str(row["PRAZO"])
-                            if (
-                                "cotar" not in print_prazo.lower()
-                                and "dias" not in print_prazo.lower()
-                                and print_prazo != "-"
-                            ):
-                                print_prazo = f"{print_prazo} Dias"
-
-                            st.markdown(
-                                f"""
-                            <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
-                                <div>
-                                    <strong style="font-size:16px; color:#0f172a;"><b>🚛 {row['TRANSPORTADORA']}</b></strong><br>
-                                    <span style="font-size:13px; color:#64748b;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Fone: {row['FONE']}</span><br>
-                                    <span style="font-size:12px; color:#94a3b8;">⏱️ Prazo: {print_prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
-                                </div>
-                                <div style="text-align: right;"><span style="font-size:12px; color:#64748b; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#0f172a;">R$ {row['VALOR_MINIMO']}</span></div>
-                            </div>
-                            """,
-                                unsafe_allow_html=True,
-                            )
-
+                    st.markdown(
+                        "### 🏁 Transportadoras Regionais (Planilha)"
+                    )
                     for idx, row in resultados_fixos.iterrows():
                         print_prazo = str(row["PRAZO"])
                         if (
@@ -941,24 +735,30 @@ if st.session_state.tela_ativa == "cotacao":
                             and print_prazo != "-"
                         ):
                             print_prazo = f"{print_prazo} Dias"
+
+                        st.markdown(
+                            f"""
+                        <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
+                            <div>
+                                <strong style="font-size:16px; color:#0f172a;"><b>🚛 {row['TRANSPORTADORA']}</b></strong><br>
+                                <span style="font-size:13px; color:#64748b;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Fone: {row['FONE']}</span><br>
+                                <span style="font-size:12px; color:#94a3b8;">⏱️ Prazo: {print_prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
+                            </div>
+                            <div style="text-align: right;"><span style="font-size:12px; color:#64748b; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#0f172a;">R$ {row['VALOR_MINIMO']}</span></div>
+                        </div>
+                        """,
+                            unsafe_allow_html=True,
+                        )
+
                         opcoes_whatsapp.append(
                             f"🚛 *{row['TRANSPORTADORA']}*\n"
                             f"💰 Mínimo: R$ {row['VALOR_MINIMO']}\n"
                             f"⏱️ Prazo: {print_prazo}\n"
                             f"📞 Contato: {row['FONE']}\n"
                         )
-                elif not opcoes_whatsapp:
-                    st.warning(
-                        "Nenhuma transportadora cadastrada no Excel regional"
-                        f" para {cidade_busca}-{uf_busca}."
-                    )
 
-            # PASSO 4: ENVIAR PARA O WHATSAPP
+            # PASSO 3: WHATSAPP
             if opcoes_whatsapp:
-                st.markdown(
-                    "<br><hr style='border-top: 1px dashed #e2e8f0;'><br>",
-                    unsafe_allow_html=True,
-                )
                 st.markdown(
                     '<div class="bloco-etapa" style="border-top-color:'
                     ' #25d366;">',
@@ -971,10 +771,10 @@ if st.session_state.tela_ativa == "cotacao":
                 )
 
                 texto_opcoes = "\n".join(opcoes_whatsapp)
-
                 txt_whatsapp_volumes = (
                     f"{num_volumes} fardos" if num_volumes > 1 else "1 fardo"
                 )
+
                 mensagem_vendedor = (
                     "Olá! Segue a cotação de frete para o seu pedido da *Cia do"
                     " Jeans*:\n\n"
@@ -1001,11 +801,10 @@ if st.session_state.tela_ativa == "cotacao":
                 texto_codificado = urllib.parse.quote(texto_editavel)
                 link_whatsapp = f"https://api.whatsapp.com/send?text={texto_codificado}"
 
-                # Botão do WhatsApp Moderno
                 st.markdown(
                     f"""
                     <a href="{link_whatsapp}" target="_blank" style="text-decoration: none;">
-                        <div style="background: linear-gradient(135deg, #25d366 0%, #16a34a 100%); color: white; text-align: center; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 10px 25px -5px rgba(37,211,102,0.4); cursor: pointer; margin-bottom: 12px; font-family: sans-serif; transition: all 0.2s ease;">
+                        <div style="background: linear-gradient(135deg, #25d366 0%, #16a34a 100%); color: white; text-align: center; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 16px; cursor: pointer; margin-bottom: 12px; font-family: sans-serif;">
                             📲 ENVIAR COTAÇÃO PARA O WHATSAPP DO CLIENTE
                         </div>
                     </a>
@@ -1035,7 +834,7 @@ if st.session_state.tela_ativa == "cotacao":
                 st.markdown("</div>", unsafe_allow_html=True)
 
 
-# --- EXIBIÇÃO DA TELA: RASTREAMENTO ---
+# --- RASTREAMENTO ---
 elif st.session_state.tela_ativa == "rastreio":
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
     st.markdown(
@@ -1176,7 +975,7 @@ elif st.session_state.tela_ativa == "rastreio":
         st.markdown(
             f"""
             <a href="{link_whatsapp_rastreio}" target="_blank" style="text-decoration: none;">
-                <div style="background: linear-gradient(135deg, #25d366 0%, #16a34a 100%); color: white; text-align: center; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 10px 25px -5px rgba(37,211,102,0.4); cursor: pointer; margin-top: 5px; margin-bottom: 12px; font-family: sans-serif; transition: all 0.2s ease;">
+                <div style="background: linear-gradient(135deg, #25d366 0%, #16a34a 100%); color: white; text-align: center; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 16px; cursor: pointer; margin-bottom: 12px; font-family: sans-serif;">
                     📲 ENVIAR MENSAGEM DE RASTREIO PARA O WHATSAPP
                 </div>
             </a>
@@ -1202,35 +1001,5 @@ elif st.session_state.tela_ativa == "rastreio":
             """,
                 height=0,
             )
-
-        st.markdown("---")
-        btn_abrir_painel = st.checkbox(
-            "🖥️ QUER VISUALIZAR O RASTREIO DENTRO DO SITE?",
-            value=False,
-            key="check_painel_integrated",
-        )
-
-        if btn_abrir_painel:
-            st.markdown(
-                "### 🖥️ Painel de Rastreio em Tempo Real -"
-                f" {transportadora_rastreio}"
-            )
-            st.markdown(
-                "👉 _Caso a janela abaixo fique em branco devido à segurança da"
-                " transportadora, [CLIQUE AQUI PARA ABRIR EM NOVA"
-                f" ABA]({link_rastreio_final})._"
-            )
-
-            st.components.v1.html(
-                f"""
-                <iframe src="{link_rastreio_final}" width="100%" height="600px" style="border: 2px solid #e2e8f0; border-radius: 12px; background-color: white;"></iframe>
-                """,
-                height=620,
-            )
-    else:
-        st.info(
-            "✍️ Digite o código de rastreio acima para gerar o link de envio"
-            " imediatamente."
-        )
 
     st.markdown("</div>", unsafe_allow_html=True)
