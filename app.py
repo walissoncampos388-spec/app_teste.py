@@ -713,7 +713,7 @@ if st.session_state.tela_ativa == "cotacao":
                 )
 
                 if cotacoes_api:
-                    st.markdown("### ⚡ Opções Online (J&T / Correios / Jadlog)")
+                    st.markdown("### ⚡ Cotação Online")
                     for item in cotacoes_api:
                         opcoes_whatsapp.append(
                             f"🚛 *{item['TRANSPORTADORA']}*\n💰 Valor:"
@@ -743,7 +743,7 @@ if st.session_state.tela_ativa == "cotacao":
                 ]
 
                 if not resultados_fixos.empty:
-                    st.markdown("### 🏁 Transportadoras Regionais (Planilha)")
+                    st.markdown("### 🏁 Transportadoras que atendem essa cidade-UF")
                     for idx, row in resultados_fixos.iterrows():
                         print_prazo = str(row["PRAZO"])
                         if (
