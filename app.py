@@ -6,7 +6,7 @@ import streamlit as st
 
 # Configurações do Token Frenet
 FRENET_TOKEN = "96BCC656R0FA4R4CBERBCE2R86EF8956C1BA"
-FRENET_CEP_ORIGEM = "76320464"  # CEP de Origem (Jaraguá - GO)
+FRENET_CEP_ORIGEM = "75400000"  # CEP de Origem (Jaraguá - GO)
 
 # 1. Configuração de Design da Página
 st.set_page_config(
@@ -27,7 +27,7 @@ if "rastreio_gerado" not in st.session_state:
     st.session_state["rastreio_gerado"] = False
 
 
-# Função de cotação via API da Frenet com Log de Diagnóstico
+# Função de cotação via API da Frenet tratada contra erro de tipo de dado
 def cotar_frenet(
     cep_destino, peso, comp, larg, alt, valor_declarado, num_volumes=1
 ):
@@ -66,11 +66,21 @@ def cotar_frenet(
                 if not op.get("Error"):
                     nome_transp = op.get("Carrier", "").upper()
                     nome_servico = op.get("ServiceDescription", "")
-                    preco = op.get("ShippingPrice", 0.0)
+                    preco_raw = op.get("ShippingPrice", 0.0)
                     prazo = op.get("DeliveryTime", "-")
+
+                    # TRATAMENTO SEGURO DO PREÇO (Evita erro 'str' vs 'float')
+                    try:
+                        preco_num = float(
+                            str(preco_raw).replace(",", ".").strip()
+                        )
+                        preco_fmt = f"{preco_num:.2f}".replace(".", ",")
+                    except ValueError:
+                        preco_fmt = str(preco_raw)
+
                     servicos.append({
                         "TRANSPORTADORA": f"{nome_transp} ({nome_servico})",
-                        "VALOR_MINIMO": f"{preco:.2f}".replace(".", ","),
+                        "VALOR_MINIMO": preco_fmt,
                         "PRAZO": f"{prazo} Dias",
                         "ROTA_ENVIO": "Cotação Online API",
                         "FONE": "Atendimento Online",
@@ -378,7 +388,7 @@ if st.session_state.tela_ativa == "cotacao":
     # PASSO 2
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
     st.markdown(
-        '<div class="titulo-etapa">👖 PASSO 2: Produtos</div>',
+        '<div class="titulo-etapa">GB PASSO 2: Produtos</div>',
         unsafe_allow_html=True,
     )
     c1, c2, c3 = st.columns(3)
