@@ -1015,13 +1015,104 @@ if st.session_state.tela_ativa == "cotacao":
                 st.markdown("</div>", unsafe_allow_html=True)
 
 
-# TELA RASTREIO
+# TELA RASTREIO DETALHADA E COMPLETA
 elif st.session_state.tela_ativa == "rastreio":
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
     st.markdown(
-        '<div class="titulo-etapa">📦 Rastreio</div>', unsafe_allow_html=True
+        '<div class="titulo-etapa">📦 Rastreio de Encomendas</div>',
+        unsafe_allow_html=True,
     )
-    codigo_rastreio = st.text_input("Código de Rastreio:").strip()
+
+    col_ras1, col_ras2 = st.columns([1, 1])
+
+    with col_ras1:
+        transp_rastreio = st.selectbox(
+            "🚚 Selecione a Transportadora:",
+            ["Correios", "Jadlog", "J&T Express", "Outra / Rastreio Geral"],
+            key="select_transp_rastreio",
+        )
+        codigo_rastreio = st.text_input(
+            "🔎 Código de Rastreio ou CPF/CNPJ:",
+            placeholder="Ex: AA123456789BR ou 12345678000199",
+            key="input_cod_rastreio",
+        ).strip()
+
+    with col_ras2:
+        nome_cliente_rastreio = st.text_input(
+            "👤 Nome do Cliente (Opcional):",
+            placeholder="Ex: Maria Silva",
+            key="input_nome_cli_rastreio",
+        ).strip()
+
     if codigo_rastreio:
-        st.success(f"Link de rastreio gerado para o código: {codigo_rastreio}")
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # GERAÇÃO DE LINKS DIRETOS CONFORME A TRANSPORTADORA
+        if "Correios" in transp_rastreio:
+            url_rastreio = f"https://rastreamento.correios.com.br/app/resultado.php?objeto={codigo_rastreio}"
+        elif "Jadlog" in transp_rastreio:
+            url_rastreio = f"https://www.jadlog.com.br/sitejadlog/tracking.jad?remessa={codigo_rastreio}"
+        elif "J&T" in transp_rastreio:
+            url_rastreio = f"https://www.jtexpress.com.br/trajectoryQuery?billCode={codigo_rastreio}"
+        else:
+            url_rastreio = (
+                f"https://www.linkcorreios.com.br/?id={codigo_rastreio}"
+            )
+
+        msg_cliente_pre = (
+            f"Olá"
+            + (f" {nome_cliente_rastreio}" if nome_cliente_rastreio else "")
+            + "! 👋\n\n"
+            f"Seu pedido da *Cia do Jeans* já foi despachado! 🚚✨\n\n"
+            f"📌 *Transportadora:* {transp_rastreio}\n"
+            f"🔢 *Código/Identificador:* {codigo_rastreio}\n\n"
+            f"🔗 *Acompanhe a entrega pelo link:* \n{url_rastreio}\n\n"
+            f"Qualquer dúvida estamos à disposição! ❤️"
+        )
+
+        st.success("✅ Link de rastreamento gerado com sucesso!")
+
+        st.markdown("### 📱 Mensagem Pronta para o Cliente")
+        txt_rastreio_edit = st.text_area(
+            "Pré-visualização da mensagem:",
+            value=msg_cliente_pre,
+            height=180,
+            key="txt_area_rastreio",
+        )
+
+        link_wa_rastreio = f"https://api.whatsapp.com/send?text={urllib.parse.quote(txt_rastreio_edit)}"
+
+        col_b1, col_b2 = st.columns(2)
+        with col_b1:
+            st.markdown(
+                f"""
+                <a href="{link_wa_rastreio}" target="_blank" style="text-decoration: none;">
+                    <div style="background: linear-gradient(135deg, #25d366 0%, #16a34a 100%); color: white; text-align: center; padding: 14px; border-radius: 10px; font-weight: 700;">
+                        📲 ENVIAR RASTREIO NO WHATSAPP
+                    </div>
+                </a>
+            """,
+                unsafe_allow_html=True,
+            )
+
+        with col_b2:
+            if st.button(
+                "📋 COPIAR MENSAGEM DE RASTREIO", key="btn_pure_copy_rastreio"
+            ):
+                texto_js_safe = (
+                    txt_rastreio_edit.replace("\\", "\\\\")
+                    .replace("`", "\\`")
+                    .replace("$", "\\$")
+                    .replace("\n", "\\n")
+                )
+                st.components.v1.html(
+                    f"""
+                    <script>
+                    parent.navigator.clipboard.writeText(`{texto_js_safe}`);
+                    alert("Mensagem de rastreio copiada com sucesso! 🎉");
+                    </script>
+                """,
+                    height=0,
+                )
+
     st.markdown("</div>", unsafe_allow_html=True)
