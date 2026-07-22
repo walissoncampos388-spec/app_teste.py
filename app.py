@@ -6,7 +6,7 @@ import streamlit as st
 
 # Configurações do Token Frenet
 FRENET_TOKEN = "96BCC656R0FA4R4CBERBCE2R86EF8956C1BA"
-FRENET_CEP_ORIGEM = "76320464"  # CEP de Origem padrão (Jaraguá - GO)
+FRENET_CEP_ORIGEM = "76320464"  # CEP de Origem (Jaraguá - GO)
 
 # 1. Configuração de Design da Página
 st.set_page_config(
@@ -16,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# CONTROLE DE NAVEGAÇÃO À PROVA DE REFRESH (SESSION STATE)
+# CONTROLE DE NAVEGAÇÃO
 if "tela_ativa" not in st.session_state:
     st.session_state.tela_ativa = "cotacao"
 if "cidade_input_fiel" not in st.session_state:
@@ -27,12 +27,12 @@ if "rastreio_gerado" not in st.session_state:
     st.session_state["rastreio_gerado"] = False
 
 
-# Função de cotação via API da Frenet (Cota J&T, Correios, Jadlog)
+# Função de cotação via API da Frenet com Log de Diagnóstico
 def cotar_frenet(
     cep_destino, peso, comp, larg, alt, valor_declarado, num_volumes=1
 ):
     if not FRENET_TOKEN or FRENET_TOKEN == "SEU_TOKEN_FRENET_AQUI":
-        return []
+        return [], "Token não configurado"
 
     url = "https://api.frenet.com.br/shipping/quote"
     headers = {
@@ -56,10 +56,12 @@ def cotar_frenet(
     }
 
     try:
-        res = requests.post(url, json=payload, headers=headers, timeout=4)
+        res = requests.post(url, json=payload, headers=headers, timeout=6)
         if res.status_code == 200:
             dados = res.json()
             servicos = []
+            erros_retornados = []
+
             for op in dados.get("ShippingSevicesArray", []):
                 if not op.get("Error"):
                     nome_transp = op.get("Carrier", "").upper()
@@ -74,13 +76,27 @@ def cotar_frenet(
                         "FONE": "Atendimento Online",
                         "EXIGE_NF": "Sim",
                     })
-            return servicos
-    except Exception:
-        pass
-    return []
+                else:
+                    erros_retornados.append(
+                        f"{op.get('Carrier')}: {op.get('Msg')}"
+                    )
+
+            msg_status = (
+                "OK"
+                if servicos
+                else (
+                    "; ".join(erros_retornados)
+                    if erros_retornados
+                    else "Nenhum serviço retornado pela Frenet"
+                )
+            )
+            return servicos, msg_status
+        else:
+            return [], f"Erro HTTP {res.status_code} na API da Frenet"
+    except Exception as e:
+        return [], f"Falha na conexão com a Frenet: {str(e)}"
 
 
-# Funções de clique rápido
 def mudar_para_cotacao():
     st.session_state.tela_ativa = "cotacao"
 
@@ -89,12 +105,11 @@ def mudar_para_rastreio():
     st.session_state.tela_ativa = "rastreio"
 
 
-# Estilização CSS Ultra Moderna
+# CSS Estilização
 st.markdown(
     """
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-        
         .stDeployButton {display:none;}
         footer {visibility: hidden;}
         
@@ -103,13 +118,11 @@ st.markdown(
             font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
             color: #0f172a;
         }
-        
         .block-container {
             padding-top: 2rem !important;
             padding-bottom: 3rem !important;
             max-width: 1140px !important;
         }
-        
         .bloco-etapa {
             background-color: #ffffff;
             padding: 28px;
@@ -123,59 +136,23 @@ st.markdown(
         .bloco-etapa::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 4px;
+            top: 0; left: 0; width: 100%; height: 4px;
             background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 100%);
         }
-        
         .titulo-etapa {
-            color: #0f172a;
-            font-size: 16px;
-            font-weight: 700;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            color: #0f172a; font-size: 16px; font-weight: 700;
+            margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.6px;
         }
-        
         .card-frete {
-            background-color: #ffffff;
-            padding: 20px 24px;
-            border-radius: 14px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-            margin-bottom: 14px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            background-color: #ffffff; padding: 20px 24px; border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03); margin-bottom: 14px;
+            display: flex; justify-content: space-between; align-items: center;
             border: 1px solid #e2e8f0;
-            transition: all 0.2s ease;
         }
-        
         div.stButton > button[key="trigger_calculo"], div.stButton > button[key="action_processar_rastreio"] {
             background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%) !important;
-            color: white !important;
-            font-weight: 700 !important;
-            font-size: 16px !important;
-            padding: 16px 28px !important;
-            border-radius: 12px !important;
-            border: none !important;
-            box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.4) !important;
-        }
-
-        div.stButton > button[key="btn_pure_copy_frete"], div.stButton > button[key="btn_pure_copy_rastreio"] {
-            background-color: #0f172a !important;
-            color: #ffffff !important;
-            font-weight: 600 !important;
-            font-size: 15px !important;
-            padding: 14px !important;
-            border-radius: 10px !important;
-            border: none !important;
-            width: 100% !important;
-            margin-top: 8px !important;
+            color: white !important; font-weight: 700 !important; font-size: 16px !important;
+            padding: 16px 28px !important; border-radius: 12px !important; border: none !important;
         }
     </style>
 """,
@@ -183,7 +160,6 @@ st.markdown(
 )
 
 
-# CACHE: Organização dos dados da planilha de fretes fixos
 @st.cache_data(ttl=3600)
 def carregar_e_limpar_dados():
     try:
@@ -310,7 +286,6 @@ def carregar_e_limpar_dados():
 df_fretes_fixos = carregar_e_limpar_dados()
 
 
-# Imagem
 def arrumar_imagem_local(caminho):
     try:
         with open(caminho, "rb") as image_file:
@@ -321,26 +296,18 @@ def arrumar_imagem_local(caminho):
 
 img_base64 = arrumar_imagem_local("logo_ciadojeans.PNG")
 
-# Cabeçalho
+# Topo
 st.markdown(
     f"""
-    <div style='background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1e40af 100%); padding: 12px 16px 14px 16px; border-radius: 16px; text-align: center; margin-bottom: 24px; box-shadow: 0 12px 20px -5px rgba(15, 23, 42, 0.2); position: relative; overflow: hidden;'>
-        <div style='margin: 0 auto; position: relative; z-index: 2;'>
-            <img src="data:image/png;base64,{img_base64}" style="display: block; margin: 0 auto; width: 900px; max-width: 98%; height: auto; max-height: 280px; object-fit: contain;">
-        </div>
-        <div style='position: relative; z-index: 2; margin-top: -6px;'>
-            <p style='color: #93c5fd; font-weight: 600; margin: 0; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 2px;'>
-                ⚡ Logística & Cotação Inteligente
-            </p>
-        </div>
+    <div style='background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1e40af 100%); padding: 12px 16px; border-radius: 16px; text-align: center; margin-bottom: 24px;'>
+        <img src="data:image/png;base64,{img_base64}" style="display: block; margin: 0 auto; width: 900px; max-width: 98%; height: auto; max-height: 280px; object-fit: contain;">
+        <p style='color: #93c5fd; font-weight: 600; margin-top: -6px; font-size: 0.95rem; text-transform: uppercase;'>⚡ Logística & Cotação Inteligente</p>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
-# Abas
 col_aba1, col_aba2 = st.columns(2)
-
 with col_aba1:
     st.button(
         "📊 COTAR NOVO FRETE",
@@ -348,7 +315,6 @@ with col_aba1:
         key="aba_cot_btn",
         on_click=mudar_para_cotacao,
     )
-
 with col_aba2:
     st.button(
         "📦 RASTREAR ENCOMENDA",
@@ -359,11 +325,10 @@ with col_aba2:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-
-# --- COTAÇÃO ---
+# TELA COTAÇÃO
 if st.session_state.tela_ativa == "cotacao":
 
-    # PASSO 1: LOCALIZAÇÃO
+    # PASSO 1
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
     st.markdown(
         '<div class="titulo-etapa">📍 PASSO 1: Destino do Pedido</div>',
@@ -380,14 +345,14 @@ if st.session_state.tela_ativa == "cotacao":
         )
 
     desabilitar_campos = False
-
     if cep_input:
         cep_limpo = cep_input.replace("-", "").replace(" ", "")
         if len(cep_limpo) == 8 and cep_limpo.isdigit():
             try:
-                url_api = f"https://opencep.com/v1/{cep_limpo}"
-                resposta = requests.get(url_api, timeout=3).json()
-                if "localidade" in resposta and resposta.get("localidade"):
+                resposta = requests.get(
+                    f"https://opencep.com/v1/{cep_limpo}", timeout=3
+                ).json()
+                if resposta.get("localidade"):
                     st.session_state["cidade_input_fiel"] = resposta.get(
                         "localidade", ""
                     ).upper()
@@ -395,95 +360,66 @@ if st.session_state.tela_ativa == "cotacao":
                         "uf", ""
                     ).upper()
                     desabilitar_campos = True
-                else:
-                    desabilitar_campos = False
             except Exception:
-                desabilitar_campos = False
+                pass
 
     with col2:
-        cidade_automatica = st.text_input(
+        st.text_input(
             "📍 Cidade Identificada:",
-            placeholder="Digite a Cidade se não buscar...",
             disabled=desabilitar_campos,
             key="cidade_input_fiel",
         )
-
     with col3:
-        uf_automatica = st.text_input(
-            "🏳️ UF:",
-            placeholder="EX: GO",
-            disabled=desabilitar_campos,
-            key="uf_input_fiel",
+        st.text_input(
+            "🏳️ UF:", disabled=desabilitar_campos, key="uf_input_fiel"
         )
-
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # PASSO 2: PRODUTOS
+    # PASSO 2
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
     st.markdown(
-        '<div class="titulo-etapa">👖 PASSO 2: O que estamos enviando'
-        ' hoje?</div>',
+        '<div class="titulo-etapa">👖 PASSO 2: Produtos</div>',
         unsafe_allow_html=True,
     )
     c1, c2, c3 = st.columns(3)
     with c1:
         qtd_calcas = st.number_input(
-            "Quantidade de Calças:", min_value=0, value=0, step=1, key="calc_un"
+            "Quantidade de Calças:", min_value=0, value=0, key="calc_un"
         )
         qtd_bermudas = st.number_input(
-            "Quantidade de Bermudas:",
-            min_value=0,
-            value=0,
-            step=1,
-            key="berm_un",
+            "Quantidade de Bermudas:", min_value=0, value=0, key="berm_un"
         )
         qtd_shorts = st.number_input(
-            "Quantidade de Shorts:", min_value=0, value=0, step=1, key="shor_un"
+            "Quantidade de Shorts:", min_value=0, value=0, key="shor_un"
         )
         qtd_camisas = st.number_input(
-            "Quantidade de Camisas:", min_value=0, value=0, step=1, key="cam_un"
+            "Quantidade de Camisas:", min_value=0, value=0, key="cam_un"
         )
         qtd_saias = st.number_input(
-            "Quantidade de Saias:", min_value=0, value=0, step=1, key="saia_un"
+            "Quantidade de Saias:", min_value=0, value=0, key="saia_un"
         )
         qtd_croppeds = st.number_input(
-            "Quantidade de Croppeds:",
-            min_value=0,
-            value=0,
-            step=1,
-            key="crop_un",
+            "Quantidade de Croppeds:", min_value=0, value=0, key="crop_un"
         )
 
     with c2:
         qtd_gola_o = st.number_input(
-            "Quantidade de Gola O:", min_value=0, value=0, step=1, key="gola_un"
+            "Quantidade de Gola O:", min_value=0, value=0, key="gola_un"
         )
         qtd_tshirt = st.number_input(
-            "Quantidade de T-Shirt:", min_value=0, value=0, step=1, key="tsh_un"
+            "Quantidade de T-Shirt:", min_value=0, value=0, key="tsh_un"
         )
         qtd_polo = st.number_input(
-            "Quantidade de Gola Polo:",
-            min_value=0,
-            value=0,
-            step=1,
-            key="polo_un",
+            "Quantidade de Gola Polo:", min_value=0, value=0, key="polo_un"
         )
         qtd_vestidos = st.number_input(
-            "Quantidade de Vestidos:",
-            min_value=0,
-            value=0,
-            step=1,
-            key="vest_un",
+            "Quantidade de Vestidos:", min_value=0, value=0, key="vest_un"
         )
         qtd_conjuntos = st.number_input(
-            "Quantidade de Conjuntos:",
-            min_value=0,
-            value=0,
-            step=1,
-            key="conj_un",
+            "Quantidade de Conjuntos:", min_value=0, value=0, key="conj_un"
         )
         qtd_bones = st.number_input(
-            "Quantidade de Bonés:", min_value=0, value=0, step=1, key="bone_un"
+            "Quantidade de Bonés:", min_value=0, value=0, key="bone_un"
         )
 
     peso_pecas_puro = (
@@ -520,11 +456,8 @@ if st.session_state.tela_ativa == "cotacao":
 
     with c3:
         valor_manual_nf_txt = st.text_input(
-            "✍️ Valor Real da NF (Opcional):",
-            placeholder="Ex: 1250,00",
-            key="nf_manual_txt",
+            "✍️ Valor Real da NF (Opcional):", key="nf_manual_txt"
         ).strip()
-
         valor_manual_nf = 0.0
         if valor_manual_nf_txt:
             try:
@@ -532,10 +465,10 @@ if st.session_state.tela_ativa == "cotacao":
                     valor_manual_nf_txt.replace(".", "").replace(",", ".")
                 )
             except ValueError:
-                st.error("⚠️ Digite um valor numérico válido para a NF.")
+                pass
 
         meio_envio_selecionado = st.selectbox(
-            "📦 Regra de Divisão do Fardo:",
+            "📦 Regra de Divisão:",
             [
                 "Padrão (Dividir acima de 50 kg)",
                 "Correios / J&T / Azul Cargo (Dividir acima de 30 kg)",
@@ -561,8 +494,6 @@ if st.session_state.tela_ativa == "cotacao":
                 num_volumes = int(peso_total_calculado // 30) + (
                     1 if peso_total_calculado % 30 > 0 else 0
                 )
-            elif meio_envio_selecionado == "Não Dividir fardo":
-                num_volumes = 1
 
         peso_por_volume = (
             peso_total_calculado / num_volumes if num_volumes > 0 else 0
@@ -572,59 +503,57 @@ if st.session_state.tela_ativa == "cotacao":
         )
 
         if total_pecas == 0:
-            tipo_embalagem = "Nenhum produto"
-            comp, larg, alt = 0, 0, 0
-            classificacao_tamanho = "Sem Carga"
+            tipo_embalagem, comp, larg, alt, classificacao_tamanho = (
+                "Nenhum produto",
+                0,
+                0,
+                0,
+                "Sem Carga",
+            )
         elif pecas_por_volume <= 15:
-            tipo_embalagem = (
-                "Caixa Pequena"
-                if num_volumes == 1
-                else f"{num_volumes} Caixas Pequenas"
+            tipo_embalagem, comp, larg, alt, classificacao_tamanho = (
+                "Caixa Pequena",
+                40,
+                30,
+                20,
+                "PP (Caixa Pequena)",
             )
-            comp, larg, alt = 40, 30, 20
-            classificacao_tamanho = "PP (Caixa Pequena)"
         elif pecas_por_volume <= 30:
-            tipo_embalagem = (
-                "Caixa Média"
-                if num_volumes == 1
-                else f"{num_volumes} Caixas Médias"
+            tipo_embalagem, comp, larg, alt, classificacao_tamanho = (
+                "Caixa Média",
+                50,
+                40,
+                30,
+                "P (Caixa Média)",
             )
-            comp, larg, alt = 50, 40, 30
-            classificacao_tamanho = "P (Caixa Média)"
         elif pecas_por_volume <= 60:
-            tipo_embalagem = (
-                "Fardo Comercial"
-                if num_volumes == 1
-                else f"{num_volumes} Fardos Comerciais"
+            tipo_embalagem, comp, larg, alt, classificacao_tamanho = (
+                "Fardo Comercial",
+                60,
+                45,
+                35,
+                "M (Fardo Padrão)",
             )
-            comp, larg, alt = 60, 45, 35
-            classificacao_tamanho = "M (Fardo Padrão)"
         elif pecas_por_volume <= 120:
-            tipo_embalagem = (
-                "Fardo Comercial"
-                if num_volumes == 1
-                else f"{num_volumes} Fardos Comerciais"
+            tipo_embalagem, comp, larg, alt, classificacao_tamanho = (
+                "Fardo Comercial",
+                80,
+                50,
+                40,
+                "G (Fardo Grande)",
             )
-            comp, larg, alt = 80, 50, 40
-            classificacao_tamanho = "G (Fardo Grande)"
         else:
-            tipo_embalagem = (
-                "Fardo Comercial"
-                if num_volumes == 1
-                else f"{num_volumes} Fardos Comerciais"
+            tipo_embalagem, comp, larg, alt, classificacao_tamanho = (
+                "Fardo Comercial",
+                100,
+                60,
+                50,
+                "XG (Fardo Master)",
             )
-            comp, larg, alt = 100, 60, 50
-            classificacao_tamanho = "XG (Fardo Master)"
 
-        if "G" in classificacao_tamanho:
-            visual_altura = comp
-            visual_largura = larg
-            orientacao_texto = "Fardo em Pé"
-        else:
-            visual_altura = alt
-            visual_largura = larg
-            orientacao_texto = "Fardo Deitado"
-
+        orientacao_texto = (
+            "Fardo em Pé" if "G" in classificacao_tamanho else "Fardo Deitado"
+        )
         valor_nf_meia = (
             (qtd_calcas * 40)
             + (qtd_bermudas * 33)
@@ -643,30 +572,19 @@ if st.session_state.tela_ativa == "cotacao":
             valor_manual_nf if valor_manual_nf > 0 else valor_nf_meia
         )
 
-        txt_volumes_resumo = (
-            f" ({num_volumes} Vol. de {peso_por_volume:.2f} kg)"
-            if num_volumes > 1
-            else ""
-        )
         st.info(
-            f"**📊 Resumo do Pedido:**\n* **Carga:** {total_pecas} un |"
-            f" {peso_total_calculado:.2f} kg{txt_volumes_resumo}\n*"
-            f" **Embalagem:** {tipo_embalagem}\n* **Seguro:** R$"
-            f" {valor_para_seguro:.2f}"
+            f"**📊 Resumo:** {total_pecas} un | {peso_total_calculado:.2f} kg |"
+            f" Seguro: R$ {valor_para_seguro:.2f}"
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # DISPARADOR
-    st.markdown("<br>", unsafe_allow_html=True)
     btn_calcular = st.button(
         "🚀 CALCULAR FRETE E GERAR WHATSAPP",
         type="primary",
         use_container_width=True,
         key="trigger_calculo",
     )
-    st.markdown("<br>", unsafe_allow_html=True)
 
-    # RESULTADOS
     if btn_calcular or st.session_state.get("frete_calculado_ok", False):
         st.session_state["frete_calculado_ok"] = True
         cidade_busca = (
@@ -674,20 +592,16 @@ if st.session_state.tela_ativa == "cotacao":
         )
         uf_busca = st.session_state.get("uf_input_fiel", "").strip().upper()
 
-        if not cidade_busca:
+        if not cidade_busca or total_pecas == 0:
             st.error(
-                "❌ Por favor, informe um CEP ou preencha a Cidade no Passo 1."
-            )
-        elif total_pecas == 0:
-            st.error(
-                "❌ Insira a quantidade de produtos no Passo 2 para calcular."
+                "❌ Preencha o CEP/Cidade e adicione produtos para calcular."
             )
         else:
             opcoes_whatsapp = []
 
-            # 1. COTAÇÃO FRENET (ONLINE)
+            # 1. COTAÇÃO FRENET (API)
             if cep_input:
-                cotacoes_api = cotar_frenet(
+                cotacoes_api, status_frenet = cotar_frenet(
                     cep_input,
                     peso_total_calculado,
                     comp,
@@ -696,27 +610,31 @@ if st.session_state.tela_ativa == "cotacao":
                     valor_para_seguro,
                     num_volumes,
                 )
-                for item in cotacoes_api:
-                    opcoes_whatsapp.append(
-                        f"🚛 *{item['TRANSPORTADORA']}*\n💰 Valor:"
-                        f" R$ {item['VALOR_MINIMO']}\n⏱️ Prazo:"
-                        f" {item['PRAZO']}\n"
-                    )
-                    st.markdown(
-                        f"""
-                    <div class="card-frete" style="border-left: 5px solid #2563eb;">
-                        <div>
-                            <strong style="font-size:16px; color:#0f172a;"><b>🚛 {item['TRANSPORTADORA']}</b></strong><br>
-                            <span style="font-size:13px; color:#64748b;">📍 Rota: {item['ROTA_ENVIO']} | 📞 {item['FONE']}</span><br>
-                            <span style="font-size:12px; color:#94a3b8;">⏱️ Prazo: {item['PRAZO']} | 📄 Exige NF: {item['EXIGE_NF']}</span>
-                        </div>
-                        <div style="text-align: right;"><span style="font-size:12px; color:#64748b; font-weight:600;">Valor Frete</span><br><span style="font-size:18px; font-weight:700; color:#0f172a;">R$ {item['VALOR_MINIMO']}</span></div>
-                    </div>
-                    """,
-                        unsafe_allow_html=True,
-                    )
 
-            # 2. COTAÇÃO PLANILHA LOCAL
+                if cotacoes_api:
+                    st.markdown("### ⚡ Opções Online (J&T / Correios / Jadlog)")
+                    for item in cotacoes_api:
+                        opcoes_whatsapp.append(
+                            f"🚛 *{item['TRANSPORTADORA']}*\n💰 Valor:"
+                            f" R$ {item['VALOR_MINIMO']}\n⏱️ Prazo:"
+                            f" {item['PRAZO']}\n"
+                        )
+                        st.markdown(
+                            f"""
+                        <div class="card-frete" style="border-left: 5px solid #2563eb;">
+                            <div>
+                                <strong style="font-size:16px; color:#0f172a;"><b>🚛 {item['TRANSPORTADORA']}</b></strong><br>
+                                <span style="font-size:12px; color:#94a3b8;">⏱️ Prazo: {item['PRAZO']}</span>
+                            </div>
+                            <div style="text-align: right;"><span style="font-size:18px; font-weight:700; color:#0f172a;">R$ {item['VALOR_MINIMO']}</span></div>
+                        </div>
+                        """,
+                            unsafe_allow_html=True,
+                        )
+                else:
+                    st.warning(f"⚠️ Diagnóstico API Frenet: {status_frenet}")
+
+            # 2. COTAÇÃO LOCAL (EXCEL)
             if not df_fretes_fixos.empty:
                 resultados_fixos = df_fretes_fixos[
                     (df_fretes_fixos["CIDADE"] == cidade_busca)
@@ -724,9 +642,7 @@ if st.session_state.tela_ativa == "cotacao":
                 ]
 
                 if not resultados_fixos.empty:
-                    st.markdown(
-                        "### 🏁 Transportadoras Regionais (Planilha)"
-                    )
+                    st.markdown("### 🏁 Transportadoras Regionais (Planilha)")
                     for idx, row in resultados_fixos.iterrows():
                         print_prazo = str(row["PRAZO"])
                         if (
@@ -757,34 +673,20 @@ if st.session_state.tela_ativa == "cotacao":
                             f"📞 Contato: {row['FONE']}\n"
                         )
 
-            # PASSO 3: WHATSAPP
+            # WHATSAPP
             if opcoes_whatsapp:
                 st.markdown(
                     '<div class="bloco-etapa" style="border-top-color:'
                     ' #25d366;">',
                     unsafe_allow_html=True,
                 )
-                st.markdown(
-                    '<div class="titulo-etapa" style="color: #16a34a;">💬 PASSO'
-                    " 3: Enviar Cotação ao Cliente</div>",
-                    unsafe_allow_html=True,
-                )
-
                 texto_opcoes = "\n".join(opcoes_whatsapp)
-                txt_whatsapp_volumes = (
-                    f"{num_volumes} fardos" if num_volumes > 1 else "1 fardo"
-                )
-
                 mensagem_vendedor = (
                     "Olá! Segue a cotação de frete para o seu pedido da *Cia do"
                     " Jeans*:\n\n"
                     f"📍 *Destino:*\n{cidade_busca} - {uf_busca}\n\n"
                     f"📦 *Volume estimado:*\n{total_pecas} peças"
-                    f" ({peso_total_calculado:.2f} kg) - Dividido em"
-                    f" {txt_whatsapp_volumes}\n\n"
-                    f"🛍️ *Embalagem:*\n{tipo_embalagem}"
-                    f" ({classificacao_tamanho}) - Medidas unitárias:"
-                    f" {comp}x{larg}x{alt} cm ({orientacao_texto})\n\n"
+                    f" ({peso_total_calculado:.2f} kg)\n\n"
                     "-----------------------------------------\n"
                     "🚚 *OPÇÕES DE ENVIO:*\n\n"
                     f"{texto_opcoes}"
@@ -793,213 +695,33 @@ if st.session_state.tela_ativa == "cotacao":
                 )
 
                 texto_editavel = st.text_area(
-                    "Pré-visualização da Mensagem:",
+                    "Pré-visualização:",
                     value=mensagem_vendedor,
                     height=250,
                     key="txt_area_print",
                 )
-                texto_codificado = urllib.parse.quote(texto_editavel)
-                link_whatsapp = f"https://api.whatsapp.com/send?text={texto_codificado}"
+                link_whatsapp = f"https://api.whatsapp.com/send?text={urllib.parse.quote(texto_editavel)}"
 
                 st.markdown(
                     f"""
                     <a href="{link_whatsapp}" target="_blank" style="text-decoration: none;">
-                        <div style="background: linear-gradient(135deg, #25d366 0%, #16a34a 100%); color: white; text-align: center; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 16px; cursor: pointer; margin-bottom: 12px; font-family: sans-serif;">
+                        <div style="background: linear-gradient(135deg, #25d366 0%, #16a34a 100%); color: white; text-align: center; padding: 16px; border-radius: 12px; font-weight: 700;">
                             📲 ENVIAR COTAÇÃO PARA O WHATSAPP DO CLIENTE
                         </div>
                     </a>
                 """,
                     unsafe_allow_html=True,
                 )
-
-                if st.button(
-                    "📋 COPIAR TEXTO DA COTAÇÃO", key="btn_pure_copy_frete"
-                ):
-                    texto_js_safe = (
-                        texto_editavel.replace("\\", "\\\\")
-                        .replace("`", "\\`")
-                        .replace("$", "\\$")
-                        .replace("\n", "\\n")
-                    )
-                    st.components.v1.html(
-                        f"""
-                        <script>
-                        parent.navigator.clipboard.writeText(`{texto_js_safe}`);
-                        alert("Cotação copiada com sucesso! 🎉");
-                        </script>
-                    """,
-                        height=0,
-                    )
-
                 st.markdown("</div>", unsafe_allow_html=True)
 
 
-# --- RASTREAMENTO ---
+# TELA RASTREIO
 elif st.session_state.tela_ativa == "rastreio":
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
     st.markdown(
-        '<div class="titulo-etapa">📦 PASSO ÚNICO: Gerar Rastreio para o'
-        " Cliente</div>",
-        unsafe_allow_html=True,
+        '<div class="titulo-etapa">📦 Rastreio</div>', unsafe_allow_html=True
     )
-
-    col_nome_cli, col_transp, col_cod, col_doc = st.columns([1.2, 1.2, 1.2, 1])
-
-    with col_nome_cli:
-        nome_cliente_rastreio = st.text_input(
-            "Nome do Cliente:",
-            placeholder="Ex: Maria Silva",
-            key="campo_nome_cliente_estavel",
-        ).strip()
-
-    with col_transp:
-        transportadora_rastreio = st.selectbox(
-            "Selecione a Transportadora:",
-            ["Correios", "J&T Express", "Braspress", "Azul Cargo", "Jadlog"],
-            key="box_selecao_transportadora_estavel",
-        )
-
-    with col_cod:
-        codigo_rastreio = st.text_input(
-            "Código de Rastreio / Nº Nota Fiscal:",
-            placeholder="Ex: BR123456789X / 4552",
-            key="campo_codigo_estavel",
-        ).strip()
-
-    with col_doc:
-        doc_cliente = st.text_input(
-            "CPF ou CNPJ do Cliente (Se J&T/Braspress):",
-            placeholder="Apenas números",
-            key="campo_doc_estavel",
-        ).strip()
-
-    btn_gerar_mensagem = st.button(
-        "⚙️ GERAR INFORMAÇÕES DE RASTREAMENTO",
-        type="primary",
-        use_container_width=True,
-        key="action_processar_rastreio",
-    )
-
-    if btn_gerar_mensagem:
-        if not codigo_rastreio:
-            st.error(
-                "⚠️ Por favor, digite o código de rastreio ou número do"
-                " documento antes de gerar."
-            )
-            st.session_state["rastreio_gerado"] = False
-        else:
-            st.session_state["rastreio_gerado"] = True
-
-    if st.session_state["rastreio_gerado"] and codigo_rastreio:
-        link_rastreio_final = ""
-        mensagem_rastreio = ""
-
-        txt_saudacao = (
-            f"Olá, *{nome_cliente_rastreio}*!"
-            if nome_cliente_rastreio
-            else "Olá!"
-        )
-
-        if transportadora_rastreio == "Correios":
-            link_rastreio_final = f"https://rastreamento.correios.com.br/app/index.php?objetos={codigo_rastreio}"
-            mensagem_rastreio = (
-                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já foi"
-                " despachado! 🎉\n\n"
-                "🚚 *Transportadora:* Correios\n"
-                f"📦 *Código de Rastreio:* `{codigo_rastreio}`\n\n"
-                "🔗 *Clique no link abaixo para acompanhar seu envio:*\n"
-                f"{link_rastreio_final}"
-            )
-
-        elif transportadora_rastreio == "Jadlog":
-            link_rastreio_final = f"https://www.jadlog.com.br/siteInstitucional/tracking.jad?conteudo={codigo_rastreio}"
-            mensagem_rastreio = (
-                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já está a"
-                " caminho! 🎉\n\n"
-                "🚚 *Transportadora:* Jadlog\n"
-                f"📦 *Código de Rastreio:* `{codigo_rastreio}`\n\n"
-                "🔗 *Clique no link abaixo para acompanhar seu envio:*\n"
-                f"{link_rastreio_final}"
-            )
-
-        elif transportadora_rastreio == "J&T Express":
-            link_rastreio_final = (
-                "https://www.jtexpress.com.br/trajectoryQuery"
-            )
-            mensagem_rastreio = (
-                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já foi"
-                " despachado! 🎉\n\n"
-                "🚚 *Transportadora:* J&T Express\n"
-                f"📦 *Código de Rastreio:* `{codigo_rastreio}`\n\n"
-                "🔗 *Como rastrear:*\n"
-                f"1. Acesse o site: {link_rastreio_final}\n"
-                "2. Digite o seu código de rastreio acima ou o seu CPF/CNPJ."
-            )
-
-        elif transportadora_rastreio == "Braspress":
-            link_rastreio_final = "https://www.braspress.com.br/"
-            doc_info = f" (CNPJ/CPF: {doc_cliente})" if doc_cliente else ""
-            mensagem_rastreio = (
-                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já foi"
-                " coletado! 🎉\n\n"
-                "🚚 *Transportadora:* Braspress\n"
-                f"📄 *Número da Nota Fiscal:* `{codigo_rastreio}`{doc_info}\n\n"
-                "🔗 *Como rastrear:*\n"
-                f"1. Acesse o site: {link_rastreio_final}\n"
-                "2. No topo da página, clique em *'Rastreie sua Encomenda'*\n"
-                "3. Informe o número da NF acima e o seu CPF/CNPJ."
-            )
-
-        elif transportadora_rastreio == "Azul Cargo":
-            link_rastreio_final = f"https://www.azullogistica.com.br/Rastreio/Rastrear?awb={codigo_rastreio}"
-            mensagem_rastreio = (
-                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já está voando"
-                " até você! 🎉\n\n"
-                "🚚 *Transportadora:* Azul Cargo Express\n"
-                f"📦 *Código de Rastreio (AWB):* `{codigo_rastreio}`\n\n"
-                "🔗 *Clique no link abaixo para acompanhar seu envio:*\n"
-                f"{link_rastreio_final}"
-            )
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        texto_rastreio_editavel = st.text_area(
-            "Pré-visualização da Mensagem de Rastreio:",
-            value=mensagem_rastreio,
-            height=180,
-            key="txt_area_rastreio",
-        )
-        texto_rastreio_codificado = urllib.parse.quote(texto_rastreio_editavel)
-        link_whatsapp_rastreio = f"https://api.whatsapp.com/send?text={texto_rastreio_codificado}"
-
-        st.markdown(
-            f"""
-            <a href="{link_whatsapp_rastreio}" target="_blank" style="text-decoration: none;">
-                <div style="background: linear-gradient(135deg, #25d366 0%, #16a34a 100%); color: white; text-align: center; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 16px; cursor: pointer; margin-bottom: 12px; font-family: sans-serif;">
-                    📲 ENVIAR MENSAGEM DE RASTREIO PARA O WHATSAPP
-                </div>
-            </a>
-        """,
-            unsafe_allow_html=True,
-        )
-
-        if st.button(
-            "📋 COPIAR TEXTO DO RASTREIO", key="btn_pure_copy_rastreio"
-        ):
-            texto_rastreio_js_safe = (
-                texto_rastreio_editavel.replace("\\", "\\\\")
-                .replace("`", "\\`")
-                .replace("$", "\\$")
-                .replace("\n", "\\n")
-            )
-            st.components.v1.html(
-                f"""
-                <script>
-                parent.navigator.clipboard.writeText(`{texto_rastreio_js_safe}`);
-                alert("Rastreio copiado com sucesso! 🎉");
-                </script>
-            """,
-                height=0,
-            )
-
+    codigo_rastreio = st.text_input("Código de Rastreio:").strip()
+    if codigo_rastreio:
+        st.success(f"Link de rastreio gerado para o código: {codigo_rastreio}")
     st.markdown("</div>", unsafe_allow_html=True)
