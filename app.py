@@ -83,12 +83,31 @@ def cotar_frenet(
                         prazo = op.get("DeliveryTime", "-")
 
                         try:
-                            preco_num = float(
+                            preco_total = float(
                                 str(preco_raw).replace(",", ".").strip()
                             )
-                            preco_fmt = f"{preco_num:.2f}".replace(".", ",")
+                            preco_fmt = f"{preco_total:.2f}".replace(".", ",")
+
+                            if num_volumes > 1:
+                                preco_por_volume = preco_total / float(
+                                    num_volumes
+                                )
+                                preco_vol_fmt = f"{preco_por_volume:.2f}".replace(
+                                    ".", ","
+                                )
+                                detalhe_vol = (
+                                    f"⚠️ Envio obrigatório em"
+                                    f" {int(num_volumes)} volumes (acima de 30"
+                                    f" kg)\n📦 Valor por volume: R$"
+                                    f" {preco_vol_fmt}\n💵 Total somado"
+                                    f" ({int(num_volumes)} vol.): R$"
+                                    f" {preco_fmt}"
+                                )
+                            else:
+                                detalhe_vol = ""
                         except ValueError:
                             preco_fmt = str(preco_raw)
+                            detalhe_vol = ""
 
                         servicos.append({
                             "TRANSPORTADORA": f"{nome_transp} ({nome_servico})",
@@ -97,7 +116,7 @@ def cotar_frenet(
                             "ROTA_ENVIO": "Origem Jaraguá - GO",
                             "FONE": "Atendimento Online",
                             "EXIGE_NF": "Sim",
-                            "DETALHE_TRANSPORTE": "",
+                            "DETALHE_TRANSPORTE": detalhe_vol,
                         })
                 else:
                     erros_retornados.append(
@@ -139,20 +158,16 @@ def cotar_frenet(
                         prazo_raw = op.get("DeliveryTime", 0)
 
                         try:
-                            val_jadlog_real = float(
+                            val_jadlog_total = float(
                                 str(preco_raw).replace(",", ".").strip()
                             )
-                            taxa_transbessa = 30.0 * float(num_volumes)
-                            total_soma_frete = val_jadlog_real + taxa_transbessa
+                            taxa_transbessa_total = 30.0 * float(num_volumes)
+                            total_soma_frete = (
+                                val_jadlog_total + taxa_transbessa_total
+                            )
 
                             preco_fmt = f"{total_soma_frete:.2f}".replace(
                                 ".", ","
-                            )
-                            val_jadlog_fmt = f"{val_jadlog_real:.2f}".replace(
-                                ".", ","
-                            )
-                            taxa_transbessa_fmt = (
-                                f"{taxa_transbessa:.2f}".replace(".", ",")
                             )
 
                             try:
@@ -160,12 +175,38 @@ def cotar_frenet(
                             except ValueError:
                                 prazo_total = f"{prazo_raw} + 1"
 
-                            detalhe_transbessa = (
-                                f"📦 Cotação Jadlog: R$ {val_jadlog_fmt}\n🚚"
-                                f" Transbessa (Jaraguá ➔ Goiânia): R$"
-                                f" {taxa_transbessa_fmt} ({int(num_volumes)}"
-                                " vol. x R$ 30,00 | Prazo: 1 dia)"
-                            )
+                            if num_volumes > 1:
+                                val_jadlog_vol = val_jadlog_total / float(
+                                    num_volumes
+                                )
+                                val_total_vol = val_jadlog_vol + 30.0
+
+                                val_jadlog_vol_fmt = (
+                                    f"{val_jadlog_vol:.2f}".replace(".", ",")
+                                )
+                                val_total_vol_fmt = (
+                                    f"{val_total_vol:.2f}".replace(".", ",")
+                                )
+
+                                detalhe_transbessa = (
+                                    f"⚠️ Envio obrigatório em"
+                                    f" {int(num_volumes)} volumes (acima de 30"
+                                    " kg)\n📦 Jadlog por vol.: R$"
+                                    f" {val_jadlog_vol_fmt} | Transbessa por"
+                                    " vol.: R$ 30,00 ➔ Total por volume: R$"
+                                    f" {val_total_vol_fmt}\n💵 Total Geral"
+                                    f" Somado ({int(num_volumes)} vol.): R$"
+                                    f" {preco_fmt}"
+                                )
+                            else:
+                                val_jadlog_fmt = (
+                                    f"{val_jadlog_total:.2f}".replace(".", ",")
+                                )
+                                detalhe_transbessa = (
+                                    f"📦 Cotação Jadlog: R$ {val_jadlog_fmt}\n🚚"
+                                    " Transbessa (Jaraguá ➔ Goiânia): R$"
+                                    " 30,00 (1 vol. x R$ 30,00 | Prazo: 1 dia)"
+                                )
                         except ValueError:
                             preco_fmt = str(preco_raw)
                             detalhe_transbessa = (
@@ -660,7 +701,7 @@ if st.session_state.tela_ativa == "cotacao":
                 "XG (Fardo Master)",
             )
 
-        # NOVA REGRA: SE DIVIDIDO EM 2 OU MAIS VOLUMES, LIMITE MÁXIMO DE 70 CM (RECOMPARTILHANDO MEDIDAS)
+        # REGRA DE DIMENSIONAMENTO: SE DIVIDIDO EM 2 OU MAIS VOLUMES, LIMITE MÁXIMO DE 70 CM
         if num_volumes >= 2 and comp > 70:
             excesso = comp - 70
             comp = 70
