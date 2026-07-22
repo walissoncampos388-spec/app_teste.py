@@ -42,7 +42,14 @@ def cotar_frenet(
         "token": FRENET_TOKEN,
     }
 
+    # Divisão proporcional por volume (Peso e Valor Declarado)
     peso_envio = max(float(peso) / float(num_volumes), 0.3)
+    valor_declarado_envio = (
+        float(valor_declarado) / float(num_volumes)
+        if valor_declarado > 0
+        else 100.0
+    )
+
     comp_envio = max(int(comp), 16)
     larg_envio = max(int(larg), 11)
     alt_envio = max(int(alt), 4)
@@ -54,9 +61,7 @@ def cotar_frenet(
     payload_jaragua = {
         "SellerCEP": FRENET_CEP_JARAGUA,
         "RecipientCEP": str(cep_destino).replace("-", "").replace(" ", ""),
-        "ShipmentInvoiceValue": float(valor_declarado)
-        if valor_declarado > 0
-        else 100.0,
+        "ShipmentInvoiceValue": valor_declarado_envio,
         "ShippingItemArray": [
             {
                 "Weight": peso_envio,
@@ -129,9 +134,7 @@ def cotar_frenet(
     payload_goiania = {
         "SellerCEP": FRENET_CEP_GOIANIA,
         "RecipientCEP": str(cep_destino).replace("-", "").replace(" ", ""),
-        "ShipmentInvoiceValue": float(valor_declarado)
-        if valor_declarado > 0
-        else 100.0,
+        "ShipmentInvoiceValue": valor_declarado_envio,
         "ShippingItemArray": [
             {
                 "Weight": peso_envio,
@@ -845,7 +848,7 @@ if st.session_state.tela_ativa == "cotacao":
                 )
 
                 if cotacoes_api:
-                    st.markdown("### ⚡ Opções Online (J&T / Correios / Jadlog)")
+                    st.markdown("### ⚡ Cotação Online")
                     for item in cotacoes_api:
                         txt_detalhe_item = (
                             f"\n_{item['DETALHE_TRANSPORTE']}_"
@@ -888,7 +891,7 @@ if st.session_state.tela_ativa == "cotacao":
                 ]
 
                 if not resultados_fixos.empty:
-                    st.markdown("### 🏁 Transportadoras Regionais (Planilha)")
+                    st.markdown("### 🏁 Outras Transportadoras")
                     for idx, row in resultados_fixos.iterrows():
                         print_prazo = str(row["PRAZO"])
                         if (
