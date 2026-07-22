@@ -6,7 +6,7 @@ import streamlit as st
 
 # Configurações do Token Frenet
 FRENET_TOKEN = "96BCC656R0FA4R4CBERBCE2R86EF8956C1BA"
-FRENET_CEP_ORIGEM = "75400000"  # CEP de Origem padrão (Jaraguá - GO)
+FRENET_CEP_ORIGEM = "76320464"  # CEP de Origem padrão (Jaraguá - GO)
 
 # 1. Configuração de Design da Página
 st.set_page_config(
