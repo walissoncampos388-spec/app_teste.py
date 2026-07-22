@@ -4,6 +4,10 @@ import pandas as pd
 import requests
 import streamlit as st
 
+# Configurações do Token Frenet
+FRENET_TOKEN = "96BCC656R0FA4R4CBERBCE2R86EF8956C1BA"
+FRENET_CEP_ORIGEM = "75400000"  # CEP de Origem padrão (Jaraguá - GO)
+
 # 1. Configuração de Design da Página
 st.set_page_config(
     page_title="Cia do Jeans - Calculadora Inteligente",
@@ -21,6 +25,59 @@ if "uf_input_fiel" not in st.session_state:
     st.session_state["uf_input_fiel"] = ""
 if "rastreio_gerado" not in st.session_state:
     st.session_state["rastreio_gerado"] = False
+
+
+# Função de cotação via API da Frenet (Cota J&T, Correios, Jadlog)
+def cotar_frenet(
+    cep_destino, peso, comp, larg, alt, valor_declarado, num_volumes=1
+):
+    if not FRENET_TOKEN or FRENET_TOKEN == "SEU_TOKEN_FRENET_AQUI":
+        return []
+
+    url = "https://api.frenet.com.br/shipping/quote"
+    headers = {
+        "Content-Type": "application/json",
+        "token": FRENET_TOKEN,
+    }
+
+    payload = {
+        "SellerCEP": FRENET_CEP_ORIGEM,
+        "RecipientCEP": str(cep_destino).replace("-", "").replace(" ", ""),
+        "ShipmentInvoiceValue": valor_declarado,
+        "ShippingItemArray": [
+            {
+                "Weight": max(peso / num_volumes, 0.1),
+                "Length": max(comp, 16),
+                "Height": max(alt, 2),
+                "Width": max(larg, 11),
+                "Quantity": num_volumes,
+            }
+        ],
+    }
+
+    try:
+        res = requests.post(url, json=payload, headers=headers, timeout=5)
+        if res.status_code == 200:
+            dados = res.json()
+            servicos = []
+            for op in dados.get("ShippingSevicesArray", []):
+                if not op.get("Error"):
+                    nome_transp = op.get("Carrier", "").upper()
+                    nome_servico = op.get("ServiceDescription", "")
+                    preco = op.get("ShippingPrice", 0.0)
+                    prazo = op.get("DeliveryTime", "-")
+                    servicos.append({
+                        "TRANSPORTADORA": f"{nome_transp} ({nome_servico})",
+                        "VALOR_MINIMO": f"{preco:.2f}".replace(".", ","),
+                        "PRAZO": f"{prazo} Dias",
+                        "ROTA_ENVIO": "Cotação Online API",
+                        "FONE": "Atendimento Online",
+                        "EXIGE_NF": "Sim",
+                    })
+            return servicos
+    except Exception:
+        pass
+    return []
 
 
 # Funções de clique rápido para limpar o delay do double-click
@@ -803,11 +860,45 @@ if st.session_state.tela_ativa == "cotacao":
 
             opcoes_whatsapp = []
 
-            if df_fretes_fixos.empty:
-                st.warning(
-                    "⚠️ Planilha 'SISTEMA_DE_FRETES_AUTOMATIZADO.xlsx' não"
-                    " encontrada."
+            # 1. COTAÇÃO VIA API FRENET (ONLINE)
+            if cep_input:
+                cotacoes_api = cotar_frenet(
+                    cep_input,
+                    peso_total_calculado,
+                    comp,
+                    larg,
+                    alt,
+                    valor_para_seguro,
+                    num_volumes,
                 )
+                for item in cotacoes_api:
+                    opcoes_whatsapp.append(
+                        f"🚛 *{item['TRANSPORTADORA']}*\n💰 Valor:"
+                        f" R$ {item['VALOR_MINIMO']}\n⏱️ Prazo:"
+                        f" {item['PRAZO']}\n"
+                    )
+                    if btn_calcular:
+                        st.markdown(
+                            f"""
+                        <div class="card-frete" style="border-left: 5px solid #2563eb;">
+                            <div>
+                                <strong style="font-size:16px; color:#0f172a;"><b>🚛 {item['TRANSPORTADORA']}</b></strong><br>
+                                <span style="font-size:13px; color:#64748b;">📍 Rota: {item['ROTA_ENVIO']} | 📞 {item['FONE']}</span><br>
+                                <span style="font-size:12px; color:#94a3b8;">⏱️ Prazo: {item['PRAZO']} | 📄 Exige NF: {item['EXIGE_NF']}</span>
+                            </div>
+                            <div style="text-align: right;"><span style="font-size:12px; color:#64748b; font-weight:600;">Valor Frete</span><br><span style="font-size:18px; font-weight:700; color:#0f172a;">R$ {item['VALOR_MINIMO']}</span></div>
+                        </div>
+                        """,
+                            unsafe_allow_html=True,
+                        )
+
+            # 2. COTAÇÃO LOCAL VIA PLANILHA REGIONAL
+            if df_fretes_fixos.empty:
+                if not opcoes_whatsapp:
+                    st.warning(
+                        "⚠️ Planilha 'SISTEMA_DE_FRETES_AUTOMATIZADO.xlsx' não"
+                        " encontrada."
+                    )
             else:
                 resultados_fixos = df_fretes_fixos[
                     (df_fretes_fixos["CIDADE"] == cidade_busca)
@@ -856,7 +947,7 @@ if st.session_state.tela_ativa == "cotacao":
                             f"⏱️ Prazo: {print_prazo}\n"
                             f"📞 Contato: {row['FONE']}\n"
                         )
-                else:
+                elif not opcoes_whatsapp:
                     st.warning(
                         "Nenhuma transportadora cadastrada no Excel regional"
                         f" para {cidade_busca}-{uf_busca}."
