@@ -40,11 +40,11 @@ def cotar_frenet(
         "token": FRENET_TOKEN,
     }
 
-    # Garante dimensões e pesos mínimos aceitos pela J&T Express e Correios
+    # Garante dimensão e peso dentro das réguas da J&T, Correios e Jadlog
     peso_envio = max(float(peso) / float(num_volumes), 0.3)
     comp_envio = max(int(comp), 16)
     larg_envio = max(int(larg), 11)
-    alt_envio = max(int(alt), 2)
+    alt_envio = max(int(alt), 4)
 
     payload = {
         "SellerCEP": FRENET_CEP_ORIGEM,
@@ -170,6 +170,17 @@ st.markdown(
             background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%) !important;
             color: white !important; font-weight: 700 !important; font-size: 16px !important;
             padding: 16px 28px !important; border-radius: 12px !important; border: none !important;
+        }
+        div.stButton > button[key="btn_pure_copy_frete"], div.stButton > button[key="btn_pure_copy_rastreio"] {
+            background-color: #0f172a !important;
+            color: #ffffff !important;
+            font-weight: 600 !important;
+            font-size: 15px !important;
+            padding: 14px !important;
+            border-radius: 10px !important;
+            border: none !important;
+            width: 100% !important;
+            margin-top: 8px !important;
         }
     </style>
 """,
@@ -615,7 +626,7 @@ if st.session_state.tela_ativa == "cotacao":
             )
         else:
 
-            # --- RESTAURADO: BLOCO VISUAL DE DIMENSÕES E COMPARAÇÃO DE ESCALA ---
+            # BLOCO VISUAL DE DIMENSÕES E COMPARAÇÃO DE ESCALA
             st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
             st.markdown(
                 f'<div class="titulo-etapa">📐 Dimensões e Comparativo de'
@@ -796,13 +807,33 @@ if st.session_state.tela_ativa == "cotacao":
                 st.markdown(
                     f"""
                     <a href="{link_whatsapp}" target="_blank" style="text-decoration: none;">
-                        <div style="background: linear-gradient(135deg, #25d366 0%, #16a34a 100%); color: white; text-align: center; padding: 16px; border-radius: 12px; font-weight: 700;">
+                        <div style="background: linear-gradient(135deg, #25d366 0%, #16a34a 100%); color: white; text-align: center; padding: 16px; border-radius: 12px; font-weight: 700; margin-bottom: 8px;">
                             📲 ENVIAR COTAÇÃO PARA O WHATSAPP DO CLIENTE
                         </div>
                     </a>
                 """,
                     unsafe_allow_html=True,
                 )
+
+                if st.button(
+                    "📋 COPIAR TEXTO DA COTAÇÃO", key="btn_pure_copy_frete"
+                ):
+                    texto_js_safe = (
+                        texto_editavel.replace("\\", "\\\\")
+                        .replace("`", "\\`")
+                        .replace("$", "\\$")
+                        .replace("\n", "\\n")
+                    )
+                    st.components.v1.html(
+                        f"""
+                        <script>
+                        parent.navigator.clipboard.writeText(`{texto_js_safe}`);
+                        alert("Cotação copiada com sucesso! 🎉");
+                        </script>
+                    """,
+                        height=0,
+                    )
+
                 st.markdown("</div>", unsafe_allow_html=True)
 
 
