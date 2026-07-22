@@ -29,7 +29,7 @@ if "rastreio_gerado" not in st.session_state:
     st.session_state["rastreio_gerado"] = False
 
 
-# Função de cotação via API da Frenet (Múltiplas Origens + Detalhamento Transbessa)
+# Função de cotação via API da Frenet
 def cotar_frenet(
     cep_destino, peso, comp, larg, alt, valor_declarado, num_volumes=1
 ):
@@ -106,7 +106,7 @@ def cotar_frenet(
     except Exception as e:
         erros_retornados.append(f"Erro Jaraguá: {str(e)}")
 
-    # --- 2. COTAÇÃO ORIGEM GOIÂNIA (Jadlog + Transbessa R$ 30/vol) ---
+    # --- 2. COTAÇÃO ORIGEM GOIÂNIA (Jadlog + Transbessa R$ 30,00 por Volume) ---
     payload_goiania = {
         "SellerCEP": FRENET_CEP_GOIANIA,
         "RecipientCEP": str(cep_destino).replace("-", "").replace(" ", ""),
@@ -139,13 +139,20 @@ def cotar_frenet(
                         prazo_raw = op.get("DeliveryTime", 0)
 
                         try:
-                            val_jadlog = float(
+                            val_jadlog_real = float(
                                 str(preco_raw).replace(",", ".").strip()
                             )
                             taxa_transbessa = 30.0 * float(num_volumes)
-                            total_com_transbessa = val_jadlog + taxa_transbessa
-                            preco_fmt = f"{total_com_transbessa:.2f}".replace(
+                            total_soma_frete = val_jadlog_real + taxa_transbessa
+
+                            preco_fmt = f"{total_soma_frete:.2f}".replace(
                                 ".", ","
+                            )
+                            val_jadlog_fmt = f"{val_jadlog_real:.2f}".replace(
+                                ".", ","
+                            )
+                            taxa_transbessa_fmt = (
+                                f"{taxa_transbessa:.2f}".replace(".", ",")
                             )
 
                             try:
@@ -154,11 +161,10 @@ def cotar_frenet(
                                 prazo_total = f"{prazo_raw} + 1"
 
                             detalhe_transbessa = (
-                                f"🚛 Transbessa (Jaraguá ➔ Goiânia): R$"
-                                f" {taxa_transbessa:.2f} ({num_volumes} vol. x"
-                                f" R$ 30,00 | Prazo: 1 dia)\n📦 Cotação"
-                                f" Jadlog: R$"
-                                f" {val_jadlog:.2f}".replace(".", ",")
+                                f"📦 Cotação Jadlog: R$ {val_jadlog_fmt}\n🚚"
+                                f" Transbessa (Jaraguá ➔ Goiânia): R$"
+                                f" {taxa_transbessa_fmt} ({int(num_volumes)}"
+                                " vol. x R$ 30,00 | Prazo: 1 dia)"
                             )
                         except ValueError:
                             preco_fmt = str(preco_raw)
