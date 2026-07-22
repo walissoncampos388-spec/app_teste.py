@@ -27,7 +27,7 @@ if "rastreio_gerado" not in st.session_state:
     st.session_state["rastreio_gerado"] = False
 
 
-# Função de cotação via API da Frenet tratada contra erro de tipo de dado
+# Função de cotação via API da Frenet (Otimizada para J&T, Correios e Jadlog)
 def cotar_frenet(
     cep_destino, peso, comp, larg, alt, valor_declarado, num_volumes=1
 ):
@@ -40,16 +40,24 @@ def cotar_frenet(
         "token": FRENET_TOKEN,
     }
 
+    # Garante dimensões e pesos mínimos aceitos pela J&T Express e Correios
+    peso_envio = max(float(peso) / float(num_volumes), 0.3)
+    comp_envio = max(int(comp), 16)
+    larg_envio = max(int(larg), 11)
+    alt_envio = max(int(alt), 2)
+
     payload = {
         "SellerCEP": FRENET_CEP_ORIGEM,
         "RecipientCEP": str(cep_destino).replace("-", "").replace(" ", ""),
-        "ShipmentInvoiceValue": valor_declarado,
+        "ShipmentInvoiceValue": float(valor_declarado)
+        if valor_declarado > 0
+        else 50.0,
         "ShippingItemArray": [
             {
-                "Weight": max(peso / num_volumes, 0.1),
-                "Length": max(comp, 16),
-                "Height": max(alt, 2),
-                "Width": max(larg, 11),
+                "Weight": peso_envio,
+                "Length": comp_envio,
+                "Height": alt_envio,
+                "Width": larg_envio,
                 "Quantity": num_volumes,
             }
         ],
@@ -69,7 +77,6 @@ def cotar_frenet(
                     preco_raw = op.get("ShippingPrice", 0.0)
                     prazo = op.get("DeliveryTime", "-")
 
-                    # TRATAMENTO SEGURO DO PREÇO (Evita erro 'str' vs 'float')
                     try:
                         preco_num = float(
                             str(preco_raw).replace(",", ".").strip()
@@ -388,7 +395,7 @@ if st.session_state.tela_ativa == "cotacao":
     # PASSO 2
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
     st.markdown(
-        '<div class="titulo-etapa">GB PASSO 2: Produtos</div>',
+        '<div class="titulo-etapa">👖 PASSO 2: Produtos</div>',
         unsafe_allow_html=True,
     )
     c1, c2, c3 = st.columns(3)
@@ -607,6 +614,80 @@ if st.session_state.tela_ativa == "cotacao":
                 "❌ Preencha o CEP/Cidade e adicione produtos para calcular."
             )
         else:
+
+            # --- RESTAURADO: BLOCO VISUAL DE DIMENSÕES E COMPARAÇÃO DE ESCALA ---
+            st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="titulo-etapa">📐 Dimensões e Comparativo de'
+                f" Escala ({orientacao_texto})</div>",
+                unsafe_allow_html=True,
+            )
+
+            v_col1, v_col2 = st.columns([1, 1.2])
+
+            with v_col1:
+                txt_vol_detalhe = (
+                    "<p style='margin: 0 0 8px 0; font-size: 14px; color:"
+                    " #b45309; font-weight: 600;'>⚠️ Carga Dividida:"
+                    f" {num_volumes} Volumes ({meio_envio_selecionado})</p>"
+                    if num_volumes > 1
+                    else ""
+                )
+                st.html(f"""
+<div style="background-color: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; font-family: sans-serif;">
+{txt_vol_detalhe}
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #334155;"><b>Quantidade Total de Volumes:</b> {num_volumes} volume(s)</p>
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #334155;"><b>Classificação (por volume):</b> {classificacao_tamanho}</p>
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #334155;"><b>Peso por Volume:</b> {peso_por_volume:.2f} kg</p>
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #334155;"><b>Comprimento:</b> {comp} cm</p>
+<p style="margin: 0 0 8px 0; font-size: 14px; color: #334155;"><b>Largura:</b> {larg} cm</p>
+<p style="margin: 0 0 0 0; font-size: 14px; color: #334155;"><b>Altura:</b> {alt} cm</p>
+</div>
+""")
+
+            with v_col2:
+                visual_altura = (
+                    comp if "G" in classificacao_tamanho else alt
+                )
+                visual_largura = larg
+                px_alt_fardo = int(visual_altura * 1.3)
+                px_larg_fardo = int(visual_largura * 1.3)
+
+                html_fardos_render = ""
+                for vol_i in range(num_volumes):
+                    label_fardo = (
+                        "FARDO" if num_volumes == 1 else f"VOL {vol_i+1}"
+                    )
+                    html_fardos_render += f"""
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%;">
+<div style="font-family: sans-serif; font-size: 11px; color: #1e3a8a; font-weight: bold; margin-bottom: 4px;">{comp}x{larg}x{alt} cm</div>
+<div style="width: {px_larg_fardo}px; height: {px_alt_fardo}px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 6px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(217,119,6,0.3); margin-bottom: 0px;">
+<span style="color: white; font-size: 10px; font-weight: bold; text-align: center; font-family: sans-serif; padding: 2px;">{label_fardo}</span>
+</div>
+</div>
+"""
+
+                st.html(f"""
+<div style="display: flex; align-items: flex-end; justify-content: center; gap: 20px; background: #ffffff; padding: 18px; border-radius: 12px; border: 1px solid #e2e8f0; height: 250px; overflow-x: auto;">
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; flex-shrink: 0;">
+<div style="font-family: sans-serif; font-size: 11px; color: #64748b; margin-bottom: 4px;">Pessoa (1.75m)</div>
+<div style="width: 50px; height: 215px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-bottom: 0px;">
+    <div style="width: 26px; height: 26px; background-color: #f3c693; border-radius: 50%; margin-bottom: 4px;"></div>
+    <div style="width: 38px; height: 65px; background-color: #1e3a8a; border-radius: 4px 4px 0 0; position: relative;">
+        <div style="width: 6px; height: 45px; background-color: #f3c693; position: absolute; left: -7px; top: 0; border-radius: 3px;"></div>
+        <div style="width: 6px; height: 45px; background-color: #f3c693; position: absolute; right: -7px; top: 0; border-radius: 3px;"></div>
+    </div>
+    <div style="width: 34px; height: 105px; display: flex; justify-content: space-between;">
+        <div style="width: 14px; height: 105px; background-color: #0f172a; border-radius: 0 0 2px 2px;"></div>
+        <div style="width: 14px; height: 105px; background-color: #0f172a; border-radius: 0 0 2px 2px;"></div>
+    </div>
+</div>
+</div>
+{html_fardos_render}
+</div>
+""")
+            st.markdown("</div>", unsafe_allow_html=True)
+
             opcoes_whatsapp = []
 
             # 1. COTAÇÃO FRENET (API)
