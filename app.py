@@ -7,7 +7,7 @@ import streamlit as st
 
 # Configurações do Token Frenet
 FRENET_TOKEN = "96BCC656R0FA4R4CBERBCE2R86EF8956C1BA"
-FRENET_CEP_ORIGEM = "75400000"  # CEP de Origem (Jaraguá - GO)
+FRENET_CEP_ORIGEM = "76320464"  # CEP de Origem (Jaraguá - GO)
 
 # 1. Configuração de Design da Página
 st.set_page_config(
@@ -32,7 +32,7 @@ if "rastreio_gerado" not in st.session_state:
 def cotar_frenet(
     cep_destino, peso, comp, larg, alt, valor_declarado, num_volumes=1
 ):
-    if not FRENET_TOKEN or FRENET_TOKEN == "SEU_TOKEN_FRENET_AQUI":
+    if not FRENET_TOKEN or FRENET_TOKEN == "96BCC656R0FA4R4CBERBCE2R86EF8956C1BA":
         return [], "Token não configurado"
 
     url = "https://api.frenet.com.br/shipping/quote"
@@ -579,27 +579,29 @@ if st.session_state.tela_ativa == "cotacao":
         orientacao_texto = (
             "Fardo em Pé" if "G" in classificacao_tamanho else "Fardo Deitado"
         )
-        valor_nf_meia = (
-            (qtd_calcas * 40)
-            + (qtd_bermudas * 33)
-            + (qtd_shorts * 33)
-            + (qtd_gola_o * 18)
-            + (qtd_tshirt * 19)
-            + (qtd_polo * 25)
-            + (qtd_vestidos * 45)
-            + (qtd_conjuntos * 50)
-            + (qtd_bones * 15)
-            + (qtd_camisas * 30)
-            + (qtd_saias * 35)
-            + (qtd_croppeds * 20)
+
+        # CÁLCULO BASEADO NAS MÉDIAS DE PREÇO DOS PRODUTOS
+        valor_nf_calculado = (
+            (qtd_calcas * 99.00)
+            + (qtd_bermudas * 70.00)
+            + (qtd_shorts * 79.50)
+            + (qtd_camisas * 107.50)
+            + (qtd_saias * 83.50)
+            + (qtd_croppeds * 49.00)
+            + (qtd_gola_o * 42.50)
+            + (qtd_tshirt * 42.50)
+            + (qtd_polo * 60.00)
+            + (qtd_vestidos * 89.50)
+            + (qtd_conjuntos * 110.00)
+            + (qtd_bones * 47.50)
         )
         valor_para_seguro = (
-            valor_manual_nf if valor_manual_nf > 0 else valor_nf_meia
+            valor_manual_nf if valor_manual_nf > 0 else valor_nf_calculado
         )
 
         st.info(
             f"**📊 Resumo:** {total_pecas} un | {peso_total_calculado:.2f} kg |"
-            f" Seguro: R$ {valor_para_seguro:.2f}"
+            f" Seguro/NF: R$ {valor_para_seguro:.2f}"
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
