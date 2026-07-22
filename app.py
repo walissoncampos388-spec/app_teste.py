@@ -660,6 +660,13 @@ if st.session_state.tela_ativa == "cotacao":
                 "XG (Fardo Master)",
             )
 
+        # NOVA REGRA: SE DIVIDIDO EM 2 OU MAIS VOLUMES, LIMITE MÁXIMO DE 70 CM (RECOMPARTILHANDO MEDIDAS)
+        if num_volumes >= 2 and comp > 70:
+            excesso = comp - 70
+            comp = 70
+            larg += math.ceil(excesso / 2)
+            alt += math.floor(excesso / 2)
+
         orientacao_texto = (
             "Fardo em Pé" if "G" in classificacao_tamanho else "Fardo Deitado"
         )
