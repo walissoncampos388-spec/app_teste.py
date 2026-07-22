@@ -1,4 +1,5 @@
 import base64
+import math
 import urllib.parse
 import pandas as pd
 import requests
@@ -27,7 +28,7 @@ if "rastreio_gerado" not in st.session_state:
     st.session_state["rastreio_gerado"] = False
 
 
-# Função de cotação via API da Frenet (Otimizada para J&T, Correios e Jadlog)
+# Função de cotação via API da Frenet
 def cotar_frenet(
     cep_destino, peso, comp, larg, alt, valor_declarado, num_volumes=1
 ):
@@ -40,7 +41,7 @@ def cotar_frenet(
         "token": FRENET_TOKEN,
     }
 
-    # Garante dimensão e peso dentro das réguas da J&T, Correios e Jadlog
+    # Garante dimensões e pesos mínimos exigidos pelas transportadoras (J&T / Correios / Jadlog)
     peso_envio = max(float(peso) / float(num_volumes), 0.3)
     comp_envio = max(int(comp), 16)
     larg_envio = max(int(larg), 11)
@@ -51,14 +52,14 @@ def cotar_frenet(
         "RecipientCEP": str(cep_destino).replace("-", "").replace(" ", ""),
         "ShipmentInvoiceValue": float(valor_declarado)
         if valor_declarado > 0
-        else 50.0,
+        else 100.0,
         "ShippingItemArray": [
             {
                 "Weight": peso_envio,
                 "Length": comp_envio,
                 "Height": alt_envio,
                 "Width": larg_envio,
-                "Quantity": num_volumes,
+                "Quantity": int(num_volumes),
             }
         ],
     }
@@ -122,7 +123,7 @@ def mudar_para_rastreio():
     st.session_state.tela_ativa = "rastreio"
 
 
-# CSS Estilização
+# Estilização CSS
 st.markdown(
     """
     <style>
@@ -511,23 +512,19 @@ if st.session_state.tela_ativa == "cotacao":
                 meio_envio_selecionado == "Padrão (Dividir acima de 50 kg)"
                 and peso_total_calculado > 50.0
             ):
-                num_volumes = int(peso_total_calculado // 50) + (
-                    1 if peso_total_calculado % 50 > 0 else 0
-                )
+                num_volumes = math.ceil(peso_total_calculado / 50.0)
             elif (
                 meio_envio_selecionado
                 == "Correios / J&T / Azul Cargo (Dividir acima de 30 kg)"
                 and peso_total_calculado > 30.0
             ):
-                num_volumes = int(peso_total_calculado // 30) + (
-                    1 if peso_total_calculado % 30 > 0 else 0
-                )
+                num_volumes = math.ceil(peso_total_calculado / 30.0)
 
         peso_por_volume = (
             peso_total_calculado / num_volumes if num_volumes > 0 else 0
         )
         pecas_por_volume = (
-            total_pecas // num_volumes if num_volumes > 0 else 0
+            math.ceil(total_pecas / num_volumes) if num_volumes > 0 else 0
         )
 
         if total_pecas == 0:
