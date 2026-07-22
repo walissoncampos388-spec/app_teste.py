@@ -29,7 +29,7 @@ if "rastreio_gerado" not in st.session_state:
     st.session_state["rastreio_gerado"] = False
 
 
-# Função de cotação via API da Frenet (Múltiplas Origens)
+# Função de cotação via API da Frenet (Múltiplas Origens + Detalhamento Transbessa)
 def cotar_frenet(
     cep_destino, peso, comp, larg, alt, valor_declarado, num_volumes=1
 ):
@@ -77,7 +77,6 @@ def cotar_frenet(
             for op in dados1.get("ShippingSevicesArray", []):
                 if not op.get("Error"):
                     nome_transp = op.get("Carrier", "").upper()
-                    # Não inclui Jadlog da cotação de Jaraguá
                     if "JADLOG" not in nome_transp:
                         nome_servico = op.get("ServiceDescription", "")
                         preco_raw = op.get("ShippingPrice", 0.0)
@@ -98,6 +97,7 @@ def cotar_frenet(
                             "ROTA_ENVIO": "Origem Jaraguá - GO",
                             "FONE": "Atendimento Online",
                             "EXIGE_NF": "Sim",
+                            "DETALHE_TRANSPORTE": "",
                         })
                 else:
                     erros_retornados.append(
@@ -136,31 +136,47 @@ def cotar_frenet(
                     if "JADLOG" in nome_transp:
                         nome_servico = op.get("ServiceDescription", "")
                         preco_raw = op.get("ShippingPrice", 0.0)
-                        prazo = op.get("DeliveryTime", "-")
+                        prazo_raw = op.get("DeliveryTime", 0)
 
                         try:
-                            # Adiciona Transbessa (R$ 30,00 por volume de Jaraguá até Goiânia)
-                            taxa_transbessa = 30.0 * float(num_volumes)
-                            preco_num = (
-                                float(str(preco_raw).replace(",", ".").strip())
-                                + taxa_transbessa
+                            val_jadlog = float(
+                                str(preco_raw).replace(",", ".").strip()
                             )
-                            preco_fmt = f"{preco_num:.2f}".replace(".", ",")
+                            taxa_transbessa = 30.0 * float(num_volumes)
+                            total_com_transbessa = val_jadlog + taxa_transbessa
+                            preco_fmt = f"{total_com_transbessa:.2f}".replace(
+                                ".", ","
+                            )
+
+                            try:
+                                prazo_total = int(prazo_raw) + 1
+                            except ValueError:
+                                prazo_total = f"{prazo_raw} + 1"
+
+                            detalhe_transbessa = (
+                                f"🚛 Transbessa (Jaraguá ➔ Goiânia): R$"
+                                f" {taxa_transbessa:.2f} ({num_volumes} vol. x"
+                                f" R$ 30,00 | Prazo: 1 dia)\n📦 Cotação"
+                                f" Jadlog: R$"
+                                f" {val_jadlog:.2f}".replace(".", ",")
+                            )
                         except ValueError:
                             preco_fmt = str(preco_raw)
+                            detalhe_transbessa = (
+                                "Inclui frete Transbessa R$ 30,00 por volume"
+                            )
+                            prazo_total = prazo_raw
 
                         servicos.append({
                             "TRANSPORTADORA": (
                                 f"{nome_transp} ({nome_servico}) - via Goiânia"
                             ),
                             "VALOR_MINIMO": preco_fmt,
-                            "PRAZO": f"{prazo} Dias",
-                            "ROTA_ENVIO": (
-                                f"Goiânia (+ Transbessa R$"
-                                f" {30.0*num_volumes:.2f})"
-                            ),
+                            "PRAZO": f"{prazo_total} Dias",
+                            "ROTA_ENVIO": "Jaraguá ➔ Goiânia ➔ Destino",
                             "FONE": "Atendimento Online",
                             "EXIGE_NF": "Sim",
+                            "DETALHE_TRANSPORTE": detalhe_transbessa,
                         })
     except Exception as e:
         erros_retornados.append(f"Erro Goiânia: {str(e)}")
@@ -469,7 +485,7 @@ if st.session_state.tela_ativa == "cotacao":
     # PASSO 2
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
     st.markdown(
-        '<div class="titulo-etapa">GB PASSO 2: Produtos</div>',
+        '<div class="titulo-etapa">👖 PASSO 2: Produtos</div>',
         unsafe_allow_html=True,
     )
     c1, c2, c3 = st.columns(3)
@@ -775,19 +791,32 @@ if st.session_state.tela_ativa == "cotacao":
                 )
 
                 if cotacoes_api:
-                    st.markdown("### ⚡ COTAÇÃO ONLINE")
+                    st.markdown("### ⚡ Opções Online (J&T / Correios / Jadlog)")
                     for item in cotacoes_api:
+                        txt_detalhe_item = (
+                            f"\n_{item['DETALHE_TRANSPORTE']}_"
+                            if item.get("DETALHE_TRANSPORTE")
+                            else ""
+                        )
                         opcoes_whatsapp.append(
                             f"🚛 *{item['TRANSPORTADORA']}*\n💰 Valor:"
                             f" R$ {item['VALOR_MINIMO']}\n⏱️ Prazo:"
-                            f" {item['PRAZO']}\n"
+                            f" {item['PRAZO']}{txt_detalhe_item}\n"
                         )
+
+                        html_detalhe = (
+                            f'<br><span style="font-size:11px;'
+                            f' color:#0284c7;">{item["DETALHE_TRANSPORTE"].replace(chr(10), "<br>")}</span>'
+                            if item.get("DETALHE_TRANSPORTE")
+                            else ""
+                        )
+
                         st.markdown(
                             f"""
                         <div class="card-frete" style="border-left: 5px solid #2563eb;">
                             <div>
                                 <strong style="font-size:16px; color:#0f172a;"><b>🚛 {item['TRANSPORTADORA']}</b></strong><br>
-                                <span style="font-size:12px; color:#94a3b8;">⏱️ Prazo: {item['PRAZO']}</span>
+                                <span style="font-size:12px; color:#94a3b8;">⏱️ Prazo: {item['PRAZO']}</span>{html_detalhe}
                             </div>
                             <div style="text-align: right;"><span style="font-size:18px; font-weight:700; color:#0f172a;">R$ {item['VALOR_MINIMO']}</span></div>
                         </div>
@@ -805,7 +834,7 @@ if st.session_state.tela_ativa == "cotacao":
                 ]
 
                 if not resultados_fixos.empty:
-                    st.markdown("### 🏁 OUTRAS TRANPORTADORAS")
+                    st.markdown("### 🏁 Transportadoras Regionais (Planilha)")
                     for idx, row in resultados_fixos.iterrows():
                         print_prazo = str(row["PRAZO"])
                         if (
