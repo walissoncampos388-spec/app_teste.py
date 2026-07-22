@@ -29,6 +29,12 @@ if "rastreio_gerado" not in st.session_state:
     st.session_state["rastreio_gerado"] = False
 
 
+# FUNÇÃO PARA LIMPAR O TEXTO DO WHATSAPP AO CLICAR EM CALCULAR
+def resetar_texto_whatsapp():
+    if "txt_area_print" in st.session_state:
+        del st.session_state["txt_area_print"]
+
+
 # Função de cotação via API da Frenet
 def cotar_frenet(
     cep_destino, peso, comp, larg, alt, valor_declarado, num_volumes=1
@@ -535,7 +541,7 @@ if st.session_state.tela_ativa == "cotacao":
     # PASSO 2
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
     st.markdown(
-        '<div class="titulo-etapa">GB PASSO 2: Produtos</div>',
+        '<div class="titulo-etapa">👖 PASSO 2: Produtos</div>',
         unsafe_allow_html=True,
     )
     c1, c2, c3 = st.columns(3)
@@ -740,17 +746,14 @@ if st.session_state.tela_ativa == "cotacao":
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
+    # BOTÃO COM CALLBACK ON_CLICK QUE GARANTE QUE O TEXTO ANTIGO SERÁ APAGADO
     btn_calcular = st.button(
         "🚀 CALCULAR FRETE E GERAR WHATSAPP",
         type="primary",
         use_container_width=True,
         key="trigger_calculo",
+        on_click=resetar_texto_whatsapp,
     )
-
-    # RESET DO TEXTO DO WHATSAPP AO CLICAR NO BOTÃO DE CÁLCULO
-    if btn_calcular:
-        if "txt_area_print" in st.session_state:
-            del st.session_state["txt_area_print"]
 
     if btn_calcular or st.session_state.get("frete_calculado_ok", False):
         st.session_state["frete_calculado_ok"] = True
