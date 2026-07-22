@@ -35,6 +35,15 @@ def resetar_texto_whatsapp():
         del st.session_state["txt_area_print"]
 
 
+# Funções para alternar de tela
+def mudar_para_cotacao():
+    st.session_state.tela_ativa = "cotacao"
+
+
+def mudar_para_rastreio():
+    st.session_state.tela_ativa = "rastreio"
+
+
 # Função de cotação via API da Frenet
 def cotar_frenet(
     cep_destino, peso, comp, larg, alt, valor_declarado, num_volumes=1
@@ -247,14 +256,6 @@ def cotar_frenet(
         )
     )
     return servicos, msg_status
-
-
-def mudar_para_cotacao():
-    st.session_state.tela_ativa = "cotacao"
-
-
-def mudar_para_rastreio():
-    st.session_state.tela_ativa = "rastreio"
 
 
 # Estilização CSS
@@ -900,7 +901,7 @@ if st.session_state.tela_ativa == "cotacao":
                 ]
 
                 if not resultados_fixos.empty:
-                    # Nomes das transportadoras retornadas pela API Frenet (ex: CORREIOS, J&T, JADLOG, BRASPRESS)
+                    # Nomes das transportadoras retornadas pela API Frenet
                     transportadoras_online = [
                         item["TRANSPORTADORA"].upper() for item in cotacoes_api
                     ]
@@ -1015,104 +1016,202 @@ if st.session_state.tela_ativa == "cotacao":
                 st.markdown("</div>", unsafe_allow_html=True)
 
 
-# TELA RASTREIO DETALHADA E COMPLETA
+# --- EXIBIÇÃO DA TELA: RASTREAMENTO (MODELO ANTIGO IDENTICO REVERTIDO) ---
 elif st.session_state.tela_ativa == "rastreio":
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
     st.markdown(
-        '<div class="titulo-etapa">📦 Rastreio de Encomendas</div>',
+        '<div class="titulo-etapa">📦 PASSO ÚNICO: Gerar Rastreio para o'
+        " Cliente</div>",
         unsafe_allow_html=True,
     )
 
-    col_ras1, col_ras2 = st.columns([1, 1])
+    col_nome_cli, col_transp, col_cod, col_doc = st.columns([1.2, 1.2, 1.2, 1])
 
-    with col_ras1:
-        transp_rastreio = st.selectbox(
-            "🚚 Selecione a Transportadora:",
-            ["Correios", "Jadlog", "J&T Express", "Outra / Rastreio Geral"],
-            key="select_transp_rastreio",
-        )
-        codigo_rastreio = st.text_input(
-            "🔎 Código de Rastreio ou CPF/CNPJ:",
-            placeholder="Ex: AA123456789BR ou 12345678000199",
-            key="input_cod_rastreio",
-        ).strip()
-
-    with col_ras2:
+    with col_nome_cli:
         nome_cliente_rastreio = st.text_input(
-            "👤 Nome do Cliente (Opcional):",
+            "Nome do Cliente:",
             placeholder="Ex: Maria Silva",
-            key="input_nome_cli_rastreio",
+            key="campo_nome_cliente_estavel",
         ).strip()
 
-    if codigo_rastreio:
-        st.markdown("<br>", unsafe_allow_html=True)
+    with col_transp:
+        transportadora_rastreio = st.selectbox(
+            "Selecione a Transportadora:",
+            ["Correios", "J&T Express", "Braspress", "Azul Cargo", "Jadlog"],
+            key="box_selecao_transportadora_estavel",
+        )
 
-        # GERAÇÃO DE LINKS DIRETOS CONFORME A TRANSPORTADORA
-        if "Correios" in transp_rastreio:
-            url_rastreio = f"https://rastreamento.correios.com.br/app/resultado.php?objeto={codigo_rastreio}"
-        elif "Jadlog" in transp_rastreio:
-            url_rastreio = f"https://www.jadlog.com.br/sitejadlog/tracking.jad?remessa={codigo_rastreio}"
-        elif "J&T" in transp_rastreio:
-            url_rastreio = f"https://www.jtexpress.com.br/trajectoryQuery?billCode={codigo_rastreio}"
+    with col_cod:
+        codigo_rastreio = st.text_input(
+            "Código de Rastreio / Nº Nota Fiscal:",
+            placeholder="Ex: BR123456789X / 4552",
+            key="campo_codigo_estavel",
+        ).strip()
+
+    with col_doc:
+        doc_cliente = st.text_input(
+            "CPF ou CNPJ do Cliente (Se J&T/Braspress):",
+            placeholder="Apenas números",
+            key="campo_doc_estavel",
+        ).strip()
+
+    btn_gerar_mensagem = st.button(
+        "⚙️ GERAR INFORMAÇÕES DE RASTREAMENTO",
+        type="primary",
+        use_container_width=True,
+        key="action_processar_rastreio",
+    )
+
+    if btn_gerar_mensagem:
+        if not codigo_rastreio:
+            st.error(
+                "⚠️ Por favor, digite o código de rastreio ou número do"
+                " documento antes de gerar."
+            )
+            st.session_state["rastreio_gerado"] = False
         else:
-            url_rastreio = (
-                f"https://www.linkcorreios.com.br/?id={codigo_rastreio}"
+            st.session_state["rastreio_gerado"] = True
+
+    if st.session_state["rastreio_gerado"] and codigo_rastreio:
+        link_rastreio_final = ""
+        mensagem_rastreio = ""
+
+        txt_saudacao = (
+            f"Olá, *{nome_cliente_rastreio}*!"
+            if nome_cliente_rastreio
+            else "Olá!"
+        )
+
+        if transportadora_rastreio == "Correios":
+            link_rastreio_final = f"https://rastreamento.correios.com.br/app/index.php?objetos={codigo_rastreio}"
+            mensagem_rastreio = (
+                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já foi"
+                " despachado! 🎉\n\n"
+                "🚚 *Transportadora:* Correios\n"
+                f"📦 *Código de Rastreio:* `{codigo_rastreio}`\n\n"
+                "🔗 *Clique no link abaixo para acompanhar seu envio:*\n"
+                f"{link_rastreio_final}"
             )
 
-        msg_cliente_pre = (
-            f"Olá"
-            + (f" {nome_cliente_rastreio}" if nome_cliente_rastreio else "")
-            + "! 👋\n\n"
-            f"Seu pedido da *Cia do Jeans* já foi despachado! 🚚✨\n\n"
-            f"📌 *Transportadora:* {transp_rastreio}\n"
-            f"🔢 *Código/Identificador:* {codigo_rastreio}\n\n"
-            f"🔗 *Acompanhe a entrega pelo link:* \n{url_rastreio}\n\n"
-            f"Qualquer dúvida estamos à disposição! ❤️"
-        )
+        elif transportadora_rastreio == "Jadlog":
+            link_rastreio_final = f"https://www.jadlog.com.br/siteInstitucional/tracking.jad?conteudo={codigo_rastreio}"
+            mensagem_rastreio = (
+                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já está a"
+                " caminho! 🎉\n\n"
+                "🚚 *Transportadora:* Jadlog\n"
+                f"📦 *Código de Rastreio:* `{codigo_rastreio}`\n\n"
+                "🔗 *Clique no link abaixo para acompanhar seu envio:*\n"
+                f"{link_rastreio_final}"
+            )
 
-        st.success("✅ Link de rastreamento gerado com sucesso!")
+        elif transportadora_rastreio == "J&T Express":
+            link_rastreio_final = (
+                "https://www.jtexpress.com.br/trajectoryQuery"
+            )
+            mensagem_rastreio = (
+                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já foi"
+                " despachado! 🎉\n\n"
+                "🚚 *Transportadora:* J&T Express\n"
+                f"📦 *Código de Rastreio:* `{codigo_rastreio}`\n\n"
+                "🔗 *Como rastrear:*\n"
+                f"1. Acesse o site: {link_rastreio_final}\n"
+                "2. Digite o seu código de rastreio acima ou o seu CPF/CNPJ."
+            )
 
-        st.markdown("### 📱 Mensagem Pronta para o Cliente")
-        txt_rastreio_edit = st.text_area(
-            "Pré-visualização da mensagem:",
-            value=msg_cliente_pre,
+        elif transportadora_rastreio == "Braspress":
+            link_rastreio_final = "https://www.braspress.com.br/"
+            doc_info = f" (CNPJ/CPF: {doc_cliente})" if doc_cliente else ""
+            mensagem_rastreio = (
+                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já foi"
+                " coletado! 🎉\n\n"
+                "🚚 *Transportadora:* Braspress\n"
+                f"📄 *Número da Nota Fiscal:* `{codigo_rastreio}`{doc_info}\n\n"
+                "🔗 *Como rastrear:*\n"
+                f"1. Acesse o site: {link_rastreio_final}\n"
+                "2. No topo da página, clique em *'Rastreie sua Encomenda'*\n"
+                "3. Informe o número da NF acima e o seu CPF/CNPJ."
+            )
+
+        elif transportadora_rastreio == "Azul Cargo":
+            link_rastreio_final = f"https://www.azullogistica.com.br/Rastreio/Rastrear?awb={codigo_rastreio}"
+            mensagem_rastreio = (
+                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já está voando"
+                " até você! 🎉\n\n"
+                "🚚 *Transportadora:* Azul Cargo Express\n"
+                f"📦 *Código de Rastreio (AWB):* `{codigo_rastreio}`\n\n"
+                "🔗 *Clique no link abaixo para acompanhar seu envio:*\n"
+                f"{link_rastreio_final}"
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        texto_rastreio_editavel = st.text_area(
+            "Pré-visualização da Mensagem de Rastreio:",
+            value=mensagem_rastreio,
             height=180,
             key="txt_area_rastreio",
         )
+        texto_rastreio_codificado = urllib.parse.quote(texto_rastreio_editavel)
+        link_whatsapp_rastreio = f"https://api.whatsapp.com/send?text={texto_rastreio_codificado}"
 
-        link_wa_rastreio = f"https://api.whatsapp.com/send?text={urllib.parse.quote(txt_rastreio_edit)}"
+        st.markdown(
+            f"""
+            <a href="{link_whatsapp_rastreio}" target="_blank" style="text-decoration: none;">
+                <div style="background: linear-gradient(135deg, #25d366 0%, #16a34a 100%); color: white; text-align: center; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 10px 25px -5px rgba(37,211,102,0.4); cursor: pointer; margin-top: 5px; margin-bottom: 12px; font-family: sans-serif; transition: all 0.2s ease;">
+                    📲 ENVIAR MENSAGEM DE RASTREIO PARA O WHATSAPP
+                </div>
+            </a>
+        """,
+            unsafe_allow_html=True,
+        )
 
-        col_b1, col_b2 = st.columns(2)
-        with col_b1:
-            st.markdown(
+        if st.button(
+            "📋 COPIAR TEXTO DO RASTREIO", key="btn_pure_copy_rastreio"
+        ):
+            texto_rastreio_js_safe = (
+                texto_rastreio_editavel.replace("\\", "\\\\")
+                .replace("`", "\\`")
+                .replace("$", "\\$")
+                .replace("\n", "\\n")
+            )
+            st.components.v1.html(
                 f"""
-                <a href="{link_wa_rastreio}" target="_blank" style="text-decoration: none;">
-                    <div style="background: linear-gradient(135deg, #25d366 0%, #16a34a 100%); color: white; text-align: center; padding: 14px; border-radius: 10px; font-weight: 700;">
-                        📲 ENVIAR RASTREIO NO WHATSAPP
-                    </div>
-                </a>
+                <script>
+                parent.navigator.clipboard.writeText(`{texto_rastreio_js_safe}`);
+                alert("Rastreio copiado com sucesso! 🎉");
+                </script>
             """,
-                unsafe_allow_html=True,
+                height=0,
             )
 
-        with col_b2:
-            if st.button(
-                "📋 COPIAR MENSAGEM DE RASTREIO", key="btn_pure_copy_rastreio"
-            ):
-                texto_js_safe = (
-                    txt_rastreio_edit.replace("\\", "\\\\")
-                    .replace("`", "\\`")
-                    .replace("$", "\\$")
-                    .replace("\n", "\\n")
-                )
-                st.components.v1.html(
-                    f"""
-                    <script>
-                    parent.navigator.clipboard.writeText(`{texto_js_safe}`);
-                    alert("Mensagem de rastreio copiada com sucesso! 🎉");
-                    </script>
+        st.markdown("---")
+        btn_abrir_painel = st.checkbox(
+            "🖥️ QUER VISUALIZAR O RASTREIO DENTRO DO SITE?",
+            value=False,
+            key="check_painel_integrated",
+        )
+
+        if btn_abrir_painel:
+            st.markdown(
+                "### 🖥️ Painel de Rastreio em Tempo Real -"
+                f" {transportadora_rastreio}"
+            )
+            st.markdown(
+                "👉 _Caso a janela abaixo fique em branco devido à segurança da"
+                " transportadora, [CLIQUE AQUI PARA ABRIR EM NOVA"
+                f" ABA]({link_rastreio_final})._"
+            )
+
+            st.components.v1.html(
+                f"""
+                <iframe src="{link_rastreio_final}" width="100%" height="600px" style="border: 2px solid #e2e8f0; border-radius: 12px; background-color: white;"></iframe>
                 """,
-                    height=0,
-                )
+                height=620,
+            )
+    else:
+        st.info(
+            "✍️ Digite o código de rastreio acima para gerar o link de envio"
+            " imediatamente."
+        )
 
     st.markdown("</div>", unsafe_allow_html=True)
