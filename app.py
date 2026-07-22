@@ -743,7 +743,7 @@ if st.session_state.tela_ativa == "cotacao":
                 ]
 
                 if not resultados_fixos.empty:
-                    st.markdown("### 🏁 Transportadoras que atendem essa cidade-UF")
+                    st.markdown("### 🏁 Outras transportadoras que atendem")
                     for idx, row in resultados_fixos.iterrows():
                         print_prazo = str(row["PRAZO"])
                         if (
