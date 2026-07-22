@@ -32,7 +32,7 @@ if "rastreio_gerado" not in st.session_state:
 def cotar_frenet(
     cep_destino, peso, comp, larg, alt, valor_declarado, num_volumes=1
 ):
-    if not FRENET_TOKEN or FRENET_TOKEN == "96BCC656R0FA4R4CBERBCE2R86EF8956C1BA":
+    if not FRENET_TOKEN or FRENET_TOKEN == "SEU_TOKEN_FRENET_AQUI":
         return [], "Token não configurado"
 
     url = "https://api.frenet.com.br/shipping/quote"
