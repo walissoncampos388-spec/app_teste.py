@@ -1,3 +1,0 @@
-git add .
-git commit -m "Protegendo token da Frenet com secrets"
-git push
