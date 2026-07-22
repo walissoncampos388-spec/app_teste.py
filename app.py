@@ -535,7 +535,7 @@ if st.session_state.tela_ativa == "cotacao":
     # PASSO 2
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
     st.markdown(
-        '<div class="titulo-etapa">👖 PASSO 2: Produtos</div>',
+        '<div class="titulo-etapa">GB PASSO 2: Produtos</div>',
         unsafe_allow_html=True,
     )
     c1, c2, c3 = st.columns(3)
@@ -747,6 +747,11 @@ if st.session_state.tela_ativa == "cotacao":
         key="trigger_calculo",
     )
 
+    # RESET DO TEXTO DO WHATSAPP AO CLICAR NO BOTÃO DE CÁLCULO
+    if btn_calcular:
+        if "txt_area_print" in st.session_state:
+            del st.session_state["txt_area_print"]
+
     if btn_calcular or st.session_state.get("frete_calculado_ok", False):
         st.session_state["frete_calculado_ok"] = True
         cidade_busca = (
@@ -849,7 +854,7 @@ if st.session_state.tela_ativa == "cotacao":
                 )
 
                 if cotacoes_api:
-                    st.markdown("### ⚡ Cotação Online")
+                    st.markdown("### ⚡ Opções Online (J&T / Correios / Jadlog)")
                     for item in cotacoes_api:
                         txt_detalhe_item = (
                             f"\n_{item['DETALHE_TRANSPORTE']}_"
@@ -913,7 +918,7 @@ if st.session_state.tela_ativa == "cotacao":
 
                     if resultados_filtrados:
                         st.markdown(
-                            "### 🏁 Outras Transportadoras"
+                            "### 🏁 Transportadoras Regionais (Planilha)"
                         )
                         for row in resultados_filtrados:
                             print_prazo = str(row["PRAZO"])
