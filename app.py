@@ -5,9 +5,10 @@ import pandas as pd
 import requests
 import streamlit as st
 
-# Configurações do Token Frenet
+# Configurações do Token e CEPs de Origem
 FRENET_TOKEN = "96BCC656R0FA4R4CBERBCE2R86EF8956C1BA"
-FRENET_CEP_ORIGEM = "76320464"  # CEP de Origem (Jaraguá - GO)
+FRENET_CEP_JARAGUA = "76320464"  # CEP de Origem Jaraguá - GO
+FRENET_CEP_GOIANIA = "74000000"  # CEP de Origem Goiânia - GO (Para Jadlog)
 
 # 1. Configuração de Design da Página
 st.set_page_config(
@@ -28,7 +29,7 @@ if "rastreio_gerado" not in st.session_state:
     st.session_state["rastreio_gerado"] = False
 
 
-# Função de cotação via API da Frenet
+# Função de cotação via API da Frenet (Múltiplas Origens)
 def cotar_frenet(
     cep_destino, peso, comp, larg, alt, valor_declarado, num_volumes=1
 ):
@@ -41,14 +42,17 @@ def cotar_frenet(
         "token": FRENET_TOKEN,
     }
 
-    # Garante dimensões e pesos mínimos exigidos pelas transportadoras (J&T / Correios / Jadlog)
     peso_envio = max(float(peso) / float(num_volumes), 0.3)
     comp_envio = max(int(comp), 16)
     larg_envio = max(int(larg), 11)
     alt_envio = max(int(alt), 4)
 
-    payload = {
-        "SellerCEP": FRENET_CEP_ORIGEM,
+    servicos = []
+    erros_retornados = []
+
+    # --- 1. COTAÇÃO ORIGEM JARAGUÁ (Correios, J&T, etc.) ---
+    payload_jaragua = {
+        "SellerCEP": FRENET_CEP_JARAGUA,
         "RecipientCEP": str(cep_destino).replace("-", "").replace(" ", ""),
         "ShipmentInvoiceValue": float(valor_declarado)
         if valor_declarado > 0
@@ -65,54 +69,112 @@ def cotar_frenet(
     }
 
     try:
-        res = requests.post(url, json=payload, headers=headers, timeout=6)
-        if res.status_code == 200:
-            dados = res.json()
-            servicos = []
-            erros_retornados = []
-
-            for op in dados.get("ShippingSevicesArray", []):
+        res1 = requests.post(
+            url, json=payload_jaragua, headers=headers, timeout=6
+        )
+        if res1.status_code == 200:
+            dados1 = res1.json()
+            for op in dados1.get("ShippingSevicesArray", []):
                 if not op.get("Error"):
                     nome_transp = op.get("Carrier", "").upper()
-                    nome_servico = op.get("ServiceDescription", "")
-                    preco_raw = op.get("ShippingPrice", 0.0)
-                    prazo = op.get("DeliveryTime", "-")
+                    # Não inclui Jadlog da cotação de Jaraguá
+                    if "JADLOG" not in nome_transp:
+                        nome_servico = op.get("ServiceDescription", "")
+                        preco_raw = op.get("ShippingPrice", 0.0)
+                        prazo = op.get("DeliveryTime", "-")
 
-                    try:
-                        preco_num = float(
-                            str(preco_raw).replace(",", ".").strip()
-                        )
-                        preco_fmt = f"{preco_num:.2f}".replace(".", ",")
-                    except ValueError:
-                        preco_fmt = str(preco_raw)
+                        try:
+                            preco_num = float(
+                                str(preco_raw).replace(",", ".").strip()
+                            )
+                            preco_fmt = f"{preco_num:.2f}".replace(".", ",")
+                        except ValueError:
+                            preco_fmt = str(preco_raw)
 
-                    servicos.append({
-                        "TRANSPORTADORA": f"{nome_transp} ({nome_servico})",
-                        "VALOR_MINIMO": preco_fmt,
-                        "PRAZO": f"{prazo} Dias",
-                        "ROTA_ENVIO": "Cotação Online API",
-                        "FONE": "Atendimento Online",
-                        "EXIGE_NF": "Sim",
-                    })
+                        servicos.append({
+                            "TRANSPORTADORA": f"{nome_transp} ({nome_servico})",
+                            "VALOR_MINIMO": preco_fmt,
+                            "PRAZO": f"{prazo} Dias",
+                            "ROTA_ENVIO": "Origem Jaraguá - GO",
+                            "FONE": "Atendimento Online",
+                            "EXIGE_NF": "Sim",
+                        })
                 else:
                     erros_retornados.append(
                         f"{op.get('Carrier')}: {op.get('Msg')}"
                     )
-
-            msg_status = (
-                "OK"
-                if servicos
-                else (
-                    "; ".join(erros_retornados)
-                    if erros_retornados
-                    else "Nenhum serviço retornado pela Frenet"
-                )
-            )
-            return servicos, msg_status
-        else:
-            return [], f"Erro HTTP {res.status_code} na API da Frenet"
     except Exception as e:
-        return [], f"Falha na conexão com a Frenet: {str(e)}"
+        erros_retornados.append(f"Erro Jaraguá: {str(e)}")
+
+    # --- 2. COTAÇÃO ORIGEM GOIÂNIA (Jadlog + Transbessa R$ 30/vol) ---
+    payload_goiania = {
+        "SellerCEP": FRENET_CEP_GOIANIA,
+        "RecipientCEP": str(cep_destino).replace("-", "").replace(" ", ""),
+        "ShipmentInvoiceValue": float(valor_declarado)
+        if valor_declarado > 0
+        else 100.0,
+        "ShippingItemArray": [
+            {
+                "Weight": peso_envio,
+                "Length": comp_envio,
+                "Height": alt_envio,
+                "Width": larg_envio,
+                "Quantity": int(num_volumes),
+            }
+        ],
+    }
+
+    try:
+        res2 = requests.post(
+            url, json=payload_goiania, headers=headers, timeout=6
+        )
+        if res2.status_code == 200:
+            dados2 = res2.json()
+            for op in dados2.get("ShippingSevicesArray", []):
+                if not op.get("Error"):
+                    nome_transp = op.get("Carrier", "").upper()
+                    if "JADLOG" in nome_transp:
+                        nome_servico = op.get("ServiceDescription", "")
+                        preco_raw = op.get("ShippingPrice", 0.0)
+                        prazo = op.get("DeliveryTime", "-")
+
+                        try:
+                            # Adiciona Transbessa (R$ 30,00 por volume de Jaraguá até Goiânia)
+                            taxa_transbessa = 30.0 * float(num_volumes)
+                            preco_num = (
+                                float(str(preco_raw).replace(",", ".").strip())
+                                + taxa_transbessa
+                            )
+                            preco_fmt = f"{preco_num:.2f}".replace(".", ",")
+                        except ValueError:
+                            preco_fmt = str(preco_raw)
+
+                        servicos.append({
+                            "TRANSPORTADORA": (
+                                f"{nome_transp} ({nome_servico}) - via Goiânia"
+                            ),
+                            "VALOR_MINIMO": preco_fmt,
+                            "PRAZO": f"{prazo} Dias",
+                            "ROTA_ENVIO": (
+                                f"Goiânia (+ Transbessa R$"
+                                f" {30.0*num_volumes:.2f})"
+                            ),
+                            "FONE": "Atendimento Online",
+                            "EXIGE_NF": "Sim",
+                        })
+    except Exception as e:
+        erros_retornados.append(f"Erro Goiânia: {str(e)}")
+
+    msg_status = (
+        "OK"
+        if servicos
+        else (
+            "; ".join(erros_retornados)
+            if erros_retornados
+            else "Nenhum serviço retornado pela Frenet"
+        )
+    )
+    return servicos, msg_status
 
 
 def mudar_para_cotacao():
@@ -407,7 +469,7 @@ if st.session_state.tela_ativa == "cotacao":
     # PASSO 2
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
     st.markdown(
-        '<div class="titulo-etapa">👖 PASSO 2: Produtos</div>',
+        '<div class="titulo-etapa">GB PASSO 2: Produtos</div>',
         unsafe_allow_html=True,
     )
     c1, c2, c3 = st.columns(3)
@@ -713,7 +775,7 @@ if st.session_state.tela_ativa == "cotacao":
                 )
 
                 if cotacoes_api:
-                    st.markdown("### ⚡ Cotação Online")
+                    st.markdown("### ⚡ COTAÇÃO ONLINE")
                     for item in cotacoes_api:
                         opcoes_whatsapp.append(
                             f"🚛 *{item['TRANSPORTADORA']}*\n💰 Valor:"
@@ -743,7 +805,7 @@ if st.session_state.tela_ativa == "cotacao":
                 ]
 
                 if not resultados_fixos.empty:
-                    st.markdown("### 🏁 Outras transportadoras que atendem")
+                    st.markdown("### 🏁 OUTRAS TRANPORTADORAS")
                     for idx, row in resultados_fixos.iterrows():
                         print_prazo = str(row["PRAZO"])
                         if (
