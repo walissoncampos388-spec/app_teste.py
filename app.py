@@ -834,6 +834,7 @@ if st.session_state.tela_ativa == "cotacao":
             st.markdown("</div>", unsafe_allow_html=True)
 
             opcoes_whatsapp = []
+            cotacoes_api = []
 
             # 1. COTAÇÃO FRENET (API)
             if cep_input:
@@ -883,7 +884,7 @@ if st.session_state.tela_ativa == "cotacao":
                 else:
                     st.warning(f"⚠️ Diagnóstico API Frenet: {status_frenet}")
 
-            # 2. COTAÇÃO LOCAL (EXCEL)
+            # 2. COTAÇÃO LOCAL (EXCEL) - FILTRO DE DUPLICIDADE APLICADO
             if not df_fretes_fixos.empty:
                 resultados_fixos = df_fretes_fixos[
                     (df_fretes_fixos["CIDADE"] == cidade_busca)
@@ -891,36 +892,58 @@ if st.session_state.tela_ativa == "cotacao":
                 ]
 
                 if not resultados_fixos.empty:
-                    st.markdown("### 🏁 Outras Transportadoras")
+                    # Nomes das transportadoras retornadas pela API Frenet (ex: CORREIOS, J&T, JADLOG, BRASPRESS)
+                    transportadoras_online = [
+                        item["TRANSPORTADORA"].upper() for item in cotacoes_api
+                    ]
+
+                    # Filtra para manter somente as transportadoras da planilha que NÃO retornaram na API
+                    resultados_filtrados = []
                     for idx, row in resultados_fixos.iterrows():
-                        print_prazo = str(row["PRAZO"])
-                        if (
-                            "cotar" not in print_prazo.lower()
-                            and "dias" not in print_prazo.lower()
-                            and print_prazo != "-"
-                        ):
-                            print_prazo = f"{print_prazo} Dias"
+                        nome_planilha = (
+                            str(row["TRANSPORTADORA"]).upper().strip()
+                        )
+                        ja_existe_online = any(
+                            transp_api in nome_planilha
+                            or nome_planilha in transp_api
+                            for transp_api in transportadoras_online
+                        )
+                        if not ja_existe_online:
+                            resultados_filtrados.append(row)
 
+                    if resultados_filtrados:
                         st.markdown(
-                            f"""
-                        <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
-                            <div>
-                                <strong style="font-size:16px; color:#0f172a;"><b>🚛 {row['TRANSPORTADORA']}</b></strong><br>
-                                <span style="font-size:13px; color:#64748b;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Fone: {row['FONE']}</span><br>
-                                <span style="font-size:12px; color:#94a3b8;">⏱️ Prazo: {print_prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
-                            </div>
-                            <div style="text-align: right;"><span style="font-size:12px; color:#64748b; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#0f172a;">R$ {row['VALOR_MINIMO']}</span></div>
-                        </div>
-                        """,
-                            unsafe_allow_html=True,
+                            "### 🏁 Outras Transportadoras"
                         )
+                        for row in resultados_filtrados:
+                            print_prazo = str(row["PRAZO"])
+                            if (
+                                "cotar" not in print_prazo.lower()
+                                and "dias" not in print_prazo.lower()
+                                and print_prazo != "-"
+                            ):
+                                print_prazo = f"{print_prazo} Dias"
 
-                        opcoes_whatsapp.append(
-                            f"🚛 *{row['TRANSPORTADORA']}*\n"
-                            f"💰 Mínimo: R$ {row['VALOR_MINIMO']}\n"
-                            f"⏱️ Prazo: {print_prazo}\n"
-                            f"📞 Contato: {row['FONE']}\n"
-                        )
+                            st.markdown(
+                                f"""
+                            <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
+                                <div>
+                                    <strong style="font-size:16px; color:#0f172a;"><b>🚛 {row['TRANSPORTADORA']}</b></strong><br>
+                                    <span style="font-size:13px; color:#64748b;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Fone: {row['FONE']}</span><br>
+                                    <span style="font-size:12px; color:#94a3b8;">⏱️ Prazo: {print_prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
+                                </div>
+                                <div style="text-align: right;"><span style="font-size:12px; color:#64748b; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#0f172a;">R$ {row['VALOR_MINIMO']}</span></div>
+                            </div>
+                            """,
+                                unsafe_allow_html=True,
+                            )
+
+                            opcoes_whatsapp.append(
+                                f"🚛 *{row['TRANSPORTADORA']}*\n"
+                                f"💰 Mínimo: R$ {row['VALOR_MINIMO']}\n"
+                                f"⏱️ Prazo: {print_prazo}\n"
+                                f"📞 Contato: {row['FONE']}\n"
+                            )
 
             # WHATSAPP
             if opcoes_whatsapp:
