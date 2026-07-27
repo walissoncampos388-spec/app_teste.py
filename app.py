@@ -858,7 +858,7 @@ if st.session_state.tela_ativa == "cotacao":
                 )
 
                 if cotacoes_api:
-                    st.markdown("### ⚡ Opções Online (J&T / Correios / Jadlog)")
+                    st.markdown("### ⚡ Cotação Online")
                     for item in cotacoes_api:
                         txt_detalhe_item = (
                             f"\n_{item['DETALHE_TRANSPORTE']}_"
@@ -922,9 +922,10 @@ if st.session_state.tela_ativa == "cotacao":
 
                     if resultados_filtrados:
                         st.markdown(
-                            "### 🏁 Transportadoras Regionais (Planilha)"
+                            "### 🏁 Outras Transportadoras"
                         )
                         for row in resultados_filtrados:
+                            nome_transp_raw = str(row["TRANSPORTADORA"]).upper().strip()
                             print_prazo = str(row["PRAZO"])
                             if (
                                 "cotar" not in print_prazo.lower()
@@ -933,26 +934,82 @@ if st.session_state.tela_ativa == "cotacao":
                             ):
                                 print_prazo = f"{print_prazo} Dias"
 
-                            st.markdown(
-                                f"""
-                            <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
-                                <div>
-                                    <strong style="font-size:16px; color:#0f172a;"><b>🚛 {row['TRANSPORTADORA']}</b></strong><br>
-                                    <span style="font-size:13px; color:#64748b;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Fone: {row['FONE']}</span><br>
-                                    <span style="font-size:12px; color:#94a3b8;">⏱️ Prazo: {print_prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
-                                </div>
-                                <div style="text-align: right;"><span style="font-size:12px; color:#64748b; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#0f172a;">R$ {row['VALOR_MINIMO']}</span></div>
-                            </div>
-                            """,
-                                unsafe_allow_html=True,
-                            )
+                            # --- TRATAMENTO ESPECIAL INTELIGENTE: BESSA + CARVALIMA ---
+                            if "CARVALIMA" in nome_transp_raw:
+                                # 1. Taxa fixa Transbessa por volume
+                                taxa_transbessa = 30.0 * float(num_volumes)
 
-                            opcoes_whatsapp.append(
-                                f"🚛 *{row['TRANSPORTADORA']}*\n"
-                                f"💰 Mínimo: R$ {row['VALOR_MINIMO']}\n"
-                                f"⏱️ Prazo: {print_prazo}\n"
-                                f"📞 Contato: {row['FONE']}\n"
-                            )
+                                # 2. Faixas de preço Carvalima baseadas no peso calculado
+                                if peso_total_calculado <= 10.0:
+                                    val_carvalima = 84.33
+                                elif peso_total_calculado <= 30.0:
+                                    val_carvalima = 138.39
+                                elif peso_total_calculado <= 70.0:
+                                    val_carvalima = 210.83
+                                else:
+                                    excesso_kg = peso_total_calculado - 70.0
+                                    val_carvalima = 210.83 + (excesso_kg * 2.90)
+
+                                total_bessa_carvalima = taxa_transbessa + val_carvalima
+
+                                # Formatação de valores
+                                val_total_fmt = f"{total_bessa_carvalima:.2f}".replace(".", ",")
+                                val_carvalima_fmt = f"{val_carvalima:.2f}".replace(".", ",")
+                                val_bessa_fmt = f"{taxa_transbessa:.2f}".replace(".", ",")
+
+                                # Detalhamento idêntico ao estilo da Jadlog
+                                html_detalhe_carvalima = (
+                                    f'<br><span style="font-size:11px; color:#0284c7;">'
+                                    f"🚚 Transbessa (Jaraguá ➔ Goiânia): R$ {val_bessa_fmt} ({num_volumes} vol. x R$ 30,00)<br>"
+                                    f"📦 Carvalima (Goiânia ➔ Destino): R$ {val_carvalima_fmt} (Faixa para {peso_total_calculado:.2f} kg)"
+                                    f"</span>"
+                                )
+
+                                st.markdown(
+                                    f"""
+                                <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
+                                    <div>
+                                        <strong style="font-size:16px; color:#0f172a;"><b>🚛 {row['TRANSPORTADORA']}</b></strong><br>
+                                        <span style="font-size:12px; color:#64748b;">⏱️ Prazo: {print_prazo} | 📞 Fone: {row['FONE']}</span>
+                                        {html_detalhe_carvalima}
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <span style="font-size:18px; font-weight:700; color:#0f172a;">R$ {val_total_fmt}</span>
+                                    </div>
+                                </div>
+                                """,
+                                    unsafe_allow_html=True,
+                                )
+
+                                opcoes_whatsapp.append(
+                                    f"🚛 *{row['TRANSPORTADORA']}*\n"
+                                    f"💰 Total: R$ {val_total_fmt}\n"
+                                    f"⏱️ Prazo: {print_prazo}\n"
+                                    f"_(Transbessa R$ {val_bessa_fmt} + Carvalima R$ {val_carvalima_fmt})_\n"
+                                )
+
+                            # --- DEMAIS TRANSPORTADORAS DA PLANILHA ---
+                            else:
+                                st.markdown(
+                                    f"""
+                                <div class="card-frete" style="border-left: 5px solid #1e3a8a;">
+                                    <div>
+                                        <strong style="font-size:16px; color:#0f172a;"><b>🚛 {row['TRANSPORTADORA']}</b></strong><br>
+                                        <span style="font-size:13px; color:#64748b;">📍 Rota: {row['ROTA_ENVIO']} | 📞 Fone: {row['FONE']}</span><br>
+                                        <span style="font-size:12px; color:#94a3b8;">⏱️ Prazo: {print_prazo} | 📄 Exige NF: {row['EXIGE_NF']}</span>
+                                    </div>
+                                    <div style="text-align: right;"><span style="font-size:12px; color:#64748b; font-weight:600;">Mínimo</span><br><span style="font-size:18px; font-weight:700; color:#0f172a;">R$ {row['VALOR_MINIMO']}</span></div>
+                                </div>
+                                """,
+                                    unsafe_allow_html=True,
+                                )
+
+                                opcoes_whatsapp.append(
+                                    f"🚛 *{row['TRANSPORTADORA']}*\n"
+                                    f"💰 Mínimo: R$ {row['VALOR_MINIMO']}\n"
+                                    f"⏱️ Prazo: {print_prazo}\n"
+                                    f"📞 Contato: {row['FONE']}\n"
+                                )
 
             # WHATSAPP
             if opcoes_whatsapp:
@@ -972,7 +1029,7 @@ if st.session_state.tela_ativa == "cotacao":
                     "🚚 *OPÇÕES DE ENVIO:*\n\n"
                     f"{texto_opcoes}"
                     "-----------------------------------------\n\n"
-                    "_Qual destas opções fica melhor para fazermos o despacho?_"
+                    "_Qual destas opções fica melhor para fazermos o seu envio?_"
                 )
 
                 texto_editavel = st.text_area(
@@ -1016,7 +1073,7 @@ if st.session_state.tela_ativa == "cotacao":
                 st.markdown("</div>", unsafe_allow_html=True)
 
 
-# --- EXIBIÇÃO DA TELA: RASTREAMENTO (MODELO ANTIGO IDENTICO REVERTIDO) ---
+# --- EXIBIÇÃO DA TELA: RASTREAMENTO (MODELO INTEGRADO COM API J&T) ---
 elif st.session_state.tela_ativa == "rastreio":
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
     st.markdown(
@@ -1196,18 +1253,60 @@ elif st.session_state.tela_ativa == "rastreio":
                 "### 🖥️ Painel de Rastreio em Tempo Real -"
                 f" {transportadora_rastreio}"
             )
-            st.markdown(
-                "👉 _Caso a janela abaixo fique em branco devido à segurança da"
-                " transportadora, [CLIQUE AQUI PARA ABRIR EM NOVA"
-                f" ABA]({link_rastreio_final})._"
-            )
 
-            st.components.v1.html(
-                f"""
-                <iframe src="{link_rastreio_final}" width="100%" height="600px" style="border: 2px solid #e2e8f0; border-radius: 12px; background-color: white;"></iframe>
-                """,
-                height=620,
-            )
+            # RASTREIO DIRETO J&T EXPRESS VIA REQUISIÇÃO BACKEND
+            if transportadora_rastreio == "J&T Express":
+                with st.spinner("🔍 Buscando dados de rastreamento na J&T Express..."):
+                    try:
+                        url_jt = f"https://rastreadordeencomendas.com/result.php?idcod={codigo_rastreio}"
+                        resp_jt = requests.get(url_jt, headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
+                        
+                        if resp_jt.status_code == 200 and "<table" in resp_jt.text:
+                            # Extrai a tabela com as movimentações da encomenda
+                            inicio_tab = resp_jt.text.find("<table")
+                            fim_tab = resp_jt.text.find("</table>") + 8
+                            tabela_html = resp_jt.text[inicio_tab:fim_tab]
+
+                            st.html(f"""
+                            <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif;">
+                                <h4 style="margin-top: 0; color: #1e3a8a;">📦 Histórico da Encomenda ({codigo_rastreio})</h4>
+                                <style>
+                                    table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
+                                    th, td {{ padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }}
+                                    td strong {{ color: #0f172a; }}
+                                    td p {{ margin: 2px 0; color: #475569; }}
+                                </style>
+                                {tabela_html}
+                            </div>
+                            """)
+                        else:
+                            st.info("ℹ️ Não foram encontradas movimentações recentes para este código ou o serviço está temporariamente indisponível.")
+                            st.markdown(f"👉 **[CLIQUE AQUI PARA ABRIR O SITE DA J&T EXPRESS]({link_rastreio_final})**")
+                    except Exception as err:
+                        st.error(f"⚠️ Erro ao consultar rastreio online: {err}")
+                        st.markdown(f"👉 **[CLIQUE AQUI PARA ABRIR O SITE DA J&T EXPRESS]({link_rastreio_final})**")
+
+            # CORREIOS CONTINUA DIRECIONANDO DEVIDO AO BLOQUEIO
+            elif transportadora_rastreio == "Correios":
+                st.warning(
+                    f"⚠️ A **{transportadora_rastreio}** bloqueia a consulta direta dentro de janelas integradas por motivos de segurança do servidor deles."
+                )
+                st.markdown(
+                    f"👉 **[CLIQUE AQUI PARA ABRIR O SITE DA {transportadora_rastreio.upper()} EM NOVA ABA]({link_rastreio_final})**"
+                )
+            else:
+                st.markdown(
+                    "👉 _Caso a janela abaixo fique em branco devido à segurança da"
+                    " transportadora, [CLIQUE AQUI PARA ABRIR EM NOVA"
+                    f" ABA]({link_rastreio_final})._"
+                )
+
+                st.components.v1.html(
+                    f"""
+                    <iframe src="{link_rastreio_final}" width="100%" height="600px" style="border: 2px solid #e2e8f0; border-radius: 12px; background-color: white;"></iframe>
+                    """,
+                    height=620,
+                )
     else:
         st.info(
             "✍️ Digite o código de rastreio acima para gerar o link de envio"
