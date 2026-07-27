@@ -1233,15 +1233,33 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 <p style="color: #64748b; font-size: 14px; margin-bottom: 18px;">
                     O rastreamento da <b>J&T Express</b> é realizado diretamente no portal oficial com autenticação de segurança.
                 </p>
-                <div style="background-color: #f1f5f9; padding: 12px 20px; border-radius: 10px; display: inline-flex; align-items: center; gap: 10px; margin-bottom: 20px; border: 1px dashed #cbd5e1;">
+                <div style="background-color: #f1f5f9; padding: 12px 20px; border-radius: 10px; display: inline-block; margin-bottom: 10px; border: 1px dashed #cbd5e1;">
                     <span style="font-size: 13px; color: #475569;">Código do Envio:</span> 
                     <strong style="font-size: 16px; color: #0f172a;">{codigo_rastreio}</strong>
-                    <button onclick="navigator.clipboard.writeText('{codigo_rastreio}'); alert('Código de rastreio copiado! 📋');" 
-                            style="background-color: #1e3a8a; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-left: 6px;">
-                        📋 COPIAR CÓDIGO
-                    </button>
                 </div>
-                <br>
+            </div>
+            """, unsafe_allow_html=True)
+
+            col_btn1, col_btn2, col_btn3 = st.columns([1, 1.5, 1])
+            with col_btn2:
+                btn_copiar_jt = st.button("📋 COPIAR CÓDIGO DE RASTREIO", key="btn_copiar_jt_code", use_container_width=True)
+                if btn_copiar_jt:
+                    st.components.v1.html(
+                        f"""
+                        <script>
+                        parent.navigator.clipboard.writeText("{codigo_rastreio}");
+                        alert("Código de Rastreio {codigo_rastreio} copiado com sucesso! 🎉");
+                        </script>
+                        """,
+                        height=0,
+                    )
+                    st.success(f"✅ Código {codigo_rastreio} copiado com sucesso!")
+
+            st.markdown(f"""
+            <div style="text-align: center; font-family: 'Plus Jakarta Sans', sans-serif; margin-top: 15px;">
+                <p style="color: #1e3a8a; font-weight: 600; font-size: 15px; margin-bottom: 12px;">
+                    👇 Clique no botão abaixo para ir ao portal oficial da J&T Express e cole o código copiado:
+                </p>
                 <a href="https://www.jtexpress.com.br/trajectoryQuery?billCode={codigo_rastreio}" target="_blank" style="text-decoration: none;">
                     <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; display: inline-block; padding: 14px 28px; border-radius: 12px; font-weight: 700; font-size: 15px;">
                         🔗 ACOMPANHAR ENTREGA NA J&T EXPRESS
