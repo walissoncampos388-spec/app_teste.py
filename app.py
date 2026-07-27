@@ -1268,91 +1268,63 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA AZUL CARGO (CARD NATIVO RESPONSIVO)
+        # TRATAMENTO ESPECIAL PARA AZUL CARGO (EXTRAÇÃO VIA LINK DE RASTREIO REGEX IGUAL BRASPRESS)
         elif "azul" in transportadora_rastreio.lower():
             url_azul_site = f"https://www.azullogistica.com.br/Rastreio/Rastrear?awb={codigo_limpo}"
-            url_azul_api = f"https://www.azullogistica.com.br/api/Rastreio/ObterRastreioAwb?awb={codigo_limpo}"
 
             headers_azul = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                "Accept": "application/json, text/plain, */*",
-                "Referer": url_azul_site
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
             }
 
-            status_azul = None
-            previsao_azul = None
-            tipo_entrega_azul = "Retirada / Entrega"
-            origem_destino_azul = None
+            status_azul = "Em transporte"
+            previsao_azul = "Consultar Portal"
+            origem_destino_azul = "Origem ➔ Destino"
             historico_azul = []
 
-            with st.spinner(f"🔍 Buscando dados em tempo real do AWB {codigo_limpo}..."):
+            with st.spinner(f"🔍 Consultando dados no site da Azul Cargo para o AWB {codigo_limpo}..."):
                 try:
-                    res_api = requests.get(url_azul_api, headers=headers_azul, timeout=7)
-                    if res_api.status_code == 200:
-                        data = res_api.json()
-                        if isinstance(data, dict):
-                            status_azul = data.get("ultimoStatus") or data.get("status") or data.get("situacao")
-                            previsao_azul = data.get("previsaoEntrega") or data.get("dataEntrega") or data.get("dataPrevisao")
-                            tipo_entrega_azul = data.get("tipoEntrega") or data.get("modalidade") or "Retirada"
-                            
-                            origem = data.get("origem") or data.get("siglaOrigem") or data.get("nomeOrigem")
-                            destino = data.get("destino") or data.get("siglaDestino") or data.get("nomeDestino")
-                            if origem and destino:
-                                origem_destino_azul = f"{origem} ➔ {destino}"
-
-                            historico_raw = data.get("historico") or data.get("eventos") or data.get("rastreamento") or []
-                            for item in historico_raw:
-                                d_h = item.get("dataHora") or item.get("data") or ""
-                                desc = item.get("descricao") or item.get("status") or item.get("mensagem") or ""
-                                local = item.get("unidade") or item.get("local") or item.get("unidadeNome") or ""
-                                rec = item.get("recebedor") or item.get("nomeRecebedor") or ""
-                                txt_recebedor = f" (Recebido por: {rec})" if rec else ""
-                                txt_local = f" ({local})" if local else ""
-                                historico_azul.append(f"<b>{d_h}</b> - {desc}{txt_local}{txt_recebedor}")
-                except Exception:
-                    pass
-
-            if not status_azul or not historico_azul:
-                try:
-                    res_html = requests.get(url_azul_site, headers=headers_azul, timeout=7)
+                    res_html = requests.get(url_azul_site, headers=headers_azul, timeout=8)
                     if res_html.status_code == 200:
                         text_html = res_html.text
-                        
+
+                        # Extração de Previsão de Entrega via Regex no HTML
+                        match_prev = re.search(r'(?:Entrega até|Previsão)[^\d]*(\d{2}/\d{2}/\d{4})', text_html, re.IGNORECASE)
+                        if match_prev:
+                            previsao_azul = match_prev.group(1)
+
+                        # Extração de Status Atual via Regex
+                        match_status = re.search(r'(?:Status|Situação)[^\w<]*([A-Za-zÁ-ú\s]{3,30})', text_html, re.IGNORECASE)
+                        if match_status:
+                            st_temp = match_status.group(1).strip()
+                            if len(st_temp) > 2 and "azul" not in st_temp.lower():
+                                status_azul = st_temp
+
+                        # Extração da linha do tempo/histórico via Regex
                         ocorrencias = re.findall(
-                            r'(\d{2}\s*de\s*[a-z]+\s*-\s*\d{2}:\d{2})\s*([^\n<]+)',
+                            r'(\d{2}/\d{2}/\d{4}(?:\s+\d{2}:\d{2})?|\d{2}\s+de\s+[a-z]+\s*-\s*\d{2}:\d{2})\s*[-–]?\s*([^\n<]+)',
                             text_html, re.IGNORECASE
                         )
                         if ocorrencias:
                             historico_azul = [f"<b>{dh.strip()}</b> - {desc.strip()}" for dh, desc in ocorrencias]
                             status_azul = ocorrencias[0][1].strip()
 
-                        match_prev = re.search(r'Entrega\s*até:\s*(\d{2}/\d{2}/\d{4})', text_html, re.IGNORECASE)
-                        if match_prev:
-                            previsao_azul = match_prev.group(1)
-
-                        match_orig = re.search(r'Origem\s*([A-Z0-9\s]+)\s*Destino\s*([^\n<]+)', text_html, re.IGNORECASE)
+                        match_orig = re.search(r'Origem\s*:?\s*([A-Za-z0-9\s]+)\s*Destino\s*:?\s*([A-Za-z0-9\s]+)', text_html, re.IGNORECASE)
                         if match_orig:
                             origem_destino_azul = f"{match_orig.group(1).strip()} ➔ {match_orig.group(2).strip()}"
                 except Exception:
                     pass
 
-            if not status_azul:
-                status_azul = "Em Transporte / Disponível"
-            if not previsao_azul:
-                previsao_azul = "Ver no Portal"
-            if not origem_destino_azul:
-                origem_destino_azul = "Unidade de Origem ➔ Destino"
-            
             if not historico_azul:
                 historico_azul = [
-                    f"<b>AWB {codigo_limpo}:</b> Carga registrada no sistema da Azul Cargo Express.",
-                    "<b>Acompanhamento:</b> Para ver o histórico detalhado em tempo real, clique no botão azul abaixo."
+                    f"<b>AWB {codigo_limpo}:</b> Encomenda postada na Azul Cargo Express.",
+                    "<b>Acompanhamento:</b> Clique no botão abaixo para consultar o portal oficial da Azul."
                 ]
 
             html_historico_azul = "".join([f'<li style="margin-bottom: 8px; color: #334155;">{h}</li>' for h in historico_azul])
             cor_status = "#16a34a" if "entreg" in status_azul.lower() else "#1e3a8a"
 
-            # RENDERIZAÇÃO EM CARD NATIVO TOTALMENTE COMPATÍVEL COM CELULAR
             st.html(f"""
             <div style="background: #ffffff; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
                 <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 14px; margin-bottom: 16px;">
@@ -1371,12 +1343,12 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                         <strong style="font-size: 15px; color: {cor_status};">{status_azul}</strong>
                     </div>
                     <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #f1f5f9;">
-                        <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Entrega até / Data</span>
+                        <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Previsão de Entrega</span>
                         <strong style="font-size: 15px; color: #0f172a;">{previsao_azul}</strong>
                     </div>
                     <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #f1f5f9;">
                         <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Tipo de Entrega</span>
-                        <strong style="font-size: 15px; color: #0f172a;">{tipo_entrega_azul}</strong>
+                        <strong style="font-size: 15px; color: #0f172a;">Retirada / Entrega</strong>
                     </div>
                 </div>
 
