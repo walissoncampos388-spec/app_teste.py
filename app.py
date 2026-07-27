@@ -12,7 +12,7 @@ FRENET_CEP_GOIANIA = "74000000"  # CEP de Origem Goiânia - GO (Para Jadlog)
 
 # 1. Configuração de Design da Página
 st.set_page_config(
-    page_title="Cia do Jeans - Rastreador de Encomendas",
+    page_title="Cia do Jeans - Calculadora Inteligente",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -1137,9 +1137,18 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
     # EXIBIÇÃO DO RASTREAMENTO
     if (st.session_state.get("rastreio_gerado", False) and codigo_rastreio) or rastreio_param:
 
-        # SE FOR VENDEDOR, GERA A MENSAGEM DO WHATSAPP COM O LINK DIRETO PERSONALIZADO
+        # SE FOR VENDEDOR, GERA A MENSAGEM DO WHATSAPP COM O LINK DINÂMICO
         if not rastreio_param:
-            link_rastreio_personalizado = f"https://sua-calculadora.streamlit.app/?rastreio={codigo_rastreio}&transp={urllib.parse.quote(transportadora_rastreio)}"
+            # CAPTURA AUTOMÁTICA DA URL ONDE O APP ESTÁ HOSPEDADO DE FATO
+            headers = getattr(st, "context", {}).get("headers", {})
+            host_atual = headers.get("host", "")
+            
+            if host_atual:
+                base_url = f"https://{host_atual}"
+            else:
+                base_url = "https://appteste-ciadojeans.streamlit.app" # URL padrão do Streamlit Cloud de fallback
+
+            link_rastreio_personalizado = f"{base_url}/?rastreio={codigo_rastreio}&transp={urllib.parse.quote(transportadora_rastreio)}"
 
             txt_saudacao = f"Olá, *{nome_cliente_rastreio}*!" if nome_cliente_rastreio else "Olá!"
             
@@ -1164,13 +1173,34 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             st.markdown(
                 f"""
                 <a href="{link_whatsapp_rastreio}" target="_blank" style="text-decoration: none;">
-                    <div style="background: linear-gradient(135deg, #25d366 0%, #16a34a 100%); color: white; text-align: center; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 16px; margin-bottom: 12px; font-family: sans-serif;">
+                    <div style="background: linear-gradient(135deg, #25d366 0%, #16a34a 100%); color: white; text-align: center; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 16px; margin-bottom: 8px; font-family: sans-serif;">
                         📲 ENVIAR MENSAGEM DE RASTREIO PARA O WHATSAPP
                     </div>
                 </a>
             """,
                 unsafe_allow_html=True,
             )
+
+            # BOTÃO DE COPIAR TEXTO DO RASTREIO RESTAURADO COMO ERA ANTES
+            if st.button(
+                "📋 COPIAR TEXTO DO RASTREIO", key="btn_pure_copy_rastreio"
+            ):
+                texto_rastreio_js_safe = (
+                    texto_rastreio_editavel.replace("\\", "\\\\")
+                    .replace("`", "\\`")
+                    .replace("$", "\\$")
+                    .replace("\n", "\\n")
+                )
+                st.components.v1.html(
+                    f"""
+                    <script>
+                    parent.navigator.clipboard.writeText(`{texto_rastreio_js_safe}`);
+                    alert("Rastreio copiado com sucesso! 🎉");
+                    </script>
+                """,
+                    height=0,
+                )
+
             st.markdown("---")
 
         # 🖥️ PAINEL RASTREADOR PERSONALIZADO UNIVERSAL
