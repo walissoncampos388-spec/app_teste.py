@@ -22,6 +22,7 @@ st.set_page_config(
 query_params = st.query_params
 rastreio_param = query_params.get("rastreio", "")
 transp_param = query_params.get("transp", "J&T Express")
+cliente_param = query_params.get("cliente", "")  # PARAMETRO NOME DO CLIENTE
 
 # CONTROLE DE NAVEGAÇÃO
 if "tela_ativa" not in st.session_state:
@@ -1083,9 +1084,11 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
         codigo_rastreio = rastreio_param
         transportadora_rastreio = transp_param
 
+        txt_boas_vindas_cli = f"Olá, <b>{cliente_param}</b>! " if cliente_param else ""
+
         st.markdown(f"""
         <div class="bloco-etapa">
-            <h3 style="color: #1e3a8a; margin-top: 0;">📦 Rastreamento de Encomenda em Tempo Real</h3>
+            <h3 style="color: #1e3a8a; margin-top: 0;">📦 {txt_boas_vindas_cli}Rastreamento Online</h3>
             <p style="color: #64748b; margin-bottom: 0;">Acompanhe o status da sua entrega com a <b>Cia do Jeans</b>.</p>
         </div>
         """, unsafe_allow_html=True)
@@ -1166,7 +1169,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             else:
                 base_url = "https://appteste-ciadojeans.streamlit.app" # URL padrão do Streamlit Cloud de fallback
 
-            link_rastreio_personalizado = f"{base_url}/?rastreio={codigo_rastreio}&transp={urllib.parse.quote(transportadora_rastreio)}"
+            link_rastreio_personalizado = f"{base_url}/?rastreio={codigo_rastreio}&transp={urllib.parse.quote(transportadora_rastreio)}&cliente={urllib.parse.quote(nome_cliente_rastreio)}"
 
             txt_saudacao = f"Olá, *{nome_cliente_rastreio}*!" if nome_cliente_rastreio else "Olá!"
             
@@ -1222,7 +1225,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             st.markdown("---")
 
         # 🖥️ PAINEL RASTREADOR PERSONALIZADO UNIVERSAL
-        st.markdown(f"### 🚚 Histórico de Entrega em Tempo Real - {transportadora_rastreio}")
+        st.markdown(f"### 🚚 Transportado Por {transportadora_rastreio}")
 
         # TRATAMENTO ESPECIAL PARA J&T EXPRESS
         if "j&t" in transportadora_rastreio.lower() or "jandt" in transportadora_rastreio.lower():
@@ -1267,6 +1270,51 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 </a>
             </div>
             """, unsafe_allow_html=True)
+
+        # TRATAMENTO ESPECIAL PARA AZUL CARGO
+        elif "azul" in transportadora_rastreio.lower():
+            st.markdown(f"""
+            <div style="background: #ffffff; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; text-align: center; font-family: 'Plus Jakarta Sans', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                <div style="font-size: 40px; margin-bottom: 10px;">✈️</div>
+                <h4 style="margin: 0 0 8px 0; color: #1e3a8a;">Rastreamento Azul Cargo Express</h4>
+                <p style="color: #64748b; font-size: 14px; margin-bottom: 18px;">
+                    O rastreamento da <b>Azul Cargo</b> é realizado diretamente no portal oficial da transportadora.
+                </p>
+                <div style="background-color: #f1f5f9; padding: 12px 20px; border-radius: 10px; display: inline-block; margin-bottom: 10px; border: 1px dashed #cbd5e1;">
+                    <span style="font-size: 13px; color: #475569;">Código de Rastreio / Minuta:</span> 
+                    <strong style="font-size: 16px; color: #0f172a;">{codigo_rastreio}</strong>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            col_btn1, col_btn2, col_btn3 = st.columns([1, 1.5, 1])
+            with col_btn2:
+                btn_copiar_azul = st.button("📋 COPIAR CÓDIGO DE RASTREIO", key="btn_copiar_azul_code", use_container_width=True)
+                if btn_copiar_azul:
+                    st.components.v1.html(
+                        f"""
+                        <script>
+                        parent.navigator.clipboard.writeText("{codigo_rastreio}");
+                        alert("Código de Rastreio {codigo_rastreio} copiado com sucesso! 🎉");
+                        </script>
+                        """,
+                        height=0,
+                    )
+                    st.success(f"✅ Código {codigo_rastreio} copiado com sucesso!")
+
+            st.markdown(f"""
+            <div style="text-align: center; font-family: 'Plus Jakarta Sans', sans-serif; margin-top: 15px;">
+                <p style="color: #1e3a8a; font-weight: 600; font-size: 15px; margin-bottom: 12px;">
+                    👇 Clique no botão abaixo para rastrear diretamente na Azul Cargo:
+                </p>
+                <a href="https://www.azulcargoexpress.com.br/Rastreio/Rastrear/{codigo_rastreio}" target="_blank" style="text-decoration: none;">
+                    <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; display: inline-block; padding: 14px 28px; border-radius: 12px; font-weight: 700; font-size: 15px;">
+                        🔗 ACOMPANHAR ENTREGA NA AZUL CARGO
+                    </div>
+                </a>
+            </div>
+            """, unsafe_allow_html=True)
+
         else:
             with st.spinner(f"🔍 Buscando dados de rastreamento na {transportadora_rastreio}..."):
                 try:
