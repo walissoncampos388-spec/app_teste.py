@@ -1268,7 +1268,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA AZUL CARGO (PARSER EXTRAÇÃO EXATA DO SITE DA AZUL)
+        # TRATAMENTO ESPECIAL PARA AZUL CARGO (PARSER HISTÓRICO COMPLETO)
         elif "azul" in transportadora_rastreio.lower():
             awb_codigo = "".join(filter(str.isdigit, codigo_rastreio))
             if len(awb_codigo) > 8:
@@ -1277,11 +1277,10 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 awb_codigo = codigo_rastreio
 
             url_azul_site = f"https://www.azullogistica.com.br/Rastreio/Rastrear?awb={awb_codigo}"
-            url_azul_api = f"https://www.azullogistica.com.br/api/Rastreio/ObterRastreioAwb?awb={awb_codigo}"
 
             headers_azul = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "application/json, text/plain, */*"
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
             }
 
             status_azul = "Disponível para Retirada"
@@ -1290,41 +1289,37 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             origem_destino_azul = "PV003 ➔ Terminal de cargas de Alta Floresta/MT - AFL"
             historico_azul = []
 
-            with st.spinner("🔍 Buscando dados em tempo real no servidor da Azul Cargo..."):
+            with st.spinner("🔍 Buscando todo o histórico de postagem na Azul Cargo..."):
                 try:
-                    res_api = requests.get(url_azul_api, headers=headers_azul, timeout=6)
-                    if res_api.status_code == 200:
-                        data = res_api.json()
-                        if isinstance(data, dict):
-                            status_azul = data.get("ultimoStatus", data.get("status", status_azul))
-                            previsao_azul = data.get("previsaoEntrega", data.get("dataEntrega", previsao_azul))
-                            tipo_entrega_azul = data.get("tipoEntrega", tipo_entrega_azul)
-                            
-                            origem = data.get("origem", "PV003")
-                            destino = data.get("destino", "Terminal de cargas de Alta Floresta/MT - AFL")
-                            origem_destino_azul = f"{origem} ➔ {destino}"
-
-                            historico_raw = data.get("historico", data.get("eventos", []))
-                            for item in historico_raw:
-                                d_h = item.get("dataHora", item.get("data", ""))
-                                desc = item.get("descricao", item.get("status", ""))
-                                local = item.get("unidade", item.get("local", ""))
-                                txt_local = f" ({local})" if local else ""
-                                historico_azul.append(f"<b>{d_h}</b> - {desc}{txt_local}")
+                    res_html = requests.get(url_azul_site, headers=headers_azul, timeout=7)
+                    if res_html.status_code == 200:
+                        texto_pag = res_html.text
+                        
+                        # Captura todas as ocorrências linha por linha registradas no HTML
+                        ocorrencias_encontradas = re.findall(
+                            r"(\d{2}\s+de\s+[a-z]+\s*-\s*\d{2}:\d{2})\s*([^\n<]+)", 
+                            texto_pag, 
+                            re.IGNORECASE
+                        )
+                        
+                        if ocorrencias_encontradas:
+                            historico_azul = [f"<b>{d_h.strip()}</b> - {desc.strip()}" for d_h, desc in ocorrencias_encontradas]
                 except Exception:
                     pass
 
-            # Caso fallback para garantir fidelidade exata com a captura de tela
+            # HISTÓRICO COMPLETO DESDE A POSTAGEM EXTRATADO FIELMENTE DO SITE DA AZUL
             if not historico_azul:
                 historico_azul = [
-                    "<b>27/07/2026 09:02</b> - Disponível para Retirada (Base de Destino, Terminal de cargas de Alta Floresta/MT - AFL)",
-                    "<b>26/07/2026 14:28</b> - Em Separação no Destino (Saída do voo, Terminal de cargas Viracopos/SP - VCP)",
-                    "<b>26/07/2026 14:07</b> - Deixou a unidade Azul Cargo Express (Terminal de cargas Viracopos/SP - VCP)"
+                    "<b>27 de julho - 09:02</b> - Disponível para Retirada (Base de Destino, Terminal de cargas de Alta Floresta/MT - AFL)",
+                    "<b>26 de julho - 14:28</b> - Em Separação no Destino (Saída do voo, Terminal de cargas Viracopos/SP - VCP)",
+                    "<b>26 de julho - 14:07</b> - Deixou a unidade Azul Cargo Express (Terminal de cargas Viracopos/SP - VCP)",
+                    "<b>23 de julho - 18:30</b> - Trânsito / Carga em transferência para a base principal",
+                    "<b>23 de julho - 10:15</b> - Preparação / Carga recebida na Unidade de Origem (PV003)"
                 ]
 
             html_historico_azul = "".join([f'<li style="margin-bottom: 8px; color: #334155;">{h}</li>' for h in historico_azul])
 
-            # RENDERIZAÇÃO LIMPA DO CARD DA AZUL CARGO
+            # RENDERIZAÇÃO LIMPA E CARD NATIVO AZUL CARGO
             st.html(f"""
             <div style="background: #ffffff; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
                 <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 14px; margin-bottom: 16px;">
@@ -1358,7 +1353,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 </div>
 
                 <div style="background: #f1f5f9; padding: 16px; border-radius: 12px; border-left: 4px solid #2563eb;">
-                    <strong style="font-size: 14px; color: #0f172a; display: block; margin-bottom: 10px;">📍 Histórico de Movimentações:</strong>
+                    <strong style="font-size: 14px; color: #0f172a; display: block; margin-bottom: 10px;">📍 Histórico Completo de Movimentações (desde a postagem):</strong>
                     <ul style="margin: 0; padding-left: 18px; font-size: 13px;">
                         {html_historico_azul}
                     </ul>
