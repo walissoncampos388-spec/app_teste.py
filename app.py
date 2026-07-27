@@ -1214,31 +1214,45 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
         st.markdown(f"### 🚚 Histórico de Entrega em Tempo Real - {transportadora_rastreio}")
 
         with st.spinner(f"🔍 Buscando dados de rastreamento na {transportadora_rastreio}..."):
-            try:
-                # REQUISIÇÃO UNIVERSAL VIA ENGINE DE CONSULTA
-                url_consulta = f"https://rastreadordeencomendas.com/result.php?idcod={codigo_rastreio}"
-                resp = requests.get(url_consulta, headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
-                
-                if resp.status_code == 200 and "<table" in resp.text:
-                    inicio_tab = resp.text.find("<table")
-                    fim_tab = resp.text.find("</table>") + 8
-                    tabela_html = resp.text[inicio_tab:fim_tab]
+            if "J&T" in transportadora_rastreio.upper() or "JT" in transportadora_rastreio.upper():
+                url_jt = f"https://www.jtexpress.com.br/trajectoryQuery?billCode={codigo_rastreio}"
+                st.markdown(f"""
+                <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif; text-align: center;">
+                    <h4 style="margin-top: 0; color: #1e3a8a;">📦 Rastreamento J&T Express: {codigo_rastreio}</h4>
+                    <p style="color: #475569; font-size: 14px;">A J&T Express exige consulta direta no portal oficial por motivos de segurança.</p>
+                    <a href="{url_jt}" target="_blank" style="text-decoration: none;">
+                        <div style="background: #e11d48; color: white; padding: 12px 24px; border-radius: 10px; font-weight: 700; display: inline-block; margin-top: 10px;">
+                            👉 CLIQUE AQUI PARA VER O RASTREIO NA J&T EXPRESS
+                        </div>
+                    </a>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                try:
+                    # REQUISIÇÃO PARA CORREIOS E OUTRAS TRANSPORTADORAS
+                    url_consulta = f"https://rastreadordeencomendas.com/result.php?idcod={codigo_rastreio}"
+                    resp = requests.get(url_consulta, headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
+                    
+                    if resp.status_code == 200 and "<table" in resp.text:
+                        inicio_tab = resp.text.find("<table")
+                        fim_tab = resp.text.find("</table>") + 8
+                        tabela_html = resp.text[inicio_tab:fim_tab]
 
-                    st.html(f"""
-                    <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif;">
-                        <h4 style="margin-top: 0; color: #1e3a8a;">📦 Status da Encomenda: {codigo_rastreio}</h4>
-                        <style>
-                            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
-                            th, td {{ padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }}
-                            td strong {{ color: #0f172a; display: block; margin-bottom: 2px; }}
-                            td p {{ margin: 2px 0; color: #475569; font-size: 13px; }}
-                        </style>
-                        {tabela_html}
-                    </div>
-                    """)
-                else:
-                    st.info(f"ℹ️ O pedido **{codigo_rastreio}** deu entrada na **{transportadora_rastreio}** e as atualizações do sistema estarão disponíveis em breve.")
-            except Exception as err:
-                st.error(f"⚠️ Não foi possível carregar as informações no momento. Tente novamente mais tarde.")
+                        st.html(f"""
+                        <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif;">
+                            <h4 style="margin-top: 0; color: #1e3a8a;">📦 Status da Encomenda: {codigo_rastreio}</h4>
+                            <style>
+                                table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
+                                th, td {{ padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }}
+                                td strong {{ color: #0f172a; display: block; margin-bottom: 2px; }}
+                                td p {{ margin: 2px 0; color: #475569; font-size: 13px; }}
+                            </style>
+                            {tabela_html}
+                        </div>
+                        """)
+                    else:
+                        st.info(f"ℹ️ O pedido **{codigo_rastreio}** deu entrada na **{transportadora_rastreio}** e as atualizações do sistema estarão disponíveis em breve.")
+                except Exception as err:
+                    st.error(f"⚠️ Não foi possível carregar as informações no momento. Tente novamente mais tarde.")
 
     st.markdown("</div>", unsafe_allow_html=True)
