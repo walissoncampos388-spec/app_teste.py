@@ -1324,7 +1324,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA BRASPRESS (EXTRAÇÃO NATIVA SEM DEPENDÊNCIA DE BS4)
+        # TRATAMENTO ESPECIAL PARA BRASPRESS (PARSER PERFEITO + RENDER NATIVO LIMPO VIA ST.HTML)
         elif "braspress" in transportadora_rastreio.lower():
             cod_braspress = "".join(filter(str.isdigit, codigo_rastreio))
             if not cod_braspress:
@@ -1340,32 +1340,32 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             }
 
             previsao_ext = "-"
-            status_ext = "Em Transporte"
-            tipo_entrega_ext = "Rodoviário Padrão"
+            status_ext = "Em viagem para Destino (Braspress)"
+            tipo_entrega_ext = "Padrão"
 
             with st.spinner("🔍 Buscando detalhes do rastreio Braspress..."):
                 try:
                     res_bp = requests.get(url_braspress_tracking, headers=headers_braspress, timeout=6)
                     if res_bp.status_code == 200:
-                        # Limpa as tags HTML para analisar apenas o texto puro
-                        texto_limpo = re.sub(r'<[^>]+>', ' ', res_bp.text)
+                        texto_bruto = re.sub(r'<[^>]+>', ' ', res_bp.text)
+                        texto_limpo = ' '.join(texto_bruto.split())
                         
                         match_data = re.search(r"\d{2}/\d{2}/\d{4}", texto_limpo)
                         if match_data:
                             previsao_ext = match_data.group(0)
                         
-                        match_status = re.search(r"(Em viagem [^.<]+|Entregue[^.<]+|Em rota[^.<]+)", texto_limpo, re.IGNORECASE)
+                        match_status = re.search(r"(Em viagem para [^.\n]+|Em rota de entrega|Entregue[^.\n]+)", texto_limpo, re.IGNORECASE)
                         if match_status:
                             status_ext = match_status.group(0).strip()
                 except Exception:
                     pass
 
-            # CARD NATIVO COM DESIGN LIMPO E ORGANIZADO
-            st.markdown(f"""
+            # RENDERIZADO USANDO ST.HTML SEM PROBLEMAS DE MARKDOWN OU ALINHAMENTO
+            st.html(f"""
             <div style="background: #ffffff; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
                 <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 14px; margin-bottom: 16px;">
                     <div>
-                        <span style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #2563eb; font-weight: 700;">Status do Envio</span>
+                        <span style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #2563eb; font-weight: 700;">STATUS DO ENVIO</span>
                         <h4 style="margin: 2px 0 0 0; color: #0f172a; font-size: 18px;">🚚 Braspress Transportes</h4>
                     </div>
                     <div style="background-color: #eff6ff; padding: 6px 14px; border-radius: 8px; border: 1px solid #dbeafe;">
@@ -1388,7 +1388,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                     </div>
                 </div>
             </div>
-            """, unsafe_allow_html=True)
+            """)
 
             st.markdown(f"""
             <div style="text-align: center; font-family: 'Plus Jakarta Sans', sans-serif; margin-top: 15px;">
