@@ -1271,7 +1271,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA AZUL CARGO (EXIBIÇÃO EMBUTIDA NO SITE + BOTÃO)
+        # TRATAMENTO ESPECIAL PARA AZUL CARGO (NATIVO SEM TELA CINZA)
         elif "azul" in transportadora_rastreio.lower():
             awb_codigo = "".join(filter(str.isdigit, codigo_rastreio))
             if len(awb_codigo) > 8:
@@ -1282,24 +1282,41 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             url_azul_site = f"https://www.azullogistica.com.br/Rastreio/Rastrear?awb={awb_codigo}"
 
             st.markdown(f"""
-            <div style="background: #ffffff; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.03); margin-bottom: 20px;">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <div>
-                        <h4 style="margin: 0 0 4px 0; color: #1e3a8a;">✈️ Rastreamento Azul Cargo Express</h4>
-                        <span style="color: #64748b; font-size: 13px;">Código AWB: <b>{awb_codigo}</b></span>
-                    </div>
+            <div style="background: #ffffff; padding: 28px; border-radius: 16px; border: 1px solid #e2e8f0; text-align: center; font-family: 'Plus Jakarta Sans', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                <div style="font-size: 44px; margin-bottom: 10px;">✈️</div>
+                <h4 style="margin: 0 0 8px 0; color: #1e3a8a; font-size: 20px;">Rastreamento Azul Cargo Express</h4>
+                <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">
+                    O rastreamento da <b>Azul Cargo</b> é consultado com autenticação direta no sistema oficial.
+                </p>
+                <div style="background-color: #f1f5f9; padding: 14px 24px; border-radius: 12px; display: inline-block; margin-bottom: 12px; border: 1px dashed #cbd5e1;">
+                    <span style="font-size: 14px; color: #475569;">Código AWB / Minuta:</span> 
+                    <strong style="font-size: 18px; color: #0f172a; margin-left: 6px;">{awb_codigo}</strong>
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
-            # Exibe o próprio site da Azul no iframe dentro da sua página
-            st.components.v1.iframe(url_azul_site, height=600, scrolling=True)
+            col_btn1, col_btn2, col_btn3 = st.columns([1, 1.5, 1])
+            with col_btn2:
+                btn_copiar_azul = st.button("📋 COPIAR CÓDIGO AWB", key="btn_copiar_azul_code", use_container_width=True)
+                if btn_copiar_azul:
+                    st.components.v1.html(
+                        f"""
+                        <script>
+                        parent.navigator.clipboard.writeText("{awb_codigo}");
+                        alert("Código AWB {awb_codigo} copiado com sucesso! 🎉");
+                        </script>
+                        """,
+                        height=0,
+                    )
+                    st.success(f"✅ Código {awb_codigo} copiado com sucesso!")
 
-            # Botão mantido logo abaixo do rastreio do site
             st.markdown(f"""
             <div style="text-align: center; font-family: 'Plus Jakarta Sans', sans-serif; margin-top: 15px;">
+                <p style="color: #1e3a8a; font-weight: 600; font-size: 15px; margin-bottom: 12px;">
+                    👇 Clique no botão abaixo para abrir a consulta direta no portal da Azul Cargo:
+                </p>
                 <a href="{url_azul_site}" target="_blank" style="text-decoration: none;">
-                    <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; display: inline-block; padding: 14px 28px; border-radius: 12px; font-weight: 700; font-size: 15px;">
+                    <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; display: inline-block; padding: 16px 32px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 12px rgba(37,99,235,0.2);">
                         🔗 CONSULTAR NO PORTAL AZUL LOGÍSTICA
                     </div>
                 </a>
