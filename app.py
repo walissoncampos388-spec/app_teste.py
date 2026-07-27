@@ -1140,15 +1140,15 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
         # SE FOR VENDEDOR, GERA A MENSAGEM DO WHATSAPP COM O LINK DINÂMICO
         if not rastreio_param:
             # CAPTURA AUTOMÁTICA DA URL ONDE O APP ESTÁ HOSPEDADO DE FATO
-context = getattr(st, "context", None)
-if context and hasattr(context, "headers"):
-    headers = context.headers
-elif isinstance(context, dict):
-    headers = context.get("headers", {})
-else:
-    headers = {}
+            context = getattr(st, "context", None)
+            if context and hasattr(context, "headers"):
+                headers = context.headers
+            elif isinstance(context, dict):
+                headers = context.get("headers", {})
+            else:
+                headers = {}
 
-host_atual = headers.get("host", "")
+            host_atual = headers.get("host", "")
             
             if host_atual:
                 base_url = f"https://{host_atual}"
