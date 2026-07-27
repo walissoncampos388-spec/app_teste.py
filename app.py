@@ -1200,7 +1200,6 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                     </div>
                     """)
                 else:
-                    # FALLBACK SE AINDA NÃO HOUVER MOVIMENTAÇÃO
                     st.info(f"ℹ️ O pedido **{codigo_rastreio}** deu entrada na **{transportadora_rastreio}** e as atualizações do sistema estarão disponíveis em breve.")
             except Exception as err:
                 st.error(f"⚠️ Não foi possível carregar as informações no momento. Tente novamente mais tarde.")
