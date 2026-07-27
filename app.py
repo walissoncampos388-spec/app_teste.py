@@ -1323,49 +1323,81 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA BRASPRESS
+        # TRATAMENTO ESPECIAL PARA BRASPRESS (COLETA DIRETA + REDIRECIONAMENTO DE FALLBACK)
         elif "braspress" in transportadora_rastreio.lower():
             cod_braspress = "".join(filter(str.isdigit, codigo_rastreio))
             if not cod_braspress:
                 cod_braspress = codigo_rastreio
 
-            url_braspress_site = "https://www.braspress.com/atendimento/rastreie-sua-carga/"
+            # DEFINE CNPJ FIXO OU O CNPJ/CPF DIGITADO NO CAMPO
+            doc_limpo = "".join(filter(str.isdigit, st.session_state.get("campo_doc_estavel", "")))
+            cnpj_utilizado = doc_limpo if doc_limpo else "34835571000168"
 
-            st.markdown(f"""
-            <div style="background: #ffffff; padding: 28px; border-radius: 16px; border: 1px solid #e2e8f0; text-align: center; font-family: 'Plus Jakarta Sans', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
-                <div style="font-size: 44px; margin-bottom: 10px;">🚚</div>
-                <h4 style="margin: 0 0 8px 0; color: #1e3a8a; font-size: 20px;">Rastreamento Braspress Transportes</h4>
-                <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">
-                    A consulta da <b>Braspress</b> é realizada no portal oficial informando o número da Nota Fiscal ou Conhecimento (CT-e).
-                </p>
-                <div style="background-color: #f1f5f9; padding: 14px 24px; border-radius: 12px; display: inline-block; margin-bottom: 12px; border: 1px dashed #cbd5e1;">
-                    <span style="font-size: 14px; color: #475569;">Nº Nota Fiscal / Documento:</span> 
-                    <strong style="font-size: 18px; color: #0f172a; margin-left: 6px;">{cod_braspress}</strong>
+            url_braspress_tracking = f"https://blue.braspress.com/site/w/tracking/search?cnpj={cnpj_utilizado}&documentType=NOTAFISCAL&numero={cod_braspress}"
+
+            headers_braspress = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+
+            conteudo_coletado = None
+            with st.spinner("🔍 Coletando informações do rastreio na Braspress..."):
+                try:
+                    res_bp = requests.get(url_braspress_tracking, headers=headers_braspress, timeout=6)
+                    if res_bp.status_code == 200 and len(res_bp.text) > 300:
+                        conteudo_coletado = res_bp.text
+                except Exception:
+                    conteudo_coletado = None
+
+            # SE CONSEGUIU COLETAR AS INFORMAÇÕES DO SITE DA BRASPRESS:
+            if conteudo_coletado:
+                st.markdown(f"""
+                <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif;">
+                    <h4 style="margin-top: 0; color: #1e3a8a;">🚚 Status da Carga na Braspress (NF: {cod_braspress})</h4>
                 </div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
+                st.html(f"""
+                <div style="background: white; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif; max-height: 600px; overflow-y: auto;">
+                    {conteudo_coletado}
+                </div>
+                """)
+            else:
+                # INTERFACE CASO A BRASPRESS BLOQUEIE OU NÃO RESPONDA A TEMPO
+                st.markdown(f"""
+                <div style="background: #ffffff; padding: 28px; border-radius: 16px; border: 1px solid #e2e8f0; text-align: center; font-family: 'Plus Jakarta Sans', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                    <div style="font-size: 44px; margin-bottom: 10px;">🚚</div>
+                    <h4 style="margin: 0 0 8px 0; color: #1e3a8a; font-size: 20px;">Rastreamento Braspress Transportes</h4>
+                    <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">
+                        Acompanhe o transporte da sua Nota Fiscal diretamente no sistema oficial da Braspress.
+                    </p>
+                    <div style="background-color: #f1f5f9; padding: 14px 24px; border-radius: 12px; display: inline-block; margin-bottom: 12px; border: 1px dashed #cbd5e1;">
+                        <span style="font-size: 14px; color: #475569;">Nº Nota Fiscal:</span> 
+                        <strong style="font-size: 18px; color: #0f172a; margin-left: 6px;">{cod_braspress}</strong>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
 
-            col_btn1, col_btn2, col_btn3 = st.columns([1, 1.5, 1])
-            with col_btn2:
-                btn_copiar_braspress = st.button("📋 COPIAR NÚMERO DA NOTA FISCAL", key="btn_copiar_braspress_code", use_container_width=True)
-                if btn_copiar_braspress:
-                    st.components.v1.html(
-                        f"""
-                        <script>
-                        parent.navigator.clipboard.writeText("{cod_braspress}");
-                        alert("Número {cod_braspress} copiado com sucesso! 🎉");
-                        </script>
-                        """,
-                        height=0,
-                    )
-                    st.success(f"✅ Número {cod_braspress} copiado com sucesso!")
+                col_btn1, col_btn2, col_btn3 = st.columns([1, 1.5, 1])
+                with col_btn2:
+                    btn_copiar_braspress = st.button("📋 COPIAR NÚMERO DA NOTA FISCAL", key="btn_copiar_braspress_code", use_container_width=True)
+                    if btn_copiar_braspress:
+                        st.components.v1.html(
+                            f"""
+                            <script>
+                            parent.navigator.clipboard.writeText("{cod_braspress}");
+                            alert("Número {cod_braspress} copiado com sucesso! 🎉");
+                            </script>
+                            """,
+                            height=0,
+                        )
+                        st.success(f"✅ Número {cod_braspress} copiado com sucesso!")
 
+            # BOTÃO DE REDIRECIONAMENTO DIRETO PARA O SITE (SEMPRE VISÍVEL)
             st.markdown(f"""
             <div style="text-align: center; font-family: 'Plus Jakarta Sans', sans-serif; margin-top: 15px;">
                 <p style="color: #1e3a8a; font-weight: 600; font-size: 15px; margin-bottom: 12px;">
-                    👇 Clique no botão abaixo para acessar o rastreamento no site oficial da Braspress:
+                    👇 Clique no botão abaixo para abrir a consulta no portal oficial da Braspress:
                 </p>
-                <a href="{url_braspress_site}" target="_blank" style="text-decoration: none;">
+                <a href="{url_braspress_tracking}" target="_blank" style="text-decoration: none;">
                     <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; display: inline-block; padding: 16px 32px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 12px rgba(37,99,235,0.2);">
                         🔗 CONSULTAR NO PORTAL BRASPRESS
                     </div>
