@@ -1233,8 +1233,13 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 <p style="color: #64748b; font-size: 14px; margin-bottom: 18px;">
                     O rastreamento da <b>J&T Express</b> é realizado diretamente no portal oficial com autenticação de segurança.
                 </p>
-                <div style="background-color: #f1f5f9; padding: 12px 20px; border-radius: 10px; display: inline-block; margin-bottom: 20px; border: 1px dashed #cbd5e1;">
-                    <span style="font-size: 13px; color: #475569;">Código do Envio:</span> <strong style="font-size: 16px; color: #0f172a;">{codigo_rastreio}</strong>
+                <div style="background-color: #f1f5f9; padding: 12px 20px; border-radius: 10px; display: inline-flex; align-items: center; gap: 10px; margin-bottom: 20px; border: 1px dashed #cbd5e1;">
+                    <span style="font-size: 13px; color: #475569;">Código do Envio:</span> 
+                    <strong style="font-size: 16px; color: #0f172a;">{codigo_rastreio}</strong>
+                    <button onclick="navigator.clipboard.writeText('{codigo_rastreio}'); alert('Código de rastreio copiado! 📋');" 
+                            style="background-color: #1e3a8a; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; margin-left: 6px;">
+                        📋 COPIAR CÓDIGO
+                    </button>
                 </div>
                 <br>
                 <a href="https://www.jtexpress.com.br/trajectoryQuery?billCode={codigo_rastreio}" target="_blank" style="text-decoration: none;">
