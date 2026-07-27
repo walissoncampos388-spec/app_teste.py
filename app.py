@@ -1271,32 +1271,58 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA AZUL CARGO (EXIBIÇÃO DIRETA DENTRO DO SITE)
+        # TRATAMENTO ESPECIAL PARA AZUL CARGO (RASTREAMENTO DENTRO DO SITE)
         elif "azul" in transportadora_rastreio.lower():
-            # Extrai os dígitos para garantir o formato correto do AWB de 8 dígitos
             awb_codigo = "".join(filter(str.isdigit, codigo_rastreio))
             if len(awb_codigo) > 8:
-                awb_codigo = awb_codigo[-8:]  # Pega os últimos 8 dígitos (ex: 57144776)
+                awb_codigo = awb_codigo[-8:]
             elif not awb_codigo:
                 awb_codigo = codigo_rastreio
 
-            url_azul = f"https://www.azullogistica.com.br/Rastreio/Rastrear?awb={awb_codigo}"
+            url_azul_api = f"https://www.azullogistica.com.br/Rastreio/Rastrear?awb={awb_codigo}"
 
-            st.markdown(f"""
-            <div style="background: white; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif;">
-                <h4 style="margin-top: 0; color: #1e3a8a;">✈️ Status da Encomenda na Azul Cargo Express</h4>
-                <p style="color: #64748b; font-size: 13px; margin-bottom: 12px;">Código AWB: <b>{awb_codigo}</b></p>
-            </div>
-            """, unsafe_allow_html=True)
-
-            # Exibe a página oficial de rastreio embutida no próprio site
-            st.components.v1.iframe(url_azul, height=650, scrolling=True)
-
-            # Link alternativo discreto caso o navegador do cliente bloqueie iFrames
-            st.markdown(
-                f"<div style='text-align: center; margin-top: 8px;'><a href='{url_azul}' target='_blank' style='font-size: 13px; color: #2563eb;'>Caso o rastreio não carregue acima, clique aqui para abrir diretamente no site da Azul</a></div>",
-                unsafe_allow_html=True
-            )
+            with st.spinner("🔍 Carregando rastreamento da Azul Cargo..."):
+                try:
+                    headers = {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                    }
+                    resp_azul = requests.get(url_azul_api, headers=headers, timeout=10)
+                    
+                    if resp_azul.status_code == 200 and len(resp_azul.text) > 500:
+                        st.markdown(f"""
+                        <div style="background: white; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif; margin-bottom: 15px;">
+                            <h4 style="margin-top: 0; color: #1e3a8a;">✈️ Status da Encomenda na Azul Cargo Express</h4>
+                            <p style="color: #64748b; font-size: 13px; margin: 0;">Código AWB: <b>{awb_codigo}</b></p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        st.html(f"""
+                        <div style="background: white; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif; max-height: 600px; overflow-y: auto;">
+                            {resp_azul.text}
+                        </div>
+                        """)
+                    else:
+                        st.info(f"ℹ️ O pedido **{awb_codigo}** foi despachado via Azul Cargo Express. Caso os dados ainda não tenham sido atualizados na API, utilize a consulta direta abaixo.")
+                        st.markdown(f"""
+                        <div style="text-align: center; margin-top: 15px;">
+                            <a href="{url_azul_api}" target="_blank" style="text-decoration: none;">
+                                <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; display: inline-block; padding: 14px 28px; border-radius: 12px; font-weight: 700; font-size: 15px;">
+                                    🔗 CONSULTAR NO PORTAL AZUL LOGÍSTICA
+                                </div>
+                            </a>
+                        </div>
+                        """, unsafe_allow_html=True)
+                except Exception:
+                    st.info(f"ℹ️ Acompanhe seu envio com o código AWB **{awb_codigo}** diretamente na Azul Cargo:")
+                    st.markdown(f"""
+                    <div style="text-align: center; margin-top: 15px;">
+                        <a href="{url_azul_api}" target="_blank" style="text-decoration: none;">
+                            <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; display: inline-block; padding: 14px 28px; border-radius: 12px; font-weight: 700; font-size: 15px;">
+                                🔗 ABRIR RASTREIO DA AZUL CARGO
+                            </div>
+                        </a>
+                    </div>
+                    """, unsafe_allow_html=True)
 
         else:
             with st.spinner(f"🔍 Buscando dados de rastreamento na {transportadora_rastreio}..."):
