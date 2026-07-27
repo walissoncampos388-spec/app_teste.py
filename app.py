@@ -38,19 +38,27 @@ if "rastreio_gerado" not in st.session_state:
     st.session_state["rastreio_gerado"] = True if rastreio_param else False
 
 
-# FUNÇÃO PARA LIMPAR O TEXTO DO WHATSAPP AO CLICAR EM CALCULAR
+# FUNÇÕES PARA LIMPAR OS TEXTOS DE PRE-VISUALIZACAO
 def resetar_texto_whatsapp():
     if "txt_area_print" in st.session_state:
         del st.session_state["txt_area_print"]
 
 
-# Funções para alternar de tela
+def resetar_texto_rastreio():
+    if "txt_area_rastreio" in st.session_state:
+        del st.session_state["txt_area_rastreio"]
+
+
+# Funções para alternar de tela e limpar rastreios antigos
 def mudar_para_cotacao():
     st.session_state.tela_ativa = "cotacao"
 
 
 def mudar_para_rastreio():
     st.session_state.tela_ativa = "rastreio"
+    st.session_state["campo_codigo_estavel"] = ""
+    st.session_state["rastreio_gerado"] = False
+    resetar_texto_rastreio()
 
 
 # Função de cotação via API da Frenet
@@ -1107,8 +1115,10 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             )
 
         with col_cod:
+            # CAMPO DE RASTREIO INICIA BRANCO
             codigo_rastreio = st.text_input(
                 "Código de Rastreio / Nº Nota Fiscal:",
+                value="",
                 placeholder="Ex: BR123456789X / 4552",
                 key="campo_codigo_estavel",
             ).strip()
@@ -1125,6 +1135,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             type="primary",
             use_container_width=True,
             key="action_processar_rastreio",
+            on_click=resetar_texto_rastreio,  # LIMPA A PRE-VISUALIZACAO ANTERIOR
         )
 
         if btn_gerar_mensagem:
@@ -1213,32 +1224,53 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
         # 🖥️ PAINEL RASTREADOR PERSONALIZADO UNIVERSAL
         st.markdown(f"### 🚚 Histórico de Entrega em Tempo Real - {transportadora_rastreio}")
 
-        with st.spinner(f"🔍 Buscando dados de rastreamento na {transportadora_rastreio}..."):
-            try:
-                # REQUISIÇÃO UNIVERSAL VIA ENGINE DE CONSULTA
-                url_consulta = f"https://rastreadordeencomendas.com/result.php?idcod={codigo_rastreio}"
-                resp = requests.get(url_consulta, headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
-                
-                if resp.status_code == 200 and "<table" in resp.text:
-                    inicio_tab = resp.text.find("<table")
-                    fim_tab = resp.text.find("</table>") + 8
-                    tabela_html = resp.text[inicio_tab:fim_tab]
-
-                    st.html(f"""
-                    <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif;">
-                        <h4 style="margin-top: 0; color: #1e3a8a;">📦 Status da Encomenda: {codigo_rastreio}</h4>
-                        <style>
-                            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
-                            th, td {{ padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }}
-                            td strong {{ color: #0f172a; display: block; margin-bottom: 2px; }}
-                            td p {{ margin: 2px 0; color: #475569; font-size: 13px; }}
-                        </style>
-                        {tabela_html}
+        # TRATAMENTO ESPECIAL PARA J&T EXPRESS
+        if "j&t" in transportadora_rastreio.lower() or "jandt" in transportadora_rastreio.lower():
+            st.markdown(f"""
+            <div style="background: #ffffff; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; text-align: center; font-family: 'Plus Jakarta Sans', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                <div style="font-size: 40px; margin-bottom: 10px;">📦</div>
+                <h4 style="margin: 0 0 8px 0; color: #1e3a8a;">Rastreamento J&T Express</h4>
+                <p style="color: #64748b; font-size: 14px; margin-bottom: 18px;">
+                    O rastreamento da <b>J&T Express</b> é realizado diretamente no portal oficial com autenticação de segurança.
+                </p>
+                <div style="background-color: #f1f5f9; padding: 12px 20px; border-radius: 10px; display: inline-block; margin-bottom: 20px; border: 1px dashed #cbd5e1;">
+                    <span style="font-size: 13px; color: #475569;">Código do Envio:</span> <strong style="font-size: 16px; color: #0f172a;">{codigo_rastreio}</strong>
+                </div>
+                <br>
+                <a href="https://www.jtexpress.com.br/trajectoryQuery?billCode={codigo_rastreio}" target="_blank" style="text-decoration: none;">
+                    <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; display: inline-block; padding: 14px 28px; border-radius: 12px; font-weight: 700; font-size: 15px;">
+                        🔗 ACOMPANHAR ENTREGA NA J&T EXPRESS
                     </div>
-                    """)
-                else:
-                    st.info(f"ℹ️ O pedido **{codigo_rastreio}** deu entrada na **{transportadora_rastreio}** e as atualizações do sistema estarão disponíveis em breve.")
-            except Exception as err:
-                st.error(f"⚠️ Não foi possível carregar as informações no momento. Tente novamente mais tarde.")
+                </a>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            with st.spinner(f"🔍 Buscando dados de rastreamento na {transportadora_rastreio}..."):
+                try:
+                    # REQUISIÇÃO UNIVERSAL VIA ENGINE DE CONSULTA
+                    url_consulta = f"https://rastreadordeencomendas.com/result.php?idcod={codigo_rastreio}"
+                    resp = requests.get(url_consulta, headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
+                    
+                    if resp.status_code == 200 and "<table" in resp.text:
+                        inicio_tab = resp.text.find("<table")
+                        fim_tab = resp.text.find("</table>") + 8
+                        tabela_html = resp.text[inicio_tab:fim_tab]
+
+                        st.html(f"""
+                        <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif;">
+                            <h4 style="margin-top: 0; color: #1e3a8a;">📦 Status da Encomenda: {codigo_rastreio}</h4>
+                            <style>
+                                table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
+                                th, td {{ padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }}
+                                td strong {{ color: #0f172a; display: block; margin-bottom: 2px; }}
+                                td p {{ margin: 2px 0; color: #475569; font-size: 13px; }}
+                            </style>
+                            {tabela_html}
+                        </div>
+                        """)
+                    else:
+                        st.info(f"ℹ️ O pedido **{codigo_rastreio}** deu entrada na **{transportadora_rastreio}** e as atualizações do sistema estarão disponíveis em breve.")
+                except Exception as err:
+                    st.error(f"⚠️ Não foi possível carregar as informações no momento. Tente novamente mais tarde.")
 
     st.markdown("</div>", unsafe_allow_html=True)
