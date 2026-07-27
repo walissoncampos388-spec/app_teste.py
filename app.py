@@ -2,7 +2,6 @@ import base64
 import math
 import re
 import urllib.parse
-from bs4 import BeautifulSoup
 import pandas as pd
 import requests
 import streamlit as st
@@ -1325,7 +1324,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA BRASPRESS (PARSER E FORMATADOR NATIVO)
+        # TRATAMENTO ESPECIAL PARA BRASPRESS (EXTRAÇÃO NATIVA SEM DEPENDÊNCIA DE BS4)
         elif "braspress" in transportadora_rastreio.lower():
             cod_braspress = "".join(filter(str.isdigit, codigo_rastreio))
             if not cod_braspress:
@@ -1342,46 +1341,24 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
 
             previsao_ext = "-"
             status_ext = "Em Transporte"
-            tipo_entrega_ext = "-"
-            extraiu_com_sucesso = False
+            tipo_entrega_ext = "Rodoviário Padrão"
 
             with st.spinner("🔍 Buscando detalhes do rastreio Braspress..."):
                 try:
                     res_bp = requests.get(url_braspress_tracking, headers=headers_braspress, timeout=6)
                     if res_bp.status_code == 200:
-                        soup = BeautifulSoup(res_bp.text, "html.parser")
+                        # Limpa as tags HTML para analisar apenas o texto puro
+                        texto_limpo = re.sub(r'<[^>]+>', ' ', res_bp.text)
                         
-                        # Tenta extrair a tabela principal de dados
-                        tabela = soup.find("table")
-                        if tabela:
-                            linhas = tabela.find_all("tr")
-                            for linha in linhas:
-                                cols = [c.get_text(strip=True) for c in linha.find_all(["td", "th"])]
-                                # Busca linha com valores numéricos ou texto relevante
-                                if len(cols) >= 4 and any(cod_braspress in c for c in cols):
-                                    for item in cols:
-                                        if re.match(r"\d{2}/\d{2}/\d{4}", item):
-                                            previsao_ext = item
-                                        elif "viagem" in item.lower() or "entregue" in item.lower() or "rota" in item.lower():
-                                            status_ext = item
-                                        elif item.lower() in ["padrão", "expressa", "rodoviário"]:
-                                            tipo_entrega_ext = item
-                                    extraiu_com_sucesso = True
+                        match_data = re.search(r"\d{2}/\d{2}/\d{4}", texto_limpo)
+                        if match_data:
+                            previsao_ext = match_data.group(0)
                         
-                        # Fallback por expressões regulares no HTML limpo caso não monte tabela perfeita
-                        if not extraiu_com_sucesso:
-                            texto_limpo = soup.get_text(separator=" ")
-                            match_data = re.search(r"\d{2}/\d{2}/\d{4}", texto_limpo)
-                            if match_data:
-                                previsao_ext = match_data.group(0)
-                                extraiu_com_sucesso = True
-                            
-                            match_status = re.search(r"(Em viagem [^.]+?|Entregue[^.]+?|Em rota[^.]+?)", texto_limpo, re.IGNORECASE)
-                            if match_status:
-                                status_ext = match_status.group(0).strip()
-                                extraiu_com_sucesso = True
+                        match_status = re.search(r"(Em viagem [^.<]+|Entregue[^.<]+|Em rota[^.<]+)", texto_limpo, re.IGNORECASE)
+                        if match_status:
+                            status_ext = match_status.group(0).strip()
                 except Exception:
-                    extraiu_com_sucesso = False
+                    pass
 
             # CARD NATIVO COM DESIGN LIMPO E ORGANIZADO
             st.markdown(f"""
@@ -1407,7 +1384,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                     </div>
                     <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #f1f5f9;">
                         <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Tipo de Modal</span>
-                        <strong style="font-size: 15px; color: #0f172a;">{tipo_entrega_ext if tipo_entrega_ext != '-' else 'Rodoviário Padrão'}</strong>
+                        <strong style="font-size: 15px; color: #0f172a;">{tipo_entrega_ext}</strong>
                     </div>
                 </div>
             </div>
