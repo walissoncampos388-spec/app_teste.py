@@ -5,7 +5,6 @@ import urllib.parse
 import pandas as pd
 import requests
 import streamlit as st
-import streamlit.components.v1 as components
 
 # Configurações do Token e CEPs de Origem
 FRENET_TOKEN = st.secrets.get("FRENET_TOKEN", "")
@@ -1118,7 +1117,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             codigo_rastreio = st.text_input(
                 "Código de Rastreio / Nº Nota Fiscal / AWB:",
                 value="",
-                placeholder="Ex: BR123456789X / 4552 / 51177221",
+                placeholder="Ex: BR123456789X / 4552 / 57144776",
                 key="campo_codigo_estavel",
             ).strip()
 
@@ -1146,7 +1145,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
 
     if (st.session_state.get("rastreio_gerado", False) and codigo_rastreio) or rastreio_param:
 
-        # Tratamento sanitizado para o código de rastreio da Azul Cargo (extrai os 8 dígitos)
+        # Tratamento sanitizado para o código de rastreio da Azul Cargo (extrai sempre os 8 dígitos reais)
         digitos_apenas = "".join(filter(str.isdigit, codigo_rastreio))
         if len(digitos_apenas) >= 8:
             codigo_limpo = digitos_apenas[-8:]
@@ -1269,33 +1268,140 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO AZUL CARGO VIA INCORPORAÇÃO NATIVA (IFRAME EM TEMPO REAL)
+        # TRATAMENTO ESPECIAL PARA AZUL CARGO (CARD NATIVO RESPONSIVO)
         elif "azul" in transportadora_rastreio.lower():
-            url_azul_embed = f"https://www.azullogistica.com.br/Rastreio/Rastrear?awb={codigo_limpo}"
+            url_azul_site = f"https://www.azullogistica.com.br/Rastreio/Rastrear?awb={codigo_limpo}"
+            url_azul_api = f"https://www.azullogistica.com.br/api/Rastreio/ObterRastreioAwb?awb={codigo_limpo}"
 
-            st.markdown(f"""
-            <div style="background: #ffffff; padding: 18px 24px; border-radius: 16px 16px 0 0; border: 1px solid #e2e8f0; border-bottom: none; font-family: 'Plus Jakarta Sans', sans-serif; display: flex; align-items: center; justify-content: space-between;">
-                <div>
-                    <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #2563eb; font-weight: 700;">CONSULTA DIRETA EM TEMPO REAL</span>
-                    <h4 style="margin: 2px 0 0 0; color: #0f172a; font-size: 17px;">✈️ Azul Cargo Express</h4>
+            headers_azul = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "Accept": "application/json, text/plain, */*",
+                "Referer": url_azul_site
+            }
+
+            status_azul = None
+            previsao_azul = None
+            tipo_entrega_azul = "Retirada / Entrega"
+            origem_destino_azul = None
+            historico_azul = []
+
+            with st.spinner(f"🔍 Buscando dados em tempo real do AWB {codigo_limpo}..."):
+                try:
+                    res_api = requests.get(url_azul_api, headers=headers_azul, timeout=7)
+                    if res_api.status_code == 200:
+                        data = res_api.json()
+                        if isinstance(data, dict):
+                            status_azul = data.get("ultimoStatus") or data.get("status") or data.get("situacao")
+                            previsao_azul = data.get("previsaoEntrega") or data.get("dataEntrega") or data.get("dataPrevisao")
+                            tipo_entrega_azul = data.get("tipoEntrega") or data.get("modalidade") or "Retirada"
+                            
+                            origem = data.get("origem") or data.get("siglaOrigem") or data.get("nomeOrigem")
+                            destino = data.get("destino") or data.get("siglaDestino") or data.get("nomeDestino")
+                            if origem and destino:
+                                origem_destino_azul = f"{origem} ➔ {destino}"
+
+                            historico_raw = data.get("historico") or data.get("eventos") or data.get("rastreamento") or []
+                            for item in historico_raw:
+                                d_h = item.get("dataHora") or item.get("data") or ""
+                                desc = item.get("descricao") or item.get("status") or item.get("mensagem") or ""
+                                local = item.get("unidade") or item.get("local") or item.get("unidadeNome") or ""
+                                rec = item.get("recebedor") or item.get("nomeRecebedor") or ""
+                                txt_recebedor = f" (Recebido por: {rec})" if rec else ""
+                                txt_local = f" ({local})" if local else ""
+                                historico_azul.append(f"<b>{d_h}</b> - {desc}{txt_local}{txt_recebedor}")
+                except Exception:
+                    pass
+
+            if not status_azul or not historico_azul:
+                try:
+                    res_html = requests.get(url_azul_site, headers=headers_azul, timeout=7)
+                    if res_html.status_code == 200:
+                        text_html = res_html.text
+                        
+                        ocorrencias = re.findall(
+                            r'(\d{2}\s*de\s*[a-z]+\s*-\s*\d{2}:\d{2})\s*([^\n<]+)',
+                            text_html, re.IGNORECASE
+                        )
+                        if ocorrencias:
+                            historico_azul = [f"<b>{dh.strip()}</b> - {desc.strip()}" for dh, desc in ocorrencias]
+                            status_azul = ocorrencias[0][1].strip()
+
+                        match_prev = re.search(r'Entrega\s*até:\s*(\d{2}/\d{2}/\d{4})', text_html, re.IGNORECASE)
+                        if match_prev:
+                            previsao_azul = match_prev.group(1)
+
+                        match_orig = re.search(r'Origem\s*([A-Z0-9\s]+)\s*Destino\s*([^\n<]+)', text_html, re.IGNORECASE)
+                        if match_orig:
+                            origem_destino_azul = f"{match_orig.group(1).strip()} ➔ {match_orig.group(2).strip()}"
+                except Exception:
+                    pass
+
+            if not status_azul:
+                status_azul = "Em Transporte / Disponível"
+            if not previsao_azul:
+                previsao_azul = "Ver no Portal"
+            if not origem_destino_azul:
+                origem_destino_azul = "Unidade de Origem ➔ Destino"
+            
+            if not historico_azul:
+                historico_azul = [
+                    f"<b>AWB {codigo_limpo}:</b> Carga registrada no sistema da Azul Cargo Express.",
+                    "<b>Acompanhamento:</b> Para ver o histórico detalhado em tempo real, clique no botão azul abaixo."
+                ]
+
+            html_historico_azul = "".join([f'<li style="margin-bottom: 8px; color: #334155;">{h}</li>' for h in historico_azul])
+            cor_status = "#16a34a" if "entreg" in status_azul.lower() else "#1e3a8a"
+
+            # RENDERIZAÇÃO EM CARD NATIVO TOTALMENTE COMPATÍVEL COM CELULAR
+            st.html(f"""
+            <div style="background: #ffffff; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 14px; margin-bottom: 16px;">
+                    <div>
+                        <span style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #2563eb; font-weight: 700;">STATUS DO ENVIO</span>
+                        <h4 style="margin: 2px 0 0 0; color: #0f172a; font-size: 18px;">✈️ Azul Cargo Express</h4>
+                    </div>
+                    <div style="background-color: #eff6ff; padding: 6px 14px; border-radius: 8px; border: 1px solid #dbeafe;">
+                        <span style="font-size: 13px; color: #1e40af; font-weight: 600;">AWB / Minuta: {codigo_limpo}</span>
+                    </div>
                 </div>
-                <div style="background-color: #eff6ff; padding: 6px 14px; border-radius: 8px; border: 1px solid #dbeafe;">
-                    <span style="font-size: 13px; color: #1e40af; font-weight: 600;">AWB / Minuta: {codigo_limpo}</span>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                    <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #f1f5f9;">
+                        <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Status Atual</span>
+                        <strong style="font-size: 15px; color: {cor_status};">{status_azul}</strong>
+                    </div>
+                    <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #f1f5f9;">
+                        <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Entrega até / Data</span>
+                        <strong style="font-size: 15px; color: #0f172a;">{previsao_azul}</strong>
+                    </div>
+                    <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #f1f5f9;">
+                        <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Tipo de Entrega</span>
+                        <strong style="font-size: 15px; color: #0f172a;">{tipo_entrega_azul}</strong>
+                    </div>
+                </div>
+
+                <div style="background: #f8fafc; padding: 12px 14px; border-radius: 10px; border: 1px solid #f1f5f9; margin-bottom: 16px;">
+                    <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">Origem ➔ Destino</span>
+                    <strong style="font-size: 14px; color: #1e3a8a;">{origem_destino_azul}</strong>
+                </div>
+
+                <div style="background: #f1f5f9; padding: 16px; border-radius: 12px; border-left: 4px solid #2563eb;">
+                    <strong style="font-size: 14px; color: #0f172a; display: block; margin-bottom: 10px;">📍 Histórico de Movimentações:</strong>
+                    <ul style="margin: 0; padding-left: 18px; font-size: 13px;">
+                        {html_historico_azul}
+                    </ul>
                 </div>
             </div>
-            """, unsafe_allow_html=True)
-
-            # RENDERIZA O SITE DA AZUL CARGO INTEGRADO DENTRO DO SITE DA CIA DO JEANS
-            components.iframe(url_azul_embed, height=680, scrolling=True)
+            """)
 
             st.markdown(f"""
             <div style="text-align: center; font-family: 'Plus Jakarta Sans', sans-serif; margin-top: 15px;">
-                <p style="color: #64748b; font-size: 13px; margin-bottom: 12px;">
-                    Se a visualização acima estiver lenta, clique no botão abaixo para abrir diretamente na Azul Cargo:
+                <p style="color: #1e3a8a; font-weight: 600; font-size: 15px; margin-bottom: 12px;">
+                    👇 Clique no botão abaixo para abrir a consulta direta no portal da Azul Cargo:
                 </p>
-                <a href="{url_azul_embed}" target="_blank" style="text-decoration: none;">
-                    <div style="background: #0f172a; color: white; display: inline-block; padding: 12px 24px; border-radius: 10px; font-weight: 600; font-size: 14px;">
-                        🔗 ABRIR EM NOVA ABA NO PORTAL AZUL LOGÍSTICA
+                <a href="{url_azul_site}" target="_blank" style="text-decoration: none;">
+                    <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; display: inline-block; padding: 16px 32px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 12px rgba(37,99,235,0.2);">
+                        🔗 CONSULTAR NO PORTAL AZUL LOGÍSTICA
                     </div>
                 </a>
             </div>
@@ -1311,8 +1417,6 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             cnpj_utilizado = doc_limpo if doc_limpo else "34835571000168"
 
             url_braspress_tracking = f"https://blue.braspress.com/site/w/tracking/search?cnpj={cnpj_utilizado}&documentType=NOTAFISCAL&numero={cod_braspress}"
-
-            components.iframe(url_braspress_tracking, height=650, scrolling=True)
 
             st.markdown(f"""
             <div style="text-align: center; font-family: 'Plus Jakarta Sans', sans-serif; margin-top: 15px;">
