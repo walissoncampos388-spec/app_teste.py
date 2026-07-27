@@ -3,7 +3,7 @@ import math
 import urllib.parse
 import pandas as pd
 import requests
-import streamlit as st
+import Streamlit as st
 
 # Configurações do Token e CEPs de Origem
 FRENET_TOKEN = st.secrets.get("FRENET_TOKEN", "")
@@ -12,21 +12,30 @@ FRENET_CEP_GOIANIA = "74000000"  # CEP de Origem Goiânia - GO (Para Jadlog)
 
 # 1. Configuração de Design da Página
 st.set_page_config(
-    page_title="Cia do Jeans - Calculadora Inteligente",
+    page_title="Cia do Jeans - Rastreador de Encomendas",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
+# VERIFICAÇÃO DE QUERY PARAMS (SE O CLIENTE CLICOU NO LINK DIRETO)
+query_params = st.query_params
+rastreio_param = query_params.get("rastreio", "")
+transp_param = query_params.get("transp", "J&T Express")
+
 # CONTROLE DE NAVEGAÇÃO
 if "tela_ativa" not in st.session_state:
-    st.session_state.tela_ativa = "cotacao"
+    if rastreio_param:
+        st.session_state.tela_ativa = "rastreio"
+    else:
+        st.session_state.tela_ativa = "cotacao"
+
 if "cidade_input_fiel" not in st.session_state:
     st.session_state["cidade_input_fiel"] = ""
 if "uf_input_fiel" not in st.session_state:
     st.session_state["uf_input_fiel"] = ""
 if "rastreio_gerado" not in st.session_state:
-    st.session_state["rastreio_gerado"] = False
+    st.session_state["rastreio_gerado"] = True if rastreio_param else False
 
 
 # FUNÇÃO PARA LIMPAR O TEXTO DO WHATSAPP AO CLICAR EM CALCULAR
@@ -471,26 +480,27 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-col_aba1, col_aba2 = st.columns(2)
-with col_aba1:
-    st.button(
-        "📊 COTAR NOVO FRETE",
-        use_container_width=True,
-        key="aba_cot_btn",
-        on_click=mudar_para_cotacao,
-    )
-with col_aba2:
-    st.button(
-        "📦 RASTREAR ENCOMENDA",
-        use_container_width=True,
-        key="aba_ras_btn",
-        on_click=mudar_para_rastreio,
-    )
-
-st.markdown("<br>", unsafe_allow_html=True)
+# SE FOR ACESSO DE CLIENTE DIRETO VIA LINK, OCULTA OS BOTOES DE ALTERNAR TELA
+if not rastreio_param:
+    col_aba1, col_aba2 = st.columns(2)
+    with col_aba1:
+        st.button(
+            "📊 COTAR NOVO FRETE",
+            use_container_width=True,
+            key="aba_cot_btn",
+            on_click=mudar_para_cotacao,
+        )
+    with col_aba2:
+        st.button(
+            "📦 RASTREAR ENCOMENDA",
+            use_container_width=True,
+            key="aba_ras_btn",
+            on_click=mudar_para_rastreio,
+        )
+    st.markdown("<br>", unsafe_allow_html=True)
 
 # TELA COTAÇÃO
-if st.session_state.tela_ativa == "cotacao":
+if st.session_state.tela_ativa == "cotacao" and not rastreio_param:
 
     # PASSO 1
     st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
@@ -711,7 +721,6 @@ if st.session_state.tela_ativa == "cotacao":
                 "XG (Fardo Master)",
             )
 
-        # REGRA DE DIMENSIONAMENTO: SE DIVIDIDO EM 2 OU MAIS VOLUMES, LIMITE MÁXIMO DE 70 CM
         if num_volumes >= 2 and comp > 70:
             excesso = comp - 70
             comp = 70
@@ -722,7 +731,6 @@ if st.session_state.tela_ativa == "cotacao":
             "Fardo em Pé" if "G" in classificacao_tamanho else "Fardo Deitado"
         )
 
-        # CÁLCULO BASEADO NAS MÉDIAS DE PREÇO DOS PRODUTOS
         valor_nf_calculado = (
             (qtd_calcas * 99.00)
             + (qtd_bermudas * 70.00)
@@ -747,7 +755,6 @@ if st.session_state.tela_ativa == "cotacao":
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # BOTÃO COM CALLBACK ON_CLICK QUE GARANTE QUE O TEXTO ANTIGO SERÁ APAGADO
     btn_calcular = st.button(
         "🚀 CALCULAR FRETE E GERAR WHATSAPP",
         type="primary",
@@ -768,8 +775,6 @@ if st.session_state.tela_ativa == "cotacao":
                 "❌ Preencha o CEP/Cidade e adicione produtos para calcular."
             )
         else:
-
-            # BLOCO VISUAL DE DIMENSÕES E COMPARAÇÃO DE ESCALA
             st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
             st.markdown(
                 f'<div class="titulo-etapa">📐 Dimensões e Comparativo de'
@@ -845,7 +850,6 @@ if st.session_state.tela_ativa == "cotacao":
             opcoes_whatsapp = []
             cotacoes_api = []
 
-            # 1. COTAÇÃO FRENET (API)
             if cep_input:
                 cotacoes_api, status_frenet = cotar_frenet(
                     cep_input,
@@ -893,7 +897,6 @@ if st.session_state.tela_ativa == "cotacao":
                 else:
                     st.warning(f"⚠️ Diagnóstico API Frenet: {status_frenet}")
 
-            # 2. COTAÇÃO LOCAL (EXCEL) - FILTRO DE DUPLICIDADE APLICADO
             if not df_fretes_fixos.empty:
                 resultados_fixos = df_fretes_fixos[
                     (df_fretes_fixos["CIDADE"] == cidade_busca)
@@ -901,12 +904,10 @@ if st.session_state.tela_ativa == "cotacao":
                 ]
 
                 if not resultados_fixos.empty:
-                    # Nomes das transportadoras retornadas pela API Frenet
                     transportadoras_online = [
                         item["TRANSPORTADORA"].upper() for item in cotacoes_api
                     ]
 
-                    # Filtra para manter somente as transportadoras da planilha que NÃO retornaram na API
                     resultados_filtrados = []
                     for idx, row in resultados_fixos.iterrows():
                         nome_planilha = (
@@ -934,12 +935,9 @@ if st.session_state.tela_ativa == "cotacao":
                             ):
                                 print_prazo = f"{print_prazo} Dias"
 
-                            # --- TRATAMENTO ESPECIAL INTELIGENTE: BESSA + CARVALIMA ---
                             if "CARVALIMA" in nome_transp_raw:
-                                # 1. Taxa fixa Transbessa por volume
                                 taxa_transbessa = 30.0 * float(num_volumes)
 
-                                # 2. Faixas de preço Carvalima baseadas no peso calculado
                                 if peso_total_calculado <= 10.0:
                                     val_carvalima = 84.33
                                 elif peso_total_calculado <= 30.0:
@@ -952,12 +950,10 @@ if st.session_state.tela_ativa == "cotacao":
 
                                 total_bessa_carvalima = taxa_transbessa + val_carvalima
 
-                                # Formatação de valores
                                 val_total_fmt = f"{total_bessa_carvalima:.2f}".replace(".", ",")
                                 val_carvalima_fmt = f"{val_carvalima:.2f}".replace(".", ",")
                                 val_bessa_fmt = f"{taxa_transbessa:.2f}".replace(".", ",")
 
-                                # Detalhamento idêntico ao estilo da Jadlog
                                 html_detalhe_carvalima = (
                                     f'<br><span style="font-size:11px; color:#0284c7;">'
                                     f"🚚 Transbessa (Jaraguá ➔ Goiânia): R$ {val_bessa_fmt} ({num_volumes} vol. x R$ 30,00)<br>"
@@ -988,7 +984,6 @@ if st.session_state.tela_ativa == "cotacao":
                                     f"_(Transbessa R$ {val_bessa_fmt} + Carvalima R$ {val_carvalima_fmt})_\n"
                                 )
 
-                            # --- DEMAIS TRANSPORTADORAS DA PLANILHA ---
                             else:
                                 st.markdown(
                                     f"""
@@ -1011,7 +1006,6 @@ if st.session_state.tela_ativa == "cotacao":
                                     f"📞 Contato: {row['FONE']}\n"
                                 )
 
-            # WHATSAPP
             if opcoes_whatsapp:
                 st.markdown(
                     '<div class="bloco-etapa" style="border-top-color:'
@@ -1073,244 +1067,142 @@ if st.session_state.tela_ativa == "cotacao":
                 st.markdown("</div>", unsafe_allow_html=True)
 
 
-# --- EXIBIÇÃO DA TELA: RASTREAMENTO (MODELO INTEGRADO COM API J&T) ---
-elif st.session_state.tela_ativa == "rastreio":
-    st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="titulo-etapa">📦 PASSO ÚNICO: Gerar Rastreio para o'
-        " Cliente</div>",
-        unsafe_allow_html=True,
-    )
+# --- EXIBIÇÃO DA TELA: RASTREAMENTO DIRETO PARA CLIENTE OU USO INTERNO ---
+elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
 
-    col_nome_cli, col_transp, col_cod, col_doc = st.columns([1.2, 1.2, 1.2, 1])
+    # CASO O CLIENTE ACESSE DIRETO PELO LINK DA URL
+    if rastreio_param:
+        codigo_rastreio = rastreio_param
+        transportadora_rastreio = transp_param
 
-    with col_nome_cli:
-        nome_cliente_rastreio = st.text_input(
-            "Nome do Cliente:",
-            placeholder="Ex: Maria Silva",
-            key="campo_nome_cliente_estavel",
-        ).strip()
+        st.markdown(f"""
+        <div class="bloco-etapa">
+            <h3 style="color: #1e3a8a; margin-top: 0;">📦 Rastreamento de Encomenda em Tempo Real</h3>
+            <p style="color: #64748b; margin-bottom: 0;">Acompanhe o status da sua entrega com a <b>Cia do Jeans</b>.</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-    with col_transp:
-        transportadora_rastreio = st.selectbox(
-            "Selecione a Transportadora:",
-            ["Correios", "J&T Express", "Braspress", "Azul Cargo", "Jadlog"],
-            key="box_selecao_transportadora_estavel",
-        )
-
-    with col_cod:
-        codigo_rastreio = st.text_input(
-            "Código de Rastreio / Nº Nota Fiscal:",
-            placeholder="Ex: BR123456789X / 4552",
-            key="campo_codigo_estavel",
-        ).strip()
-
-    with col_doc:
-        doc_cliente = st.text_input(
-            "CPF ou CNPJ do Cliente (Se J&T/Braspress):",
-            placeholder="Apenas números",
-            key="campo_doc_estavel",
-        ).strip()
-
-    btn_gerar_mensagem = st.button(
-        "⚙️ GERAR INFORMAÇÕES DE RASTREAMENTO",
-        type="primary",
-        use_container_width=True,
-        key="action_processar_rastreio",
-    )
-
-    if btn_gerar_mensagem:
-        if not codigo_rastreio:
-            st.error(
-                "⚠️ Por favor, digite o código de rastreio ou número do"
-                " documento antes de gerar."
-            )
-            st.session_state["rastreio_gerado"] = False
-        else:
-            st.session_state["rastreio_gerado"] = True
-
-    if st.session_state["rastreio_gerado"] and codigo_rastreio:
-        link_rastreio_final = ""
-        mensagem_rastreio = ""
-
-        txt_saudacao = (
-            f"Olá, *{nome_cliente_rastreio}*!"
-            if nome_cliente_rastreio
-            else "Olá!"
-        )
-
-        if transportadora_rastreio == "Correios":
-            link_rastreio_final = f"https://rastreamento.correios.com.br/app/index.php?objetos={codigo_rastreio}"
-            mensagem_rastreio = (
-                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já foi"
-                " despachado! 🎉\n\n"
-                "🚚 *Transportadora:* Correios\n"
-                f"📦 *Código de Rastreio:* `{codigo_rastreio}`\n\n"
-                "🔗 *Clique no link abaixo para acompanhar seu envio:*\n"
-                f"{link_rastreio_final}"
-            )
-
-        elif transportadora_rastreio == "Jadlog":
-            link_rastreio_final = f"https://www.jadlog.com.br/siteInstitucional/tracking.jad?conteudo={codigo_rastreio}"
-            mensagem_rastreio = (
-                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já está a"
-                " caminho! 🎉\n\n"
-                "🚚 *Transportadora:* Jadlog\n"
-                f"📦 *Código de Rastreio:* `{codigo_rastreio}`\n\n"
-                "🔗 *Clique no link abaixo para acompanhar seu envio:*\n"
-                f"{link_rastreio_final}"
-            )
-
-        elif transportadora_rastreio == "J&T Express":
-            link_rastreio_final = (
-                "https://www.jtexpress.com.br/trajectoryQuery"
-            )
-            mensagem_rastreio = (
-                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já foi"
-                " despachado! 🎉\n\n"
-                "🚚 *Transportadora:* J&T Express\n"
-                f"📦 *Código de Rastreio:* `{codigo_rastreio}`\n\n"
-                "🔗 *Como rastrear:*\n"
-                f"1. Acesse o site: {link_rastreio_final}\n"
-                "2. Digite o seu código de rastreio acima ou o seu CPF/CNPJ."
-            )
-
-        elif transportadora_rastreio == "Braspress":
-            link_rastreio_final = "https://www.braspress.com.br/"
-            doc_info = f" (CNPJ/CPF: {doc_cliente})" if doc_cliente else ""
-            mensagem_rastreio = (
-                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já foi"
-                " coletado! 🎉\n\n"
-                "🚚 *Transportadora:* Braspress\n"
-                f"📄 *Número da Nota Fiscal:* `{codigo_rastreio}`{doc_info}\n\n"
-                "🔗 *Como rastrear:*\n"
-                f"1. Acesse o site: {link_rastreio_final}\n"
-                "2. No topo da página, clique em *'Rastreie sua Encomenda'*\n"
-                "3. Informe o número da NF acima e o seu CPF/CNPJ."
-            )
-
-        elif transportadora_rastreio == "Azul Cargo":
-            link_rastreio_final = f"https://www.azullogistica.com.br/Rastreio/Rastrear?awb={codigo_rastreio}"
-            mensagem_rastreio = (
-                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já está voando"
-                " até você! 🎉\n\n"
-                "🚚 *Transportadora:* Azul Cargo Express\n"
-                f"📦 *Código de Rastreio (AWB):* `{codigo_rastreio}`\n\n"
-                "🔗 *Clique no link abaixo para acompanhar seu envio:*\n"
-                f"{link_rastreio_final}"
-            )
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        texto_rastreio_editavel = st.text_area(
-            "Pré-visualização da Mensagem de Rastreio:",
-            value=mensagem_rastreio,
-            height=180,
-            key="txt_area_rastreio",
-        )
-        texto_rastreio_codificado = urllib.parse.quote(texto_rastreio_editavel)
-        link_whatsapp_rastreio = f"https://api.whatsapp.com/send?text={texto_rastreio_codificado}"
-
+    # USO INTERNO (DASHBOARD DO VENDEDOR)
+    else:
+        st.markdown('<div class="bloco-etapa">', unsafe_allow_html=True)
         st.markdown(
-            f"""
-            <a href="{link_whatsapp_rastreio}" target="_blank" style="text-decoration: none;">
-                <div style="background: linear-gradient(135deg, #25d366 0%, #16a34a 100%); color: white; text-align: center; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 10px 25px -5px rgba(37,211,102,0.4); cursor: pointer; margin-top: 5px; margin-bottom: 12px; font-family: sans-serif; transition: all 0.2s ease;">
-                    📲 ENVIAR MENSAGEM DE RASTREIO PARA O WHATSAPP
-                </div>
-            </a>
-        """,
+            '<div class="titulo-etapa">📦 PASSO ÚNICO: Gerar Rastreio para o Cliente</div>',
             unsafe_allow_html=True,
         )
 
-        if st.button(
-            "📋 COPIAR TEXTO DO RASTREIO", key="btn_pure_copy_rastreio"
-        ):
-            texto_rastreio_js_safe = (
-                texto_rastreio_editavel.replace("\\", "\\\\")
-                .replace("`", "\\`")
-                .replace("$", "\\$")
-                .replace("\n", "\\n")
-            )
-            st.components.v1.html(
-                f"""
-                <script>
-                parent.navigator.clipboard.writeText(`{texto_rastreio_js_safe}`);
-                alert("Rastreio copiado com sucesso! 🎉");
-                </script>
-            """,
-                height=0,
+        col_nome_cli, col_transp, col_cod, col_doc = st.columns([1.2, 1.2, 1.2, 1])
+
+        with col_nome_cli:
+            nome_cliente_rastreio = st.text_input(
+                "Nome do Cliente:",
+                placeholder="Ex: Maria Silva",
+                key="campo_nome_cliente_estavel",
+            ).strip()
+
+        with col_transp:
+            transportadora_rastreio = st.selectbox(
+                "Selecione a Transportadora:",
+                ["J&T Express", "Correios", "Braspress", "Azul Cargo", "Jadlog"],
+                key="box_selecao_transportadora_estavel",
             )
 
-        st.markdown("---")
-        btn_abrir_painel = st.checkbox(
-            "🖥️ QUER VISUALIZAR O RASTREIO DENTRO DO SITE?",
-            value=False,
-            key="check_painel_integrated",
+        with col_cod:
+            codigo_rastreio = st.text_input(
+                "Código de Rastreio / Nº Nota Fiscal:",
+                placeholder="Ex: BR123456789X / 4552",
+                key="campo_codigo_estavel",
+            ).strip()
+
+        with col_doc:
+            doc_cliente = st.text_input(
+                "CPF ou CNPJ do Cliente (Se J&T/Braspress):",
+                placeholder="Apenas números",
+                key="campo_doc_estavel",
+            ).strip()
+
+        btn_gerar_mensagem = st.button(
+            "⚙️ GERAR INFORMAÇÕES DE RASTREAMENTO",
+            type="primary",
+            use_container_width=True,
+            key="action_processar_rastreio",
         )
 
-        if btn_abrir_painel:
-            st.markdown(
-                "### 🖥️ Painel de Rastreio em Tempo Real -"
-                f" {transportadora_rastreio}"
-            )
-
-            # RASTREIO DIRETO J&T EXPRESS VIA REQUISIÇÃO BACKEND
-            if transportadora_rastreio == "J&T Express":
-                with st.spinner("🔍 Buscando dados de rastreamento na J&T Express..."):
-                    try:
-                        url_jt = f"https://rastreadordeencomendas.com/result.php?idcod={codigo_rastreio}"
-                        resp_jt = requests.get(url_jt, headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
-                        
-                        if resp_jt.status_code == 200 and "<table" in resp_jt.text:
-                            # Extrai a tabela com as movimentações da encomenda
-                            inicio_tab = resp_jt.text.find("<table")
-                            fim_tab = resp_jt.text.find("</table>") + 8
-                            tabela_html = resp_jt.text[inicio_tab:fim_tab]
-
-                            st.html(f"""
-                            <div style="background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif;">
-                                <h4 style="margin-top: 0; color: #1e3a8a;">📦 Histórico da Encomenda ({codigo_rastreio})</h4>
-                                <style>
-                                    table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
-                                    th, td {{ padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }}
-                                    td strong {{ color: #0f172a; }}
-                                    td p {{ margin: 2px 0; color: #475569; }}
-                                </style>
-                                {tabela_html}
-                            </div>
-                            """)
-                        else:
-                            st.info("ℹ️ Não foram encontradas movimentações recentes para este código ou o serviço está temporariamente indisponível.")
-                            st.markdown(f"👉 **[CLIQUE AQUI PARA ABRIR O SITE DA J&T EXPRESS]({link_rastreio_final})**")
-                    except Exception as err:
-                        st.error(f"⚠️ Erro ao consultar rastreio online: {err}")
-                        st.markdown(f"👉 **[CLIQUE AQUI PARA ABRIR O SITE DA J&T EXPRESS]({link_rastreio_final})**")
-
-            # CORREIOS CONTINUA DIRECIONANDO DEVIDO AO BLOQUEIO
-            elif transportadora_rastreio == "Correios":
-                st.warning(
-                    f"⚠️ A **{transportadora_rastreio}** bloqueia a consulta direta dentro de janelas integradas por motivos de segurança do servidor deles."
-                )
-                st.markdown(
-                    f"👉 **[CLIQUE AQUI PARA ABRIR O SITE DA {transportadora_rastreio.upper()} EM NOVA ABA]({link_rastreio_final})**"
-                )
+        if btn_gerar_mensagem:
+            if not codigo_rastreio:
+                st.error("⚠️ Por favor, digite o código de rastreio antes de gerar.")
+                st.session_state["rastreio_gerado"] = False
             else:
-                st.markdown(
-                    "👉 _Caso a janela abaixo fique em branco devido à segurança da"
-                    " transportadora, [CLIQUE AQUI PARA ABRIR EM NOVA"
-                    f" ABA]({link_rastreio_final})._"
-                )
+                st.session_state["rastreio_gerado"] = True
 
-                st.components.v1.html(
-                    f"""
-                    <iframe src="{link_rastreio_final}" width="100%" height="600px" style="border: 2px solid #e2e8f0; border-radius: 12px; background-color: white;"></iframe>
-                    """,
-                    height=620,
-                )
-    else:
-        st.info(
-            "✍️ Digite o código de rastreio acima para gerar o link de envio"
-            " imediatamente."
-        )
+    # EXIBIÇÃO DO RASTREAMENTO
+    if (st.session_state.get("rastreio_gerado", False) and codigo_rastreio) or rastreio_param:
+
+        # SE FOR VENDEDOR, GERA A MENSAGEM DO WHATSAPP COM O LINK DIRETO PERSONALIZADO
+        if not rastreio_param:
+            link_rastreio_personalizado = f"https://sua-calculadora.streamlit.app/?rastreio={codigo_rastreio}&transp={urllib.parse.quote(transportadora_rastreio)}"
+
+            txt_saudacao = f"Olá, *{nome_cliente_rastreio}*!" if nome_cliente_rastreio else "Olá!"
+            
+            mensagem_rastreio = (
+                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já foi despachado! 🎉\n\n"
+                f"🚚 *Transportadora:* {transportadora_rastreio}\n"
+                f"📦 *Código de Rastreio:* `{codigo_rastreio}`\n\n"
+                "🔗 *Clique no link abaixo para acompanhar seu envio em tempo real:*\n"
+                f"{link_rastreio_personalizado}"
+            )
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            texto_rastreio_editavel = st.text_area(
+                "Pré-visualização da Mensagem de Rastreio:",
+                value=mensagem_rastreio,
+                height=180,
+                key="txt_area_rastreio",
+            )
+            texto_rastreio_codificado = urllib.parse.quote(texto_rastreio_editavel)
+            link_whatsapp_rastreio = f"https://api.whatsapp.com/send?text={texto_rastreio_codificado}"
+
+            st.markdown(
+                f"""
+                <a href="{link_whatsapp_rastreio}" target="_blank" style="text-decoration: none;">
+                    <div style="background: linear-gradient(135deg, #25d366 0%, #16a34a 100%); color: white; text-align: center; padding: 16px; border-radius: 12px; font-weight: 700; font-size: 16px; margin-bottom: 12px; font-family: sans-serif;">
+                        📲 ENVIAR MENSAGEM DE RASTREIO PARA O WHATSAPP
+                    </div>
+                </a>
+            """,
+                unsafe_allow_html=True,
+            )
+            st.markdown("---")
+
+        # 🖥️ PAINEL RASTREADOR PERSONALIZADO UNIVERSAL
+        st.markdown(f"### 🚚 Histórico de Entrega em Tempo Real - {transportadora_rastreio}")
+
+        with st.spinner(f"🔍 Buscando dados de rastreamento na {transportadora_rastreio}..."):
+            try:
+                # REQUISIÇÃO UNIVERSAL VIA ENGINE DE CONSULTA
+                url_consulta = f"https://rastreadordeencomendas.com/result.php?idcod={codigo_rastreio}"
+                resp = requests.get(url_consulta, headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
+                
+                if resp.status_code == 200 and "<table" in resp.text:
+                    inicio_tab = resp.text.find("<table")
+                    fim_tab = resp.text.find("</table>") + 8
+                    tabela_html = resp.text[inicio_tab:fim_tab]
+
+                    st.html(f"""
+                    <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif;">
+                        <h4 style="margin-top: 0; color: #1e3a8a;">📦 Status da Encomenda: {codigo_rastreio}</h4>
+                        <style>
+                            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
+                            th, td {{ padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }}
+                            td strong {{ color: #0f172a; display: block; margin-bottom: 2px; }}
+                            td p {{ margin: 2px 0; color: #475569; font-size: 13px; }}
+                        </style>
+                        {tabela_html}
+                    </div>
+                    """)
+                else:
+                    # FALLBACK SE AINDA NÃO HOUVER MOVIMENTAÇÃO
+                    st.info(f"ℹ️ O pedido **{codigo_rastreio}** deu entrada na **{transportadora_rastreio}** e as atualizações do sistema estarão disponíveis em breve.")
+            except Exception as err:
+                st.error(f"⚠️ Não foi possível carregar as informações no momento. Tente novamente mais tarde.")
 
     st.markdown("</div>", unsafe_allow_html=True)
