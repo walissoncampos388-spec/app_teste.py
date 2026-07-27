@@ -931,9 +931,7 @@ if st.session_state.tela_ativa == "cotacao" and not rastreio_param:
                             resultados_filtrados.append(row)
 
                     if resultados_filtrados:
-                        st.markdown(
-                            "### 🏁 Outras Transportadoras"
-                        )
+                        st.markdown("### 🏁 Outras Transportadoras")
                         for row in resultados_filtrados:
                             nome_transp_raw = str(row["TRANSPORTADORA"]).upper().strip()
                             print_prazo = str(row["PRAZO"])
@@ -1263,19 +1261,23 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA AZUL CARGO (EXTRATOR DINÂMICO REAL VIA AZUL API/JSON)
+        # TRATAMENTO ESPECIAL PARA AZUL CARGO (EXTRATOR DINÂMICO REAL VIA API)
         elif "azul" in transportadora_rastreio.lower():
-            awb_codigo = "".join(filter(str.isdigit, codigo_rastreio))
-            if not awb_codigo:
-                awb_codigo = codigo_rastreio
+            digitos_apenas = "".join(filter(str.isdigit, codigo_rastreio))
+            
+            if len(digitos_apenas) >= 8:
+                awb_codigo = digitos_apenas[-8:]
+            else:
+                awb_codigo = digitos_apenas if digitos_apenas else codigo_rastreio
 
             url_azul_site = f"https://www.azullogistica.com.br/Rastreio/Rastrear?awb={awb_codigo}"
             url_azul_api = f"https://www.azullogistica.com.br/api/Rastreio/ObterRastreioAwb?awb={awb_codigo}"
 
             headers_azul = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
                 "Accept": "application/json, text/plain, */*",
-                "Referer": url_azul_site
+                "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Referer": f"https://www.azullogistica.com.br/Rastreio/Rastrear?awb={awb_codigo}"
             }
 
             status_azul = None
@@ -1286,16 +1288,16 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
 
             with st.spinner(f"🔍 Consultando AWB {awb_codigo} em tempo real na Azul Cargo..."):
                 try:
-                    res_api = requests.get(url_azul_api, headers=headers_azul, timeout=7)
+                    res_api = requests.get(url_azul_api, headers=headers_azul, timeout=8)
                     if res_api.status_code == 200:
                         data = res_api.json()
                         if isinstance(data, dict):
                             status_azul = data.get("ultimoStatus") or data.get("status") or data.get("situacao")
-                            previsao_azul = data.get("previsaoEntrega") or data.get("dataEntrega")
+                            previsao_azul = data.get("previsaoEntrega") or data.get("dataEntrega") or data.get("dataPrevisao")
                             tipo_entrega_azul = data.get("tipoEntrega") or data.get("modalidade") or "Retirada"
                             
-                            origem = data.get("origem") or data.get("siglaOrigem")
-                            destino = data.get("destino") or data.get("siglaDestino")
+                            origem = data.get("origem") or data.get("siglaOrigem") or data.get("nomeOrigem")
+                            destino = data.get("destino") or data.get("siglaDestino") or data.get("nomeDestino")
                             if origem and destino:
                                 origem_destino_azul = f"{origem} ➔ {destino}"
 
@@ -1311,14 +1313,12 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 except Exception:
                     pass
 
-            # Caso a API JSON não responda diretamente, tenta varrer o HTML retornado
             if not status_azul or not historico_azul:
                 try:
-                    res_html = requests.get(url_azul_site, headers=headers_azul, timeout=7)
+                    res_html = requests.get(url_azul_site, headers=headers_azul, timeout=8)
                     if res_html.status_code == 200:
                         text_html = res_html.text
                         
-                        # Varrer eventos da timeline
                         ocorrencias = re.findall(
                             r'(\d{2}\s*de\s*[a-z]+\s*-\s*\d{2}:\d{2})\s*([^\n<]+)',
                             text_html, re.IGNORECASE
@@ -1337,24 +1337,22 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 except Exception:
                     pass
 
-            # Valores padrão de renderização caso a busca não retorne dados válidos
             if not status_azul:
-                status_azul = "Aguardando atualização"
+                status_azul = "Consultar no Portal"
             if not previsao_azul:
-                previsao_azul = "Em processamento"
+                previsao_azul = "Verificar na Azul"
             if not origem_destino_azul:
-                origem_destino_azul = "Unidade de Origem ➔ Destino"
+                origem_destino_azul = "Origem ➔ Destino"
             
             if not historico_azul:
                 historico_azul = [
-                    f"<b>{codigo_rastreio}:</b> AWB registrado no sistema da Azul Cargo Express.",
-                    "<b>Acompanhamento:</b> As movimentações serão exibidas em tempo real conforme atualização da transportadora."
+                    f"<b>AWB {awb_codigo}:</b> Código registrado no sistema da Azul Cargo Express.",
+                    "<b>Acompanhamento:</b> Para visualizar a linha do tempo detalhada, clique no botão azul abaixo."
                 ]
 
             html_historico_azul = "".join([f'<li style="margin-bottom: 8px; color: #334155;">{h}</li>' for h in historico_azul])
             cor_status = "#16a34a" if "entreg" in status_azul.lower() else "#1e3a8a"
 
-            # RENDERIZAÇÃO LIMPA E DINÂMICA DA AZUL CARGO
             st.html(f"""
             <div style="background: #ffffff; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
                 <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 14px; margin-bottom: 16px;">
