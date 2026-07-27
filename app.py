@@ -1271,7 +1271,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA AZUL CARGO (NATIVO SEM TELA CINZA)
+        # TRATAMENTO ESPECIAL PARA AZUL CARGO
         elif "azul" in transportadora_rastreio.lower():
             awb_codigo = "".join(filter(str.isdigit, codigo_rastreio))
             if len(awb_codigo) > 8:
@@ -1318,6 +1318,56 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 <a href="{url_azul_site}" target="_blank" style="text-decoration: none;">
                     <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; display: inline-block; padding: 16px 32px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 12px rgba(37,99,235,0.2);">
                         🔗 CONSULTAR NO PORTAL AZUL LOGÍSTICA
+                    </div>
+                </a>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # TRATAMENTO ESPECIAL PARA BRASPRESS
+        elif "braspress" in transportadora_rastreio.lower():
+            cod_braspress = "".join(filter(str.isdigit, codigo_rastreio))
+            if not cod_braspress:
+                cod_braspress = codigo_rastreio
+
+            url_braspress_site = "https://www.braspress.com/atendimento/rastreie-sua-carga/"
+
+            st.markdown(f"""
+            <div style="background: #ffffff; padding: 28px; border-radius: 16px; border: 1px solid #e2e8f0; text-align: center; font-family: 'Plus Jakarta Sans', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                <div style="font-size: 44px; margin-bottom: 10px;">🚚</div>
+                <h4 style="margin: 0 0 8px 0; color: #1e3a8a; font-size: 20px;">Rastreamento Braspress Transportes</h4>
+                <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">
+                    A consulta da <b>Braspress</b> é realizada no portal oficial informando o número da Nota Fiscal ou Conhecimento (CT-e).
+                </p>
+                <div style="background-color: #f1f5f9; padding: 14px 24px; border-radius: 12px; display: inline-block; margin-bottom: 12px; border: 1px dashed #cbd5e1;">
+                    <span style="font-size: 14px; color: #475569;">Nº Nota Fiscal / Documento:</span> 
+                    <strong style="font-size: 18px; color: #0f172a; margin-left: 6px;">{cod_braspress}</strong>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            col_btn1, col_btn2, col_btn3 = st.columns([1, 1.5, 1])
+            with col_btn2:
+                btn_copiar_braspress = st.button("📋 COPIAR NÚMERO DA NOTA FISCAL", key="btn_copiar_braspress_code", use_container_width=True)
+                if btn_copiar_braspress:
+                    st.components.v1.html(
+                        f"""
+                        <script>
+                        parent.navigator.clipboard.writeText("{cod_braspress}");
+                        alert("Número {cod_braspress} copiado com sucesso! 🎉");
+                        </script>
+                        """,
+                        height=0,
+                    )
+                    st.success(f"✅ Número {cod_braspress} copiado com sucesso!")
+
+            st.markdown(f"""
+            <div style="text-align: center; font-family: 'Plus Jakarta Sans', sans-serif; margin-top: 15px;">
+                <p style="color: #1e3a8a; font-weight: 600; font-size: 15px; margin-bottom: 12px;">
+                    👇 Clique no botão abaixo para acessar o rastreamento no site oficial da Braspress:
+                </p>
+                <a href="{url_braspress_site}" target="_blank" style="text-decoration: none;">
+                    <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; display: inline-block; padding: 16px 32px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 12px rgba(37,99,235,0.2);">
+                        🔗 CONSULTAR NO PORTAL BRASPRESS
                     </div>
                 </a>
             </div>
