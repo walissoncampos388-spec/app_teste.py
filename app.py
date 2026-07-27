@@ -3,7 +3,7 @@ import math
 import urllib.parse
 import pandas as pd
 import requests
-import Streamlit as st
+import streamlit as st
 
 # Configurações do Token e CEPs de Origem
 FRENET_TOKEN = st.secrets.get("FRENET_TOKEN", "")
