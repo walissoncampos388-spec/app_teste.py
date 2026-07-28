@@ -1612,7 +1612,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA BRASPRESS (PARSER AJUSTADO PARA CAPTURAR DATA, HORA E DESCRIÇÃO)
+        # TRATAMENTO ESPECIAL PARA BRASPRESS (PARSER AJUSTADO E LIMPO)
         elif "braspress" in transportadora_rastreio.lower():
             cod_braspress = "".join(filter(str.isdigit, codigo_rastreio))
             if not cod_braspress:
@@ -1649,26 +1649,24 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                         if match_prev:
                             previsao_ext = match_prev.group(1)
 
-                        # Mapeamento de todas as linhas de tabela no HTML da Braspress
-                        linhas_tr = re.findall(r'<tr[^>]*>(.*?)</tr>', html_text, re.DOTALL | re.IGNORECASE)
-                        for tr in linhas_tr:
-                            tds = re.findall(r'<td[^>]*>(.*?)</td>', tr, re.DOTALL | re.IGNORECASE)
-                            if len(tds) >= 2:
-                                # Limpeza de cada célula descartando tags HTML extras
-                                cols_limpas = [re.sub(r'<[^>]+>', ' ', td).strip() for td in tds]
-                                cols_limpas = [re.sub(r'\s+', ' ', c) for c in cols_limpas if c]
-                                
-                                if cols_limpas:
-                                    primeira_col = cols_limpas[0]
-                                    # Verifica se a primeira coluna possui formato de Data/Hora
-                                    if re.search(r'\d{2}/\d{2}/\d{4}', primeira_col):
-                                        detalhes_evento = " - ".join(cols_limpas[1:]) if len(cols_limpas) > 1 else status_ext
-                                        historico_ocorrencias.append(f"<b>{primeira_col}</b> - {detalhes_evento}")
+                        # Extração limpa dos eventos reais (Filtrando scripts e textos indesejados)
+                        padrao_eventos = re.findall(r'(\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2})\s+([A-ZÀ-Ÿ\s\-\/\(\)]+)', html_text)
+                        
+                        termos_bloqueados = ["STATUSTRACKINGVO", "WINDOW", "LOCATION", "PATHNAME", "CONSOLE.LOG", "ADDCLASS", "RECEBEDOR", "MORE-DETAILS", "INSIDE-LOGIN"]
+
+                        for dt_hora, desc in padrao_eventos:
+                            desc_limpa = desc.strip()
+                            # Filtra frases muito curtas ou linhas com código JS/Tabela
+                            if len(desc_limpa) > 3 and not any(term in desc_limpa.upper() for term in termos_bloqueados):
+                                # Evita duplicados
+                                item_fmt = f"<b>{dt_hora}</b> - {desc_limpa}"
+                                if item_fmt not in historico_ocorrencias:
+                                    historico_ocorrencias.append(item_fmt)
 
                 except Exception:
                     pass
 
-                # Fallback secundário para raspar caso a tabela principal não estivesse visível
+                # Fallback secundário via scraping caso o primeiro retorne vazio
                 if not historico_ocorrencias:
                     try:
                         resp_alt = requests.get(f"https://rastreadordeencomendas.com/result.php?idcod={cod_braspress}", headers={"User-Agent": "Mozilla/5.0"}, timeout=6)
@@ -1679,7 +1677,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                                 if len(colunas) >= 2:
                                     txt_data = re.sub(r'<[^>]+>', '', colunas[0]).strip()
                                     txt_desc = re.sub(r'<[^>]+>', '', colunas[1]).strip()
-                                    if txt_data and txt_desc:
+                                    if txt_data and txt_desc and not any(term in txt_desc.upper() for term in ["SCRIPT", "FUNCTION", "VO"]):
                                         historico_ocorrencias.append(f"<b>{txt_data}</b> - {txt_desc}")
                     except Exception:
                         pass
@@ -1740,8 +1738,6 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 </a>
             </div>
             """, unsafe_allow_html=True)
-
-        else:
             with st.spinner(f"🔍 Buscando dados de rastreamento na {transportadora_rastreio}..."):
                 try:
                     url_consulta = f"https://rastreadordeencomendas.com/result.php?idcod={codigo_rastreio}"
