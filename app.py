@@ -1261,7 +1261,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-                # TRATAMENTO ESPECIAL PARA AZUL CARGO (EXTRATOR OTIMIZADO)
+                        # TRATAMENTO ESPECIAL PARA AZUL CARGO (INTEGRAÇÃO DIRETA VIA API JSON)
         elif "azul" in transportadora_rastreio.lower():
             digitos_apenas = "".join(filter(str.isdigit, codigo_rastreio))
             
@@ -1271,69 +1271,70 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 awb_codigo = digitos_apenas if digitos_apenas else codigo_rastreio
 
             url_azul_site = f"https://www.azullogistica.com.br/Rastreio/Rastrear?awb={awb_codigo}"
-            
-            # API alternativa do Rastreio / Correios Brasil para Azul Cargo
-            url_azul_api_alt = f"https://api.melhorrastreio.com.br/v1/trackings/AZUL/{awb_codigo}"
+            url_azul_api = f"https://www.azullogistica.com.br/api/Rastreio/ObterRastreioAwb?awb={awb_codigo}"
 
             headers_azul = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                "Accept": "application/json",
+                "Accept": "application/json, text/plain, */*",
+                "Referer": url_azul_site,
+                "Origin": "https://www.azullogistica.com.br"
             }
 
             status_azul = None
             previsao_azul = None
             tipo_entrega_azul = "Aéreo / Expresso"
-            origem_destino_azul = "Goiânia (GYN) ➔ Destino"
+            origem_destino_azul = None
             historico_azul = []
 
             with st.spinner(f"🔍 Consultando AWB {awb_codigo} na Azul Cargo Express..."):
-                # Tenta requisição via API de Rastreio Hub
                 try:
-                    res_api = requests.get(url_azul_api_alt, headers=headers_azul, timeout=6)
+                    res_api = requests.get(url_azul_api, headers=headers_azul, timeout=8)
                     if res_api.status_code == 200:
                         data = res_api.json()
-                        events = data.get("data", {}).get("events", [])
-                        if events:
-                            status_azul = events[0].get("status", "Em Trânsito")
-                            for ev in events:
-                                d_h = ev.get("created_at", "")
-                                desc = ev.get("status", "")
-                                loc = ev.get("location", "")
-                                txt_loc = f" ({loc})" if loc else ""
-                                historico_azul.append(f"<b>{d_h}</b> - {desc}{txt_loc}")
-                except Exception:
+                        
+                        # Extrai os dados se o retorno for um dicionário Válido
+                        if isinstance(data, dict):
+                            status_azul = data.get("ultimoStatus") or data.get("situacao") or data.get("status")
+                            previsao_azul = data.get("previsaoEntrega") or data.get("dataPrevisao") or data.get("dataEntrega")
+                            tipo_entrega_azul = data.get("tipoEntrega") or data.get("modalidade") or "Aéreo / Expresso"
+                            
+                            origem = data.get("origem") or data.get("siglaOrigem") or data.get("nomeOrigem")
+                            destino = data.get("destino") or data.get("siglaDestino") or data.get("nomeDestino")
+                            if origem and destino:
+                                origem_destino_azul = f"{origem} ➔ {destino}"
+
+                            # Pega a lista de eventos/histórico
+                            historico_raw = data.get("historico") or data.get("eventos") or data.get("rastreamento") or []
+                            
+                            # Se a API retornar uma lista dentro do objeto
+                            if isinstance(historico_raw, list):
+                                for item in historico_raw:
+                                    if isinstance(item, dict):
+                                        d_h = item.get("dataHora") or item.get("data") or ""
+                                        desc = item.get("descricao") or item.get("status") or item.get("mensagem") or ""
+                                        local = item.get("unidade") or item.get("local") or item.get("unidadeNome") or ""
+                                        rec = item.get("recebedor") or item.get("nomeRecebedor") or ""
+                                        
+                                        txt_recebedor = f" (Recebido por: {rec})" if rec else ""
+                                        txt_local = f" ({local})" if local else ""
+                                        
+                                        if desc:
+                                            historico_azul.append(f"<b>{d_h}</b> - {desc}{txt_local}{txt_recebedor}")
+                except Exception as e:
                     pass
 
-                # Fallback de tentativas de scraper do portal Azul
-                if not status_azul or not historico_azul:
-                    try:
-                        res_html = requests.get(url_azul_site, headers=headers_azul, timeout=6)
-                        if res_html.status_code == 200:
-                            text_html = res_html.text
-                            ocorrencias = re.findall(
-                                r'(\d{2}/\d{2}/\d{4}\s*\d{2}:\d{2})\s*-\s*([^\n<]+)',
-                                text_html, re.IGNORECASE
-                            )
-                            if ocorrencias:
-                                historico_azul = [f"<b>{dh.strip()}</b> - {desc.strip()}" for dh, desc in ocorrencias]
-                                status_azul = ocorrencias[0][1].strip()
-
-                            match_prev = re.search(r'Previsão\s*:\s*(\d{2}/\d{2}/\d{4})', text_html, re.IGNORECASE)
-                            if match_prev:
-                                previsao_azul = match_prev.group(1)
-                    except Exception:
-                        pass
-
-            # Preenchimento de segurança caso a API da Azul bloqueie o servidor do Streamlit
+            # Preenchimento de segurança apenas se a API da Azul estiver fora do ar
             if not status_azul:
-                status_azul = "Objeto Postado / Em Trânsito"
+                status_azul = "Consultar no Portal Azul"
             if not previsao_azul:
-                previsao_azul = "Consulte no Portal Azul"
+                previsao_azul = "Consulte no Portal"
+            if not origem_destino_azul:
+                origem_destino_azul = "Goiânia (GYN) ➔ Destino"
             
             if not historico_azul:
                 historico_azul = [
-                    f"<b>AWB {awb_codigo}:</b> Encomenda registrada e despachada via Azul Cargo Express.",
-                    "<b>Acompanhamento:</b> Clique no botão abaixo para abrir a movimentação detalhada direto na plataforma da Azul."
+                    f"<b>AWB {awb_codigo}:</b> Código localizado no sistema da Azul.",
+                    "<b>Detalhes:</b> Clique no botão abaixo para visualizar diretamente na Azul Cargo."
                 ]
 
             html_historico_azul = "".join([f'<li style="margin-bottom: 8px; color: #334155;">{h}</li>' for h in historico_azul])
@@ -1347,7 +1348,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                         <h4 style="margin: 2px 0 0 0; color: #0f172a; font-size: 18px;">✈️ Azul Cargo Express</h4>
                     </div>
                     <div style="background-color: #eff6ff; padding: 6px 14px; border-radius: 8px; border: 1px solid #dbeafe;">
-                        <span style="font-size: 13px; color: #1e40af; font-weight: 600;">AWB: {awb_codigo}</span>
+                        <span style="font-size: 13px; color: #1e40af; font-weight: 600;">AWB / Minuta: {awb_codigo}</span>
                     </div>
                 </div>
                 
@@ -1357,7 +1358,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                         <strong style="font-size: 15px; color: {cor_status};">{status_azul}</strong>
                     </div>
                     <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #f1f5f9;">
-                        <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Previsão / Data</span>
+                        <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Previsão de Entrega</span>
                         <strong style="font-size: 15px; color: #0f172a;">{previsao_azul}</strong>
                     </div>
                     <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #f1f5f9;">
@@ -1383,7 +1384,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             st.markdown(f"""
             <div style="text-align: center; font-family: 'Plus Jakarta Sans', sans-serif; margin-top: 15px;">
                 <p style="color: #1e3a8a; font-weight: 600; font-size: 15px; margin-bottom: 12px;">
-                    👇 Clique no botão abaixo para conferir o rastreamento no portal da Azul Cargo:
+                    👇 Clique no botão abaixo para conferir o rastreamento no portal oficial da Azul Cargo:
                 </p>
                 <a href="{url_azul_site}" target="_blank" style="text-decoration: none;">
                     <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; display: inline-block; padding: 16px 32px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 12px rgba(37,99,235,0.2);">
