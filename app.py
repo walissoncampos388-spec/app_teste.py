@@ -1261,12 +1261,12 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA CORREIOS (SOMENTE A LINHA DO TEMPO ORIGINAL)
+        # TRATAMENTO ESPECIAL PARA CORREIOS (PADRONIZADO EXATO IGUAL DA FOTO)
         elif "correio" in transportadora_rastreio.lower():
             cod_correios = codigo_rastreio.strip().upper()
             url_correios_site = f"https://rastreamento.correios.com.br/app/index.php?codigo={cod_correios}"
 
-            status_correios = "Em Trânsito"
+            status_correios = "Objeto Postado"
             tipo_entrega_correios = "PAC" if cod_correios.startswith("P") or cod_correios.startswith("O") or cod_correios.startswith("Q") else ("SEDEX" if cod_correios.startswith("S") or cod_correios.startswith("A") else "PAC / SEDEX")
             historico_correios = []
 
@@ -1278,23 +1278,51 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                         dados = res.json()
                         eventos = dados.get("eventos", [])
                         if eventos:
+                            primeiro_ev = eventos[0]
+                            st_nome = primeiro_ev.get("status", "")
+                            st_local = primeiro_ev.get("local", "")
+                            st_data = primeiro_ev.get("data", "")
+                            st_hora = primeiro_ev.get("hora", "")
+                            
+                            sub_ev_str = ""
+                            if primeiro_ev.get("subStatus"):
+                                sub_ev_str = f" - {primeiro_ev.get('subStatus')[0]}"
+                                
+                            status_correios = f"{st_nome}{sub_ev_str} ({st_data} às {st_hora})"
+                            
                             for ev in eventos:
-                                data_e = ev.get("data", "")
-                                hora_e = ev.get("hora", "")
-                                st_e = ev.get("status", "")
-                                local_e = ev.get("local", "")
-                                sub_e = f" - {ev.get('subStatus')[0]}" if ev.get("subStatus") else ""
-                                txt_loc = f" [{local_e}]" if local_e else ""
-                                historico_correios.append(f"<b>{data_e} {hora_e}</b> — {st_e}{sub_e}{txt_loc}")
-
-                            status_correios = historico_correios[0].replace("<b>", "").replace("</b>", "")
+                                d_ev = ev.get("data", "")
+                                h_ev = ev.get("hora", "")
+                                s_ev = ev.get("status", "")
+                                l_ev = ev.get("local", "")
+                                sub_txt = f" - {ev.get('subStatus')[0]}" if ev.get("subStatus") else ""
+                                loc_txt = f" [{l_ev}]" if l_ev else ""
+                                historico_correios.append(f"<b>{d_ev} {h_ev}</b>: {s_ev}{sub_txt}{loc_txt}")
                 except Exception:
                     pass
 
+                # Fallback via scraping caso a API não retorne eventos no momento
+                if not historico_correios:
+                    try:
+                        resp_alt = requests.get(f"https://rastreadordeencomendas.com/result.php?idcod={cod_correios}", headers={"User-Agent": "Mozilla/5.0"}, timeout=6)
+                        if resp_alt.status_code == 200 and "<tr" in resp_alt.text:
+                            linhas_tr = re.findall(r'<tr[^>]*>(.*?)</tr>', resp_alt.text, re.DOTALL)
+                            for tr in linhas_tr:
+                                colunas = re.findall(r'<td[^>]*>(.*?)</td>', tr, re.DOTALL)
+                                if len(colunas) >= 2:
+                                    txt_data = re.sub(r'<[^>]+>', '', colunas[0]).strip()
+                                    txt_desc = re.sub(r'<[^>]+>', '', colunas[1]).strip()
+                                    if txt_data and txt_desc:
+                                        historico_correios.append(f"<b>{txt_data}</b>: {txt_desc}")
+                            if historico_correios:
+                                status_correios = historico_correios[0].replace('<b>', '').replace('</b>', '')
+                    except Exception:
+                        pass
+
             if not historico_correios:
                 historico_correios = [
-                    f"<b>{cod_correios}:</b> Pedido registrado e postado nos Correios.",
-                    "<b>Status:</b> Acompanhe as movimentações no portal oficial dos Correios."
+                    f"<b>{cod_correios}:</b> Pedido registrado no sistema dos Correios.",
+                    "<b>Status:</b> Acompanhe as movimentações completas no portal oficial."
                 ]
 
             html_historico_correios = "".join([f'<li style="margin-bottom: 8px; color: #334155;">{h}</li>' for h in historico_correios])
@@ -1314,7 +1342,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px;">
                     <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #f1f5f9;">
                         <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Status Atual</span>
-                        <strong style="font-size: 15px; color: #1e3a8a;">{status_correios}</strong>
+                        <strong style="font-size: 14px; color: #1e3a8a;">{status_correios}</strong>
                     </div>
                     <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #f1f5f9;">
                         <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Tipo de Entrega</span>
@@ -1344,7 +1372,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA JADLOG
+        # TRATAMENTO ESPECIAL PARA JADLOG (PADRONIZADO EXATO IGUAL DA FOTO)
         elif "jadlog" in transportadora_rastreio.lower():
             cod_jadlog = codigo_rastreio.strip()
             doc_limpo = "".join(filter(str.isdigit, st.session_state.get("campo_doc_estavel", "")))
@@ -1370,16 +1398,39 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                             tipo_entrega_jadlog = f"Jadlog {servico_j.upper()}"
 
                         if eventos_j:
+                            primeiro_ev = eventos_j[0]
+                            dt_j = primeiro_ev.get("data", "")
+                            st_j = primeiro_ev.get("status", "")
+                            un_j = primeiro_ev.get("unidade", "")
+                            txt_un_j = f" - {un_j}" if un_j else ""
+                            status_jadlog = f"{st_j}{txt_un_j} ({dt_j})"
+
                             for ev in eventos_j:
                                 data_e = ev.get("data", "")
                                 st_e = ev.get("status", "")
                                 un_e = ev.get("unidade", "")
                                 txt_un = f" [{un_e}]" if un_e else ""
                                 historico_jadlog.append(f"<b>{data_e}</b>: {st_e}{txt_un}")
-
-                            status_jadlog = historico_jadlog[0].replace("<b>", "").replace("</b>", "")
                 except Exception:
                     pass
+
+                # Fallback de busca caso a API passe por instabilidade
+                if not historico_jadlog:
+                    try:
+                        resp_alt = requests.get(f"https://rastreadordeencomendas.com/result.php?idcod={cod_jadlog}", headers={"User-Agent": "Mozilla/5.0"}, timeout=6)
+                        if resp_alt.status_code == 200 and "<tr" in resp_alt.text:
+                            linhas_tr = re.findall(r'<tr[^>]*>(.*?)</tr>', resp_alt.text, re.DOTALL)
+                            for tr in linhas_tr:
+                                colunas = re.findall(r'<td[^>]*>(.*?)</td>', tr, re.DOTALL)
+                                if len(colunas) >= 2:
+                                    txt_data = re.sub(r'<[^>]+>', '', colunas[0]).strip()
+                                    txt_desc = re.sub(r'<[^>]+>', '', colunas[1]).strip()
+                                    if txt_data and txt_desc:
+                                        historico_jadlog.append(f"<b>{txt_data}</b>: {txt_desc}")
+                            if historico_jadlog:
+                                status_jadlog = historico_jadlog[0].replace('<b>', '').replace('</b>', '')
+                    except Exception:
+                        pass
 
             if not historico_jadlog:
                 historico_jadlog = [
@@ -1403,7 +1454,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px;">
                     <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #f1f5f9;">
-                        <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Última Atualização (Status)</span>
+                        <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Status Atual</span>
                         <strong style="font-size: 14px; color: #1e3a8a;">{status_jadlog}</strong>
                     </div>
                     <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #f1f5f9;">
@@ -1434,7 +1485,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA AZUL CARGO
+        # TRATAMENTO ESPECIAL PARA AZUL CARGO (SEM ERROS DE SINTAXE E COM CONSULTA RÁPIDA)
         elif "azul" in transportadora_rastreio.lower():
             digitos_apenas = "".join(filter(str.isdigit, codigo_rastreio))
             
@@ -1459,6 +1510,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                         dados = res.json()
                         eventos = dados.get("eventos", [])
                         if eventos:
+                            status_azul = eventos[0].get("status")
                             for ev in eventos:
                                 data_ev = ev.get("data", "")
                                 hora_ev = ev.get("hora", "")
@@ -1466,8 +1518,6 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                                 sub_ev = ev.get("subStatus", [])
                                 txt_sub = f" ({sub_ev[0]})" if sub_ev else ""
                                 historico_azul.append(f"<b>{data_ev} {hora_ev}</b> - {st_ev}{txt_sub}")
-
-                            status_azul = historico_azul[0].replace("<b>", "").replace("</b>", "")
                 except Exception:
                     pass
 
@@ -1497,7 +1547,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
                     <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #f1f5f9;">
-                        <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Última Atualização (Status)</span>
+                        <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Status Atual</span>
                         <strong style="font-size: 15px; color: {cor_status};">{status_azul}</strong>
                     </div>
                     <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #f1f5f9;">
@@ -1537,7 +1587,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA BRASPRESS
+        # TRATAMENTO ESPECIAL PARA BRASPRESS (PARSER AJUSTADO PARA CAPTURAR DATA, HORA E DESCRIÇÃO)
         elif "braspress" in transportadora_rastreio.lower():
             cod_braspress = "".join(filter(str.isdigit, codigo_rastreio))
             if not cod_braspress:
@@ -1553,48 +1603,66 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
             }
 
-            previsao_ext = "Acompanhar no Portal"
-            status_ext = "Em Trânsito"
-            tipo_entrega_ext = "Rodoviário / Carga"
+            previsao_ext = "-"
+            status_ext = "Em viagem para Destino (Braspress)"
+            tipo_entrega_ext = "Padrão"
             historico_ocorrencias = []
 
-            with st.spinner("🔍 Consultando linha do tempo na Braspress..."):
+            with st.spinner("🔍 Buscando dados em tempo real no servidor da Braspress..."):
                 try:
                     res_bp = requests.get(url_braspress_tracking, headers=headers_braspress, timeout=6)
                     if res_bp.status_code == 200:
                         html_text = res_bp.text
                         
+                        match_status = re.search(r"Status\s*</th>\s*<td[^>]*>(.*?)</td>", html_text, re.IGNORECASE | re.DOTALL)
+                        if match_status:
+                            status_limpo = re.sub(r'<[^>]+>', '', match_status.group(1)).strip()
+                            if status_limpo:
+                                status_ext = status_limpo
+
                         match_prev = re.search(r"Previsão de Entrega\s*</th>\s*<td[^>]*>(\d{2}/\d{2}/\d{4})</td>", html_text, re.IGNORECASE)
                         if match_prev:
                             previsao_ext = match_prev.group(1)
 
+                        # Mapeamento de todas as linhas de tabela no HTML da Braspress
                         linhas_tr = re.findall(r'<tr[^>]*>(.*?)</tr>', html_text, re.DOTALL | re.IGNORECASE)
                         for tr in linhas_tr:
                             tds = re.findall(r'<td[^>]*>(.*?)</td>', tr, re.DOTALL | re.IGNORECASE)
                             if len(tds) >= 2:
+                                # Limpeza de cada célula descartando tags HTML extras
                                 cols_limpas = [re.sub(r'<[^>]+>', ' ', td).strip() for td in tds]
                                 cols_limpas = [re.sub(r'\s+', ' ', c) for c in cols_limpas if c]
                                 
-                                text_linha_full = " ".join(cols_limpas)
-                                if "$" in text_linha_full or "{" in text_linha_full or "StatusTrackingVo" in text_linha_full or "function" in text_linha_full:
-                                    continue
-
                                 if cols_limpas:
                                     primeira_col = cols_limpas[0]
+                                    # Verifica se a primeira coluna possui formato de Data/Hora
                                     if re.search(r'\d{2}/\d{2}/\d{4}', primeira_col):
-                                        detalhes_evento = " - ".join(cols_limpas[1:])
+                                        detalhes_evento = " - ".join(cols_limpas[1:]) if len(cols_limpas) > 1 else status_ext
                                         historico_ocorrencias.append(f"<b>{primeira_col}</b> - {detalhes_evento}")
-
-                        if historico_ocorrencias:
-                            status_ext = historico_ocorrencias[0].replace("<b>", "").replace("</b>", "")
 
                 except Exception:
                     pass
 
+                # Fallback secundário para raspar caso a tabela principal não estivesse visível
+                if not historico_ocorrencias:
+                    try:
+                        resp_alt = requests.get(f"https://rastreadordeencomendas.com/result.php?idcod={cod_braspress}", headers={"User-Agent": "Mozilla/5.0"}, timeout=6)
+                        if resp_alt.status_code == 200 and "<tr" in resp_alt.text:
+                            linhas_tr = re.findall(r'<tr[^>]*>(.*?)</tr>', resp_alt.text, re.DOTALL)
+                            for tr in linhas_tr:
+                                colunas = re.findall(r'<td[^>]*>(.*?)</td>', tr, re.DOTALL)
+                                if len(colunas) >= 2:
+                                    txt_data = re.sub(r'<[^>]+>', '', colunas[0]).strip()
+                                    txt_desc = re.sub(r'<[^>]+>', '', colunas[1]).strip()
+                                    if txt_data and txt_desc:
+                                        historico_ocorrencias.append(f"<b>{txt_data}</b> - {txt_desc}")
+                    except Exception:
+                        pass
+
             if not historico_ocorrencias:
                 historico_ocorrencias = [
-                    f"<b>Nota Fiscal Nº {cod_braspress}:</b> Carga despachada com a Braspress.",
-                    "<b>Acompanhamento Completo:</b> Para visualizar a linha do tempo detalhada em tempo real, clique no botão de consulta oficial abaixo."
+                    f"<b>NF {cod_braspress}:</b> Pedido registrado no sistema da Braspress.",
+                    f"<b>Status Atual:</b> {status_ext}. Acompanhe as movimentações no portal oficial da transportadora."
                 ]
 
             html_historico = "".join([f'<li style="margin-bottom: 8px; color: #334155;">{h}</li>' for h in historico_ocorrencias])
@@ -1613,7 +1681,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
                     <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #f1f5f9;">
-                        <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Última Atualização (Status)</span>
+                        <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Status Atual</span>
                         <strong style="font-size: 15px; color: #1e3a8a;">{status_ext}</strong>
                     </div>
                     <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #f1f5f9;">
@@ -1649,6 +1717,31 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             """, unsafe_allow_html=True)
 
         else:
-            st.info(f"ℹ️ O pedido **{codigo_rastreio}** deu entrada na **{transportadora_rastreio}** e as atualizações do sistema estarão disponíveis em breve.")
+            with st.spinner(f"🔍 Buscando dados de rastreamento na {transportadora_rastreio}..."):
+                try:
+                    url_consulta = f"https://rastreadordeencomendas.com/result.php?idcod={codigo_rastreio}"
+                    resp = requests.get(url_consulta, headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
+                    
+                    if resp.status_code == 200 and "<table" in resp.text:
+                        inicio_tab = resp.text.find("<table")
+                        fim_tab = resp.text.find("</table>") + 8
+                        tabela_html = resp.text[inicio_tab:fim_tab]
+
+                        st.html(f"""
+                        <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif;">
+                            <h4 style="margin-top: 0; color: #1e3a8a;">📦 Status da Encomenda: {codigo_rastreio}</h4>
+                            <style>
+                                table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
+                                th, td {{ padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }}
+                                td strong {{ color: #0f172a; display: block; margin-bottom: 2px; }}
+                                td p {{ margin: 2px 0; color: #475569; font-size: 13px; }}
+                            </style>
+                            {tabela_html}
+                        </div>
+                        """)
+                    else:
+                        st.info(f"ℹ️ O pedido **{codigo_rastreio}** deu entrada na **{transportadora_rastreio}** e as atualizações do sistema estarão disponíveis em breve.")
+                except Exception as err:
+                    st.error(f"⚠️ Não foi possível carregar as informações no momento. Tente novamente mais tarde.")
 
     st.markdown("</div>", unsafe_allow_html=True)
