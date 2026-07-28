@@ -1612,7 +1612,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA BRASPRESS (PARSER AJUSTADO E LIMPO)
+        # TRATAMENTO ESPECIAL PARA BRASPRESS (CAPTURA REAL DO HTML DA BRASPRESS)
         elif "braspress" in transportadora_rastreio.lower():
             cod_braspress = "".join(filter(str.isdigit, codigo_rastreio))
             if not cod_braspress:
@@ -1633,6 +1633,14 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             tipo_entrega_ext = "Padrão"
             historico_ocorrencias = []
 
+            # Função auxiliar para colocar espaço em palavras grudadas no texto da Braspress
+            def formatar_texto_braspress(texto):
+                if not texto:
+                    return ""
+                texto = re.sub(r'([a-zÀ-ÿ0-9])([A-ZÀ-Ÿ])', r'\1 \2', texto)
+                texto = re.sub(r'([a-zA-ZÀ-ÿ0-9])(Em|Para|De|Com|Na|No|Por):?', r'\1 \2', texto)
+                return texto.strip()
+
             with st.spinner("🔍 Buscando dados em tempo real no servidor da Braspress..."):
                 try:
                     res_bp = requests.get(url_braspress_tracking, headers=headers_braspress, timeout=6)
@@ -1649,38 +1657,21 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                         if match_prev:
                             previsao_ext = match_prev.group(1)
 
-                        # Extração limpa dos eventos reais (Filtrando scripts e textos indesejados)
-                        padrao_eventos = re.findall(r'(\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2})\s+([A-ZÀ-Ÿ\s\-\/\(\)]+)', html_text)
+                        # Busca as movimentações reais no HTML oficial da Braspress (formato "DD/MM/YYYY HH:MM NOME DA ETAPA")
+                        padrao_real = re.findall(r'(\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2})\s+([A-ZÀ-Ÿ0-9\s\-\/\(\)]+)', html_text)
                         
-                        termos_bloqueados = ["STATUSTRACKINGVO", "WINDOW", "LOCATION", "PATHNAME", "CONSOLE.LOG", "ADDCLASS", "RECEBEDOR", "MORE-DETAILS", "INSIDE-LOGIN"]
+                        termos_invalidos = ["STATUSTRACKINGVO", "WINDOW.", "LOCATION", "CONSOLE.", "RECEBEDOR", "MORE-DETAILS", "INSIDE-LOGIN", "FUNCTION", "VAR "]
 
-                        for dt_hora, desc in padrao_eventos:
+                        for dt_hora, desc in padrao_real:
                             desc_limpa = desc.strip()
-                            # Filtra frases muito curtas ou linhas com código JS/Tabela
-                            if len(desc_limpa) > 3 and not any(term in desc_limpa.upper() for term in termos_bloqueados):
-                                # Evita duplicados
-                                item_fmt = f"<b>{dt_hora}</b> - {desc_limpa}"
+                            # Garante que é um texto válido de evento real da Braspress
+                            if len(desc_limpa) >= 4 and not any(t in desc_limpa.upper() for t in termos_invalidos):
+                                item_fmt = f"<b>{dt_hora}</b> - {formatar_texto_braspress(desc_limpa)}"
                                 if item_fmt not in historico_ocorrencias:
                                     historico_ocorrencias.append(item_fmt)
 
                 except Exception:
                     pass
-
-                # Fallback secundário via scraping caso o primeiro retorne vazio
-                if not historico_ocorrencias:
-                    try:
-                        resp_alt = requests.get(f"https://rastreadordeencomendas.com/result.php?idcod={cod_braspress}", headers={"User-Agent": "Mozilla/5.0"}, timeout=6)
-                        if resp_alt.status_code == 200 and "<tr" in resp_alt.text:
-                            linhas_tr = re.findall(r'<tr[^>]*>(.*?)</tr>', resp_alt.text, re.DOTALL)
-                            for tr in linhas_tr:
-                                colunas = re.findall(r'<td[^>]*>(.*?)</td>', tr, re.DOTALL)
-                                if len(colunas) >= 2:
-                                    txt_data = re.sub(r'<[^>]+>', '', colunas[0]).strip()
-                                    txt_desc = re.sub(r'<[^>]+>', '', colunas[1]).strip()
-                                    if txt_data and txt_desc and not any(term in txt_desc.upper() for term in ["SCRIPT", "FUNCTION", "VO"]):
-                                        historico_ocorrencias.append(f"<b>{txt_data}</b> - {txt_desc}")
-                    except Exception:
-                        pass
 
             if not historico_ocorrencias:
                 historico_ocorrencias = [
@@ -1738,29 +1729,6 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 </a>
             </div>
             """, unsafe_allow_html=True)
-            with st.spinner(f"🔍 Buscando dados de rastreamento na {transportadora_rastreio}..."):
-                try:
-                    url_consulta = f"https://rastreadordeencomendas.com/result.php?idcod={codigo_rastreio}"
-                    resp = requests.get(url_consulta, headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
-                    
-                    if resp.status_code == 200 and "<table" in resp.text:
-                        inicio_tab = resp.text.find("<table")
-                        fim_tab = resp.text.find("</table>") + 8
-                        tabela_html = resp.text[inicio_tab:fim_tab]
-
-                        st.html(f"""
-                        <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif;">
-                            <h4 style="margin-top: 0; color: #1e3a8a;">📦 Status da Encomenda: {codigo_rastreio}</h4>
-                            <style>
-                                table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
-                                th, td {{ padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }}
-                                td strong {{ color: #0f172a; display: block; margin-bottom: 2px; }}
-                                td p {{ margin: 2px 0; color: #475569; font-size: 13px; }}
-                            </style>
-                            {tabela_html}
-                        </div>
-                        """)
-                    else:
                         st.info(f"ℹ️ O pedido **{codigo_rastreio}** deu entrada na **{transportadora_rastreio}** e as atualizações do sistema estarão disponíveis em breve.")
                 except Exception as err:
                     st.error(f"⚠️ Não foi possível carregar as informações no momento. Tente novamente mais tarde.")
