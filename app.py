@@ -1264,10 +1264,21 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
         # TRATAMENTO ESPECIAL PARA CORREIOS (PADRONIZADO EXATO IGUAL DA FOTO)
         elif "correio" in transportadora_rastreio.lower():
             cod_correios = codigo_rastreio.strip().upper()
+            
+            # Injeta o código de rastreio diretamente na URL oficial dos Correios para carregar a busca
             url_correios_site = f"https://rastreamento.correios.com.br/app/index.php?codigo={cod_correios}"
 
             status_correios = "Objeto Postado"
-            tipo_entrega_correios = "PAC" if cod_correios.startswith("P") or cod_correios.startswith("O") or cod_correios.startswith("Q") else ("SEDEX" if cod_correios.startswith("S") or cod_correios.startswith("A") else "PAC / SEDEX")
+            
+            # Identificação precisa de PAC x SEDEX por prefixos do código de rastreio Correios
+            prefixo = cod_correios[:2] if len(cod_correios) >= 2 else ""
+            if prefixo in ["SEDEX", "SX", "SI", "SK", "SL", "SA", "SB", "SC", "SD", "SE", "SF", "SG", "SH", "SJ", "SM", "SN", "SO", "SP", "SQ", "SR", "SS", "ST", "SU", "SV", "SW", "SX", "SY", "SZ", "AA", "AP"]:
+                tipo_entrega_correios = "SEDEX"
+            elif prefixo in ["PAC", "PB", "PC", "PD", "PE", "PF", "PG", "PH", "PI", "PJ", "PK", "PL", "PM", "PN", "PO", "PP", "PQ", "PR", "PS", "PT", "PU", "PV", "PW", "PX", "PY", "PZ", "QC", "OD"]:
+                tipo_entrega_correios = "PAC"
+            else:
+                tipo_entrega_correios = "SEDEX" if cod_correios.startswith("S") or cod_correios.startswith("A") else ("PAC" if cod_correios.startswith("P") or cod_correios.startswith("O") or cod_correios.startswith("Q") else "PAC / SEDEX")
+
             historico_correios = []
 
             with st.spinner(f"🔍 Buscando rastreio real para {cod_correios}..."):
@@ -1276,6 +1287,12 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                     res = requests.get(url_api, timeout=6)
                     if res.status_code == 200:
                         dados = res.json()
+                        servico_retornado = dados.get("servico", "").upper()
+                        if "SEDEX" in servico_retornado:
+                            tipo_entrega_correios = "SEDEX"
+                        elif "PAC" in servico_retornado:
+                            tipo_entrega_correios = "PAC"
+
                         eventos = dados.get("eventos", [])
                         if eventos:
                             primeiro_ev = eventos[0]
