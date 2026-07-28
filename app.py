@@ -1261,69 +1261,43 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA CORREIOS (REESCRITO COMPLETAMENTE)
+        # TRATAMENTO ESPECIAL PARA CORREIOS (SOMENTE A LINHA DO TEMPO ORIGINAL)
         elif "correio" in transportadora_rastreio.lower():
             cod_correios = codigo_rastreio.strip().upper()
             url_correios_site = f"https://rastreamento.correios.com.br/app/index.php?codigo={cod_correios}"
 
-            # Define o tipo de envio pelo prefixo do código
-            if cod_correios.startswith(("S", "A")):
-                tipo_entrega_correios = "SEDEX"
-            elif cod_correios.startswith(("P", "O", "Q", "N")):
-                tipo_entrega_correios = "PAC"
-            else:
-                tipo_entrega_correios = "PAC / SEDEX"
+            status_correios = "Em Trânsito"
+            tipo_entrega_correios = "PAC" if cod_correios.startswith("P") or cod_correios.startswith("O") or cod_correios.startswith("Q") else ("SEDEX" if cod_correios.startswith("S") or cod_correios.startswith("A") else "PAC / SEDEX")
+            historico_correios = []
 
-            status_atual = "Aguardando atualização..."
-            historico_eventos = []
-
-            with st.spinner(f"🔍 Consultando rastreamento dos Correios ({cod_correios})..."):
+            with st.spinner(f"🔍 Buscando rastreio real para {cod_correios}..."):
                 try:
                     url_api = f"https://api.linketrack.com/track/json?user=teste&token=1fe10a01fe10a01fe10a01fe10a0&codigo={cod_correios}"
-                    response = requests.get(url_api, timeout=6)
-                    
-                    if response.status_code == 200:
-                        dados_api = response.json()
-                        lista_eventos = dados_api.get("eventos", [])
-                        
-                        if lista_eventos:
-                            # 1. Pega a última atualização (primeiro item da lista)
-                            ult_evento = lista_eventos[0]
-                            u_status = ult_evento.get("status", "Em Trânsito")
-                            u_data = ult_evento.get("data", "")
-                            u_hora = ult_evento.get("hora", "")
-                            u_local = ult_evento.get("local", "")
-                            
-                            u_sub = f" ({ult_evento['subStatus'][0]})" if ult_evento.get("subStatus") else ""
-                            u_loc = f" - {u_local}" if u_local else ""
-                            u_data_hora = f" em {u_data} às {u_hora}" if (u_data and u_hora) else ""
+                    res = requests.get(url_api, timeout=6)
+                    if res.status_code == 200:
+                        dados = res.json()
+                        eventos = dados.get("eventos", [])
+                        if eventos:
+                            for ev in eventos:
+                                data_e = ev.get("data", "")
+                                hora_e = ev.get("hora", "")
+                                st_e = ev.get("status", "")
+                                local_e = ev.get("local", "")
+                                sub_e = f" - {ev.get('subStatus')[0]}" if ev.get("subStatus") else ""
+                                txt_loc = f" [{local_e}]" if local_e else ""
+                                historico_correios.append(f"<b>{data_e} {hora_e}</b> — {st_e}{sub_e}{txt_loc}")
 
-                            status_atual = f"{u_status}{u_sub}{u_loc}{u_data_hora}"
-
-                            # 2. Pega todo o histórico de movimentação
-                            for item in lista_eventos:
-                                ev_d = item.get("data", "")
-                                ev_h = item.get("hora", "")
-                                ev_st = item.get("status", "")
-                                ev_loc = item.get("local", "")
-                                ev_sub = f" ({item['subStatus'][0]})" if item.get("subStatus") else ""
-                                
-                                txt_data_hora = f"<b>📅 {ev_d} às {ev_h}</b>" if (ev_d and ev_h) else "<b>📅 Registrado</b>"
-                                txt_local = f" 📍 <i>{ev_loc}</i>" if ev_loc else ""
-                                
-                                historico_eventos.append(f"{txt_data_hora} — {ev_st}{ev_sub}{txt_local}")
+                            status_correios = historico_correios[0].replace("<b>", "").replace("</b>", "")
                 except Exception:
                     pass
 
-            # Fallback caso não retorne eventos da API pública
-            if not historico_eventos:
-                status_atual = "Objeto Postado / Em Trânsito"
-                historico_eventos = [
-                    f"<b>{cod_correios}:</b> Pedido postado e em processamento na rede dos Correios.",
-                    "<b>Acompanhamento:</b> Verifique o detalhamento completo diretamente no portal oficial abaixo."
+            if not historico_correios:
+                historico_correios = [
+                    f"<b>{cod_correios}:</b> Pedido registrado e postado nos Correios.",
+                    "<b>Status:</b> Acompanhe as movimentações no portal oficial dos Correios."
                 ]
 
-            html_itens_historico = "".join([f'<li style="margin-bottom: 12px; color: #334155; line-height: 1.5;">{ev}</li>' for ev in historico_eventos])
+            html_historico_correios = "".join([f'<li style="margin-bottom: 8px; color: #334155;">{h}</li>' for h in historico_correios])
 
             st.html(f"""
             <div style="background: #ffffff; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
@@ -1333,14 +1307,14 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                         <h4 style="margin: 2px 0 0 0; color: #0f172a; font-size: 18px;">📦 Correios</h4>
                     </div>
                     <div style="background-color: #eff6ff; padding: 6px 14px; border-radius: 8px; border: 1px solid #dbeafe;">
-                        <span style="font-size: 13px; color: #1e40af; font-weight: 600;">CÓDIGO: {cod_correios}</span>
+                        <span style="font-size: 13px; color: #1e40af; font-weight: 600;">COD: {cod_correios}</span>
                     </div>
                 </div>
                 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px;">
                     <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #f1f5f9;">
-                        <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Status Atual (Última Atualização)</span>
-                        <strong style="font-size: 14px; color: #1e3a8a;">{status_atual}</strong>
+                        <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Status Atual</span>
+                        <strong style="font-size: 15px; color: #1e3a8a;">{status_correios}</strong>
                     </div>
                     <div style="background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #f1f5f9;">
                         <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 4px;">Tipo de Entrega</span>
@@ -1348,10 +1322,10 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                     </div>
                 </div>
 
-                <div style="background: #f1f5f9; padding: 18px; border-radius: 12px; border-left: 4px solid #2563eb;">
-                    <strong style="font-size: 14px; color: #0f172a; display: block; margin-bottom: 12px;">📍 Histórico de Movimentação Completo:</strong>
-                    <ul style="margin: 0; padding-left: 18px; font-size: 13px; list-style-type: square;">
-                        {html_itens_historico}
+                <div style="background: #f1f5f9; padding: 16px; border-radius: 12px; border-left: 4px solid #2563eb;">
+                    <strong style="font-size: 14px; color: #0f172a; display: block; margin-bottom: 10px;">📍 Histórico de Movimentações:</strong>
+                    <ul style="margin: 0; padding-left: 18px; font-size: 13px;">
+                        {html_historico_correios}
                     </ul>
                 </div>
             </div>
@@ -1360,11 +1334,11 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             st.markdown(f"""
             <div style="text-align: center; font-family: 'Plus Jakarta Sans', sans-serif; margin-top: 15px;">
                 <p style="color: #1e3a8a; font-weight: 600; font-size: 15px; margin-bottom: 12px;">
-                    👇 Clique no botão abaixo para consultar o rastreamento direto nos Correios:
+                    👇 Clique no botão abaixo para conferir a movimentação no portal dos Correios:
                 </p>
                 <a href="{url_correios_site}" target="_blank" style="text-decoration: none;">
                     <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white; display: inline-block; padding: 16px 32px; border-radius: 12px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 12px rgba(37,99,235,0.2);">
-                        🔗 VER RASTREAMENTO DIRETO NO SITE DOS CORREIOS
+                        🔗 CONSULTAR COMPLETO NO PORTAL CORREIOS
                     </div>
                 </a>
             </div>
