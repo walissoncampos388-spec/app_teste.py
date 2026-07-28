@@ -1261,15 +1261,15 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA CORREIOS (PADRONIZADO EXATO IGUAL DA FOTO)
+      # TRATAMENTO ESPECIAL PARA CORREIOS (COM CAPTURA EXATA E LINK COM 'OBJETO')
         elif "correio" in transportadora_rastreio.lower():
             cod_correios = codigo_rastreio.strip().upper()
             
-            # URL de redirecionamento direto dos Correios carregando o código de rastreio
-            url_correios_site = f"https://rastreamento.correios.com.br/app/index.php?codigo={cod_correios}"
+            # O parâmetro correto para o portal dos Correios carregar o campo preenchido é 'objeto'
+            url_correios_site = f"https://rastreamento.correios.com.br/app/index.php?objeto={cod_correios}"
 
             status_correios = "Objeto Postado"
-            tipo_entrega_correios = "Não Identificado"
+            tipo_entrega_correios = None
             historico_correios = []
 
             with st.spinner(f"🔍 Buscando rastreio real para {cod_correios}..."):
@@ -1279,16 +1279,19 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                     if res.status_code == 200:
                         dados = res.json()
                         
-                        # Captura o tipo exato de serviço vindo direto da API
-                        tipo_servico_api = str(dados.get("servico", "")).strip().upper()
-                        if tipo_servico_api:
-                            tipo_entrega_correios = tipo_servico_api
+                        # Tenta obter a modalidade exata enviada pela API
+                        servico_api = str(dados.get("servico", "")).strip().upper()
+                        tipo_api = str(dados.get("tipo", "")).strip().upper()
+                        
+                        if "PAC" in servico_api or "PAC" in tipo_api:
+                            tipo_entrega_correios = "PAC"
+                        elif "SEDEX" in servico_api or "SEDEX" in tipo_api:
+                            tipo_entrega_correios = "SEDEX"
 
                         eventos = dados.get("eventos", [])
                         if eventos:
                             primeiro_ev = eventos[0]
                             st_nome = primeiro_ev.get("status", "")
-                            st_local = primeiro_ev.get("local", "")
                             st_data = primeiro_ev.get("data", "")
                             st_hora = primeiro_ev.get("hora", "")
                             
@@ -1309,32 +1312,15 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 except Exception:
                     pass
 
-                # Fallback via scraping para resgatar dados e identificar a modalidade
-                if not historico_correios or tipo_entrega_correios == "Não Identificado":
-                    try:
-                        resp_alt = requests.get(f"https://rastreadordeencomendas.com/result.php?idcod={cod_correios}", headers={"User-Agent": "Mozilla/5.0"}, timeout=6)
-                        if resp_alt.status_code == 200:
-                            if "SEDEX" in resp_alt.text.upper():
-                                tipo_entrega_correios = "SEDEX"
-                            elif "PAC" in resp_alt.text.upper():
-                                tipo_entrega_correios = "PAC"
-
-                            if "<tr" in resp_alt.text and not historico_correios:
-                                linhas_tr = re.findall(r'<tr[^>]*>(.*?)</tr>', resp_alt.text, re.DOTALL)
-                                for tr in linhas_tr:
-                                    colunas = re.findall(r'<td[^>]*>(.*?)</td>', tr, re.DOTALL)
-                                    if len(colunas) >= 2:
-                                        txt_data = re.sub(r'<[^>]+>', '', colunas[0]).strip()
-                                        txt_desc = re.sub(r'<[^>]+>', '', colunas[1]).strip()
-                                        if txt_data and txt_desc:
-                                            historico_correios.append(f"<b>{txt_data}</b>: {txt_desc}")
-                                if historico_correios:
-                                    status_correios = historico_correios[0].replace('<b>', '').replace('</b>', '')
-                    except Exception:
-                        pass
-
-            if tipo_entrega_correios == "Não Identificado":
-                tipo_entrega_correios = "PAC / SEDEX"
+            # Caso a API não informe o serviço, aplica a regra de prefixos dos Correios (AP é PAC)
+            if not tipo_entrega_correios or tipo_entrega_correios == "Não Identificado":
+                prefixo_2 = cod_correios[:2]
+                prefixos_pac = ["AP", "PB", "PC", "PD", "PE", "PF", "PG", "PH", "PI", "PJ", "PK", "PL", "PM", "PN", "PO", "PP", "PQ", "PR", "PS", "PT", "PU", "PV", "PW", "PX", "PY", "PZ", "QC", "OD"]
+                
+                if prefixo_2 in prefixos_pac or cod_correios.startswith("PAC"):
+                    tipo_entrega_correios = "PAC"
+                else:
+                    tipo_entrega_correios = "SEDEX"
 
             if not historico_correios:
                 historico_correios = [
@@ -1388,7 +1374,6 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 </a>
             </div>
             """, unsafe_allow_html=True)
-
         # TRATAMENTO ESPECIAL PARA JADLOG (PADRONIZADO EXATO IGUAL DA FOTO)
         elif "jadlog" in transportadora_rastreio.lower():
             cod_jadlog = codigo_rastreio.strip()
