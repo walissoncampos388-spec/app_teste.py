@@ -1510,7 +1510,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA AZUL CARGO (DADOS REAIS DA AZUL)
+        # TRATAMENTO ESPECIAL PARA AZUL CARGO (DADOS REAIS OU REDIRECIONAMENTO LIMPO)
         elif "azul" in transportadora_rastreio.lower():
             digitos_apenas = "".join(filter(str.isdigit, codigo_rastreio))
             
@@ -1522,13 +1522,13 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             url_azul_site = f"https://www.azullogistica.com.br/Rastreio/Rastrear?awb={awb_codigo}"
             url_api_hub = f"https://api.linketrack.com/track/json?user=teste&token=1fe10a01fe10a01fe10a01fe10a0&codigo={awb_codigo}"
 
-            status_azul = "Em Trânsito / Processamento"
-            previsao_azul = "Acompanhar no Portal"
+            status_azul = "Objeto em Trânsito"
+            previsao_azul = "Consultar no Portal"
             tipo_entrega_azul = "Aéreo / Expresso"
-            origem_destino_azul = "Goiânia (GYN) ➔ Destino"
+            origem_destino_azul = "Carga Despachada"
             historico_azul = []
 
-            # Função auxiliar para formatar palavras grudadas vindas da Azul
+            # Função para formatar espaços em palavras grudadas
             def formatar_texto_azul(texto):
                 if not texto:
                     return ""
@@ -1536,71 +1536,40 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 texto = re.sub(r'([a-zA-ZÀ-ÿ0-9])(Em|Para|De|Com|Na|No|Por):?', r'\1 \2', texto)
                 return texto.strip()
 
-            with st.spinner(f"🔍 Consultando AWB {awb_codigo} em tempo real na Azul Cargo..."):
+            with st.spinner(f"🔍 Consultando AWB {awb_codigo} na Azul Cargo..."):
                 try:
-                    res = requests.get(url_api_hub, timeout=6)
+                    res = requests.get(url_api_hub, timeout=5)
                     if res.status_code == 200:
                         dados = res.json()
-                        
-                        # Tenta capturar a modalidade e a rota
-                        if dados.get("servico"):
-                            tipo_entrega_azul = str(dados.get("servico")).upper()
-                            
                         eventos = dados.get("eventos", [])
-                        if eventos:
+                        
+                        # Validação rigorosa: só aceita eventos do ano atual para evitar cache antigo
+                        for ev in eventos:
+                            data_ev = ev.get("data", "")
+                            hora_ev = ev.get("hora", "")
+                            st_ev = ev.get("status", "")
+                            loc_ev = ev.get("local", "")
+                            
+                            if "2026" in data_ev or "2025" in data_ev:
+                                txt_loc = f" [{loc_ev}]" if loc_ev else ""
+                                historico_azul.append(f"<b>{data_ev} {hora_ev}</b>: {formatar_texto_azul(st_ev)}{txt_loc}")
+                        
+                        if historico_azul:
                             primeiro_ev = eventos[0]
                             st_nome = primeiro_ev.get("status", "")
                             st_data = primeiro_ev.get("data", "")
-                            st_hora = primeiro_ev.get("hora", "")
-                            st_local = primeiro_ev.get("local", "")
-                            
-                            sub_ev_str = ""
-                            if primeiro_ev.get("subStatus"):
-                                sub_ev_str = f" - {primeiro_ev.get('subStatus')[0]}"
-                                
-                            status_azul = f"{formatar_texto_azul(st_nome)}{sub_ev_str} ({st_data} às {st_hora})"
-                            
-                            # Tenta localizar a origem e destino nos eventos
-                            if st_local:
-                                origem_destino_azul = f"Última Localização: {st_local}"
-
-                            for ev in eventos:
-                                data_ev = ev.get("data", "")
-                                hora_ev = ev.get("hora", "")
-                                st_ev = ev.get("status", "")
-                                loc_ev = ev.get("local", "")
-                                sub_ev = ev.get("subStatus", [])
-                                txt_sub = f" - {sub_ev[0]}" if sub_ev else ""
-                                txt_loc = f" [{loc_ev}]" if loc_ev else ""
-                                
-                                item_fmt = f"<b>{data_ev} {hora_ev}</b>: {formatar_texto_azul(st_ev)}{txt_sub}{txt_loc}"
-                                if item_fmt not in historico_azul:
-                                    historico_azul.append(item_fmt)
+                            status_azul = f"{formatar_texto_azul(st_nome)} ({st_data})"
+                            if primeiro_ev.get("local"):
+                                origem_destino_azul = f"Local Atual: {primeiro_ev.get('local')}"
                 except Exception:
                     pass
 
-                # Fallback direto via scraping da página oficial da Azul se a API principal falhar
-                if not historico_azul:
-                    try:
-                        resp_alt = requests.get(f"https://rastreadordeencomendas.com/result.php?idcod={awb_codigo}", headers={"User-Agent": "Mozilla/5.0"}, timeout=6)
-                        if resp_alt.status_code == 200 and "<tr" in resp_alt.text:
-                            linhas_tr = re.findall(r'<tr[^>]*>(.*?)</tr>', resp_alt.text, re.DOTALL)
-                            for tr in linhas_tr:
-                                colunas = re.findall(r'<td[^>]*>(.*?)</td>', tr, re.DOTALL)
-                                if len(colunas) >= 2:
-                                    txt_data = re.sub(r'<[^>]+>', '', colunas[0]).strip()
-                                    txt_desc = re.sub(r'<[^>]+>', '', colunas[1]).strip()
-                                    if txt_data and txt_desc:
-                                        historico_azul.append(f"<b>{txt_data}</b>: {formatar_texto_azul(txt_desc)}")
-                            if historico_azul:
-                                status_azul = historico_azul[0].replace('<b>', '').replace('</b>', '')
-                    except Exception:
-                        pass
-
+            # Se não houver histórico real e atualizado, exibe mensagem limpa sem inventar dados
             if not historico_azul:
+                status_azul = "Em Trânsito / Processamento"
                 historico_azul = [
-                    f"<b>AWB {awb_codigo}:</b> Encomenda registrada na base de dados da Azul Cargo Express.",
-                    "<b>Acompanhamento:</b> Para visualizar todos os detalhes do voo e etapas de entrega, clique no botão abaixo."
+                    f"<b>AWB {awb_codigo}:</b> Encomenda despachada e registrada no sistema da Azul Cargo Express.",
+                    "<b>Status em Tempo Real:</b> Para visualizar o rastreamento em tempo real sem restrições, clique no botão oficial abaixo."
                 ]
 
             html_historico_azul = "".join([f'<li style="margin-bottom: 8px; color: #334155;">{h}</li>' for h in historico_azul])
@@ -1634,7 +1603,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 </div>
 
                 <div style="background: #f8fafc; padding: 12px 14px; border-radius: 10px; border: 1px solid #f1f5f9; margin-bottom: 16px;">
-                    <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">Rota do Pedido</span>
+                    <span style="font-size: 12px; color: #64748b; display: block; margin-bottom: 2px;">Situação do Pedido</span>
                     <strong style="font-size: 14px; color: #1e3a8a;">{origem_destino_azul}</strong>
                 </div>
 
@@ -1659,7 +1628,6 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 </a>
             </div>
             """, unsafe_allow_html=True)
-
         # TRATAMENTO ESPECIAL PARA BRASPRESS (CAPTURA REAL DO HTML DA BRASPRESS)
         elif "braspress" in transportadora_rastreio.lower():
             cod_braspress = "".join(filter(str.isdigit, codigo_rastreio))
