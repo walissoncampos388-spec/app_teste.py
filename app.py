@@ -1085,7 +1085,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
 
         st.markdown(f"""
         <div class="bloco-etapa">
-            <h3 style="color: #1e3a8a; margin-top: 0;">📦 {txt_boas_vindas_cli}Agradeçemos pela preferencia 💙</h3>
+            <h3 style="color: #1e3a8a; margin-top: 0;">📦 {txt_boas_vindas_cli}Rastreamento Online</h3>
             <p style="color: #64748b; margin-bottom: 0;">Acompanhe o status da sua entrega com a <b>Cia do Jeans</b>.</p>
         </div>
         """, unsafe_allow_html=True)
@@ -1166,7 +1166,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             txt_saudacao = f"Olá, *{nome_cliente_rastreio}*!" if nome_cliente_rastreio else "Olá!"
             
             mensagem_rastreio = (
-                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já foi enviado! 🎉\n\n"
+                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já foi despachado! 🎉\n\n"
                 f"🚚 *Transportadora:* {transportadora_rastreio}\n"
                 f"📦 *Código de Rastreio:* `{codigo_rastreio}`\n\n"
                 "🔗 *Clique no link abaixo para acompanhar seu envio em tempo real:*\n"
@@ -1261,7 +1261,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-        # TRATAMENTO ESPECIAL PARA CORREIOS (AJUSTADO: STATUS ATUAL + LINHA DO TEMPO COMPLETA)
+        # TRATAMENTO ESPECIAL PARA CORREIOS (STATUS ATUAL COM ÚLTIMA ATUALIZAÇÃO + HISTÓRICO COMPLETO)
         elif "correio" in transportadora_rastreio.lower():
             cod_correios = codigo_rastreio.strip().upper()
             url_correios_site = f"https://rastreamento.correios.com.br/app/index.php?codigo={cod_correios}"
@@ -1278,7 +1278,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                         dados = res.json()
                         eventos = dados.get("eventos", [])
                         if eventos:
-                            # 1. Captura a última movimentação registrada para o Status Atual (Data, Hora, Status e Local)
+                            # 1. Captura a última atualização registrada para exibir no Status Atual
                             primeiro_ev = eventos[0]
                             st_nome_u = primeiro_ev.get("status", "")
                             st_data_u = primeiro_ev.get("data", "")
@@ -1289,7 +1289,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
 
                             status_correios = f"{st_nome_u}{sub_ev_u}{loc_txt_u} ({st_data_u} às {st_hora_u})"
 
-                            # 2. Monta toda a linha do tempo (histórico completo com Data, Hora, Status, Sub-status e Local)
+                            # 2. Percorre todos os eventos para montar o histórico de movimentação completo
                             for ev in eventos:
                                 d_ev = ev.get("data", "")
                                 h_ev = ev.get("hora", "")
