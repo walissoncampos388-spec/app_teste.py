@@ -1283,6 +1283,17 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
 
             historico_correios = []
 
+            # Função auxiliar para separar palavras grudadas (Ex: "aguardeDe:", "GOPara:", "postadoEm:")
+            def formatar_texto_correios(texto):
+                if not texto:
+                    return ""
+                # Adiciona espaço antes de De:, Para:, Em:, Aguardando quando grudados em letras/caracteres
+                texto = re.sub(r'([a-zA-ZÀ-ÿ0-9\/])(De:)', r'\1 De:', texto)
+                texto = re.sub(r'([a-zA-ZÀ-ÿ0-9\/])(Para:)', r'\1 Para:', texto)
+                texto = re.sub(r'([a-zA-ZÀ-ÿ0-9\/])(Em:)', r'\1 Em:', texto)
+                texto = re.sub(r'([a-zA-ZÀ-ÿ0-9\/])(Aguardando)', r'\1 Aguardando', texto)
+                return texto
+
             with st.spinner(f"🔍 Buscando rastreio real para {cod_correios}..."):
                 try:
                     url_api = f"https://api.linketrack.com/track/json?user=teste&token=1fe10a01fe10a01fe10a01fe10a0&codigo={cod_correios}"
@@ -1293,7 +1304,6 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                         if eventos:
                             primeiro_ev = eventos[0]
                             st_nome = primeiro_ev.get("status", "")
-                            st_local = primeiro_ev.get("local", "")
                             st_data = primeiro_ev.get("data", "")
                             st_hora = primeiro_ev.get("hora", "")
                             
@@ -1301,7 +1311,8 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                             if primeiro_ev.get("subStatus"):
                                 sub_ev_str = f" - {primeiro_ev.get('subStatus')[0]}"
                                 
-                            status_correios = f"{st_nome}{sub_ev_str} ({st_data} às {st_hora})"
+                            status_bruto = f"{st_nome}{sub_ev_str}"
+                            status_correios = f"{formatar_texto_correios(status_bruto)} ({st_data} às {st_hora})"
                             
                             for ev in eventos:
                                 d_ev = ev.get("data", "")
@@ -1310,7 +1321,9 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                                 l_ev = ev.get("local", "")
                                 sub_txt = f" - {ev.get('subStatus')[0]}" if ev.get("subStatus") else ""
                                 loc_txt = f" [{l_ev}]" if l_ev else ""
-                                historico_correios.append(f"<b>{d_ev} {h_ev}</b>: {s_ev}{sub_txt}{loc_txt}")
+                                
+                                evento_bruto = f"{s_ev}{sub_txt}{loc_txt}"
+                                historico_correios.append(f"<b>{d_ev} {h_ev}</b>: {formatar_texto_correios(evento_bruto)}")
                 except Exception:
                     pass
 
@@ -1326,7 +1339,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                                     txt_data = re.sub(r'<[^>]+>', '', colunas[0]).strip()
                                     txt_desc = re.sub(r'<[^>]+>', '', colunas[1]).strip()
                                     if txt_data and txt_desc:
-                                        historico_correios.append(f"<b>{txt_data}</b>: {txt_desc}")
+                                        historico_correios.append(f"<b>{txt_data}</b>: {formatar_texto_correios(txt_desc)}")
                             if historico_correios:
                                 status_correios = historico_correios[0].replace('<b>', '').replace('</b>', '')
                     except Exception:
