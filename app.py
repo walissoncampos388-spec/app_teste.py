@@ -1261,7 +1261,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             </div>
             """, unsafe_allow_html=True)
 
-      # TRATAMENTO ESPECIAL PARA CORREIOS (PADRONIZADO EXATO IGUAL DA FOTO)
+        # TRATAMENTO ESPECIAL PARA CORREIOS (PADRONIZADO EXATO IGUAL DA FOTO)
         elif "correio" in transportadora_rastreio.lower():
             cod_correios = codigo_rastreio.strip().upper()
             
@@ -1283,11 +1283,10 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
 
             historico_correios = []
 
-            # Função auxiliar para separar palavras grudadas (Ex: "aguardeDe:", "GOPara:", "postadoEm:")
+            # Função auxiliar para colocar espaço em palavras grudadas no texto dos Correios
             def formatar_texto_correios(texto):
                 if not texto:
                     return ""
-                # Adiciona espaço antes de De:, Para:, Em:, Aguardando quando grudados em letras/caracteres
                 texto = re.sub(r'([a-zA-ZÀ-ÿ0-9\/])(De:)', r'\1 De:', texto)
                 texto = re.sub(r'([a-zA-ZÀ-ÿ0-9\/])(Para:)', r'\1 Para:', texto)
                 texto = re.sub(r'([a-zA-ZÀ-ÿ0-9\/])(Em:)', r'\1 Em:', texto)
@@ -1397,6 +1396,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 </a>
             </div>
             """, unsafe_allow_html=True)
+
         # TRATAMENTO ESPECIAL PARA JADLOG (PADRONIZADO EXATO IGUAL DA FOTO)
         elif "jadlog" in transportadora_rastreio.lower():
             cod_jadlog = codigo_rastreio.strip()
@@ -1729,8 +1729,33 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 </a>
             </div>
             """, unsafe_allow_html=True)
+
+        else:
+            with st.spinner(f"🔍 Buscando dados de rastreamento na {transportadora_rastreio}..."):
+                try:
+                    url_consulta = f"https://rastreadordeencomendas.com/result.php?idcod={codigo_rastreio}"
+                    resp = requests.get(url_consulta, headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
+                    
+                    if resp.status_code == 200 and "<table" in resp.text:
+                        inicio_tab = resp.text.find("<table")
+                        fim_tab = resp.text.find("</table>") + 8
+                        tabela_html = resp.text[inicio_tab:fim_tab]
+
+                        st.html(f"""
+                        <div style="background: white; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif;">
+                            <h4 style="margin-top: 0; color: #1e3a8a;">📦 Status da Encomenda: {codigo_rastreio}</h4>
+                            <style>
+                                table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
+                                th, td {{ padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }}
+                                td strong {{ color: #0f172a; display: block; margin-bottom: 2px; }}
+                                td p {{ margin: 2px 0; color: #475569; font-size: 13px; }}
+                            </style>
+                            {tabela_html}
+                        </div>
+                        """)
+                    else:
                         st.info(f"ℹ️ O pedido **{codigo_rastreio}** deu entrada na **{transportadora_rastreio}** e as atualizações do sistema estarão disponíveis em breve.")
                 except Exception as err:
-                    st.error(f"⚠️ Não foi possível carregar as informações no momento. Tente novamente mais tarde.")
+                    st.error("⚠️ Não foi possível carregar as informações no momento. Tente novamente mais tarde.")
 
     st.markdown("</div>", unsafe_allow_html=True)
