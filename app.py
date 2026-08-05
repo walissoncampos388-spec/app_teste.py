@@ -19,12 +19,11 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# VERIFICAÇÃO DE QUERY PARAMS (SE O CLIENTE CLICOU NO LINK DIRETO OU LER CÓDIGO VIA CÂMERA)
+# VERIFICAÇÃO DE QUERY PARAMS (SE O CLIENTE CLICOU NO LINK DIRETO)
 query_params = st.query_params
 rastreio_param = query_params.get("rastreio", "")
 transp_param = query_params.get("transp", "J&T Express")
-cliente_param = query_params.get("cliente", "")
-codigo_lido_cam = query_params.get("code_scanned", "")
+cliente_param = query_params.get("cliente", "")  # PARAMETRO NOME DO CLIENTE
 
 # CONTROLE DE NAVEGAÇÃO
 if "tela_ativa" not in st.session_state:
@@ -39,11 +38,6 @@ if "uf_input_fiel" not in st.session_state:
     st.session_state["uf_input_fiel"] = ""
 if "rastreio_gerado" not in st.session_state:
     st.session_state["rastreio_gerado"] = True if rastreio_param else False
-
-# SE HOUVER CÓDIGO LIDO PELA CÂMERA, ATUALIZA O ESTADO
-if codigo_lido_cam:
-    st.session_state["campo_codigo_estavel"] = codigo_lido_cam
-    st.query_params.clear()
 
 
 # FUNÇÕES PARA LIMPAR OS TEXTOS DE PRE-VISUALIZACAO
@@ -282,7 +276,7 @@ def cotar_frenet(
     return servicos, msg_status
 
 
-# Estilização CSS e Estilo Original
+# Estilização CSS
 st.markdown(
     """
     <style>
@@ -1131,109 +1125,120 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 key="campo_codigo_estavel",
             ).strip()
 
-            # 3. LEITOR DE CÓDIGO DE BARRAS VIA CÂMERA AUTOMÁTICO
+            # 3. LEITOR DE CÓDIGO DE BARRAS / QR CODE VIA CÂMERA (DIRETO NO CAMPO)
             st.components.v1.html(
                 """
                 <!DOCTYPE html>
                 <html>
                 <head>
-                    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+                    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
                     <style>
-                        body { font-family: sans-serif; margin: 0; padding: 0; background: transparent; }
-                        #cam-container {
+                        body { font-family: sans-serif; margin: 0; padding: 0; text-align: center; background: transparent; }
+                        #cam-wrapper {
                             display: none;
                             margin-top: 8px;
                             background: #ffffff;
                             padding: 10px;
                             border-radius: 12px;
                             border: 1px solid #cbd5e1;
-                            text-align: center;
                             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
                         }
                         #reader { width: 100%; max-width: 320px; margin: 0 auto; }
-                        .btn-cam-trigger {
-                            background: #1e3a8a;
-                            color: white;
-                            border: none;
-                            padding: 8px 14px;
-                            border-radius: 8px;
-                            font-size: 13px;
-                            font-weight: bold;
-                            cursor: pointer;
-                            display: inline-flex;
-                            align-items: center;
-                            gap: 6px;
-                            margin-top: 4px;
-                            width: 100%;
-                            justify-content: center;
+                        button.btn-trigger-cam {
+                            background: #1e3a8a; color: white; border: none;
+                            padding: 8px 14px; border-radius: 8px; font-weight: bold;
+                            font-size: 13px; cursor: pointer; margin-top: 4px; width: 100%;
+                            display: flex; align-items: center; justify-content: center; gap: 6px;
                         }
-                        .btn-cam-trigger:hover { background: #2563eb; }
+                        button.btn-trigger-cam:hover { background: #2563eb; }
                     </style>
                 </head>
                 <body>
-                    <button class="btn-cam-trigger" id="btn-toggle-cam" onclick="toggleCam()">
+                    <button class="btn-trigger-cam" id="btn-toggle" onclick="alternarCam()">
                         📷 Escanear via Câmera
                     </button>
 
-                    <div id="cam-container">
+                    <div id="cam-wrapper">
                         <div id="reader"></div>
-                        <button style="margin-top: 8px; background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;" onclick="pararCam()">Fechar Câmera</button>
+                        <button style="margin-top: 8px; background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;" onclick="fecharCam()">Cancelar</button>
                     </div>
 
                     <script>
-                        let html5QrCodeScanner = null;
-                        let escaneando = false;
+                        let html5QrCode = null;
+                        let rodando = false;
 
-                        function toggleCam() {
-                            const container = document.getElementById("cam-container");
-                            if (!escaneando) {
-                                container.style.display = "block";
-                                escaneando = true;
-                                document.getElementById("btn-toggle-cam").innerText = "🔴 Cancelar Leitura";
-                                
-                                html5QrCodeScanner = new Html5QrcodeScanner(
-                                    "reader",
-                                    { 
-                                        fps: 15,
-                                        qrbox: { width: 280, height: 140 },
-                                        rememberLastUsedCamera: true
-                                    },
-                                    /* verbose= */ false
-                                );
-                                html5QrCodeScanner.render(onScanSuccess, onScanFailure);
-                            } else {
-                                pararCam();
-                            }
-                        }
+                        function alternarCam() {
+                            if (!rodando) {
+                                document.getElementById("cam-wrapper").style.display = "block";
+                                document.getElementById("btn-toggle").innerText = "🔴 Cancelar Leitura";
+                                rodando = true;
 
-                        function pararCam() {
-                            if (html5QrCodeScanner) {
-                                html5QrCodeScanner.clear().then(() => {
-                                    finalizarUI();
-                                }).catch(() => {
-                                    finalizarUI();
+                                html5QrCode = new Html5Qrcode("reader");
+                                const config = { fps: 10, qrbox: { width: 260, height: 130 } };
+
+                                html5QrCode.start(
+                                    { facingMode: "environment" },
+                                    config, 
+                                    onScanSuccess
+                                ).catch(err => {
+                                    alert("Erro ao abrir a câmera: " + err);
+                                    fecharCam();
                                 });
                             } else {
-                                finalizarUI();
+                                fecharCam();
                             }
                         }
 
-                        function finalizarUI() {
-                            escaneando = false;
-                            document.getElementById("cam-container").style.display = "none";
-                            document.getElementById("btn-toggle-cam").innerText = "📷 Escanear via Câmera";
+                        function fecharCam() {
+                            if (html5QrCode && rodando) {
+                                html5QrCode.stop().then(() => {
+                                    limparUI();
+                                }).catch(() => {
+                                    limparUI();
+                                });
+                            } else {
+                                limparUI();
+                            }
+                        }
+
+                        function limparUI() {
+                            rodando = false;
+                            document.getElementById("cam-wrapper").style.display = "none";
+                            document.getElementById("btn-toggle").innerText = "📷 Escanear via Câmera";
                         }
 
                         function onScanSuccess(decodedText) {
-                            const valorLimpo = decodedText.trim();
-                            if(valorLimpo) {
-                                pararCam();
-                                window.parent.location.search = "?code_scanned=" + encodeURIComponent(valorLimpo);
-                            }
-                        }
+                            html5QrCode.stop().then(() => {
+                                const valorLimpo = decodedText.trim();
+                                
+                                if (navigator.clipboard && navigator.clipboard.writeText) {
+                                    navigator.clipboard.writeText(valorLimpo);
+                                }
 
-                        function onScanFailure(error) {
-                            // Ignora erros normais de quadros sem código de barras visível
+                                const parentDoc = window.parent.document;
+                                const inputs = parentDoc.querySelectorAll('input[type="text"]');
+                                
+                                inputs.forEach(input => {
+                                    if (input.placeholder && (
+                                        input.placeholder.includes("BR123456789X") || 
+                                        input.placeholder.includes("4552") ||
+                                        input.placeholder.includes("Ex:")
+                                    )) {
+                                        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                                        nativeInputValueSetter.call(input, valorLimpo);
+                                        
+                                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                                        input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }));
+                                        input.focus();
+                                        input.blur();
+                                    }
+                                });
+                                limparUI();
+                            }).catch(err => {
+                                console.error("Erro ao parar câmera:", err);
+                                limparUI();
+                            });
                         }
                     </script>
                 </body>
