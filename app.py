@@ -276,7 +276,7 @@ def cotar_frenet(
     return servicos, msg_status
 
 
-# Estilização CSS
+# Estilização CSS e Listener de Mensagens da Câmera
 st.markdown(
     """
     <style>
@@ -336,11 +336,33 @@ st.markdown(
             width: 100% !important;
             margin-top: 8px !important;
         }
-        /* Ajuste do botão de câmera dentro do container de código */
-        div[data-testid="stTextInput"]:has(input[aria-label*="Código de Rastreio"]) {
-            position: relative;
-        }
     </style>
+
+    <script>
+        // Escuta a mensagem enviada pelo leitor dentro do iframe
+        window.addEventListener("message", function(event) {
+            if (event.data && event.data.type === "TIPO_CODIGO_ESCANADO") {
+                const valorCodigo = event.data.value;
+                
+                // Procura especificamente o campo de texto de Rastreio (pelo placeholder ou label)
+                const doc = window.document;
+                const inputs = doc.querySelectorAll('input[type="text"]');
+                
+                inputs.forEach(input => {
+                    const placeholder = input.getAttribute("placeholder") || "";
+                    if (placeholder.includes("BR123456789X") || placeholder.includes("4552")) {
+                        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                        nativeSetter.call(input, valorCodigo);
+                        
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                        input.focus();
+                        input.blur();
+                    }
+                });
+            }
+        });
+    </script>
 """,
     unsafe_allow_html=True,
 )
@@ -1129,7 +1151,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 key="campo_codigo_estavel",
             ).strip()
 
-            # 3. LEITOR DE CÓDIGO DE BARRAS Integrado com Botão de Câmera + Auto-minimizar
+            # 3. LEITOR DE CÓDIGO DE BARRAS VIA CÂMERA (POSTMESSAGE SEGURO)
             st.components.v1.html(
                 """
                 <!DOCTYPE html>
@@ -1161,7 +1183,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                             display: inline-flex;
                             align-items: center;
                             gap: 6px;
-                            margin-top: -6px;
+                            margin-top: 4px;
                         }
                         .btn-cam-trigger:hover { background: #2563eb; }
                     </style>
@@ -1228,23 +1250,13 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                         function onScanSuccess(decodedText, decodedResult) {
                             const valorLimpo = decodedText.trim();
                             
-                            // Busca APENAS o campo do Código de Rastreio pelo atributo target exato no Streamlit
-                            const parentDoc = window.parent.document;
-                            const campoCodigo = parentDoc.querySelector('div[data-testid="stTextInput"]:has(input[aria-label*="Código de Rastreio"]) input') 
-                                             || parentDoc.querySelector('input[placeholder*="BR123456789X"]');
+                            // Envia o código capturado via evento seguro para a janela pai (Streamlit)
+                            window.parent.postMessage({
+                                type: "TIPO_CODIGO_ESCANADO",
+                                value: valorLimpo
+                            }, "*");
 
-                            if (campoCodigo) {
-                                // Atualização segura sem afetar o campo de nome do cliente
-                                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                                nativeSetter.call(campoCodigo, valorLimpo);
-
-                                campoCodigo.dispatchEvent(new Event('input', { bubbles: true }));
-                                campoCodigo.dispatchEvent(new Event('change', { bubbles: true }));
-                                campoCodigo.focus();
-                                campoCodigo.blur();
-                            }
-
-                            // Minimiza/Oculta a câmera automaticamente após a leitura bem-sucedida
+                            // Minimiza e desliga a câmera automaticamente
                             pararCam();
                         }
                     </script>
