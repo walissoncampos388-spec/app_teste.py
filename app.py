@@ -13,7 +13,7 @@ FRENET_CEP_GOIANIA = "74000000"  # CEP de Origem Goiânia - GO (Para Jadlog)
 
 # 1. Configuração de Design da Página
 st.set_page_config(
-    page_title="Cia do Jeans - Calculadora Inteligente",
+    page_title="Unicam Modas - Calculadora Inteligente",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -476,7 +476,7 @@ def arrumar_imagem_local(caminho):
         return ""
 
 
-img_base64 = arrumar_imagem_local("logo_ciadojeans.PNG")
+img_base64 = arrumar_imagem_local("Logo_unicammodas.PNG")
 
 # Topo
 st.markdown(
@@ -1021,8 +1021,8 @@ if st.session_state.tela_ativa == "cotacao" and not rastreio_param:
                 )
                 texto_opcoes = "\n".join(opcoes_whatsapp)
                 mensagem_vendedor = (
-                    "Olá! Segue a cotação de frete para o seu pedido da *Cia do"
-                    " Jeans*:\n\n"
+                    "Olá! Segue a cotação de frete para o seu pedido da *Unicam"
+                    " Modas*:\n\n"
                     f"📍 *Destino:*\n{cidade_busca} - {uf_busca}\n\n"
                     f"📦 *Volume estimado:*\n{total_pecas} peças"
                     f" ({peso_total_calculado:.2f} kg)\n\n"
@@ -1086,7 +1086,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
         st.markdown(f"""
         <div class="bloco-etapa">
             <h3 style="color: #1e3a8a; margin-top: 0;">📦 {txt_boas_vindas_cli}Rastreamento Online</h3>
-            <p style="color: #64748b; margin-bottom: 0;">Acompanhe o status da sua entrega com a <b>Cia do Jeans</b>.</p>
+            <p style="color: #64748b; margin-bottom: 0;">Acompanhe o status da sua entrega com a <b>Unicam Modas</b>.</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1114,12 +1114,79 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             )
 
         with col_cod:
+            # 1. Recupera o valor do código lido pela câmera ou digitado manualmente
+            codigo_atual = st.session_state.get("campo_codigo_estavel", "")
+
+            # 2. Renderiza o Input de Texto do Streamlit
             codigo_rastreio = st.text_input(
                 "Código de Rastreio / Nº Nota Fiscal / AWB:",
-                value="",
+                value=codigo_atual,
                 placeholder="Ex: BR123456789X / 4552 / 51177221",
                 key="campo_codigo_estavel",
             ).strip()
+
+            # 3. LEITOR DE CÓDIGO DE BARRAS / QR CODE VIA CÂMERA
+            with st.expander("📷 Ler Código de Barras / QR Code via Câmera"):
+                st.components.v1.html(
+                    """
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+                        <style>
+                            body { font-family: sans-serif; margin: 0; padding: 0; text-align: center; }
+                            #reader { width: 100%; max-width: 320px; margin: 0 auto; }
+                            button {
+                                background: #1e3a8a; color: white; border: none;
+                                padding: 10px 16px; border-radius: 8px; font-weight: bold;
+                                cursor: pointer; margin-bottom: 10px; width: 100%;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <button id="btn-start" onclick="iniciarLeitor()">Acessar Câmera para Escanear</button>
+                        <div id="reader"></div>
+
+                        <script>
+                            let html5QrCode;
+
+                            function iniciarLeitor() {
+                                document.getElementById("btn-start").style.display = "none";
+                                html5QrCode = new Html5Qrcode("reader");
+
+                                const config = { 
+                                    fps: 10, 
+                                    qrbox: { width: 250, height: 120 }
+                                };
+
+                                html5QrCode.start(
+                                    { facingMode: "environment" },
+                                    config, 
+                                    onScanSuccess
+                                ).catch(err => {
+                                    alert("Erro ao abrir a câmera: " + err);
+                                    document.getElementById("btn-start").style.display = "block";
+                                });
+                            }
+
+                            function onScanSuccess(decodedText, decodedResult) {
+                                html5QrCode.stop().then(() => {
+                                    const inputs = window.parent.document.querySelectorAll('input[type="text"]');
+                                    inputs.forEach(input => {
+                                        if (input.placeholder && input.placeholder.includes("BR123456789X")) {
+                                            input.value = decodedText;
+                                            input.dispatchEvent(new Event('input', { bubbles: true }));
+                                            input.dispatchEvent(new Event('change', { bubbles: true }));
+                                        }
+                                    });
+                                });
+                            }
+                        </script>
+                    </body>
+                    </html>
+                    """,
+                    height=300,
+                )
 
         with col_doc:
             doc_cliente = st.text_input(
@@ -1159,14 +1226,14 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
             if host_atual:
                 base_url = f"https://{host_atual}"
             else:
-                base_url = "https://appteste-ciadojeans.streamlit.app"
+                base_url = "https://appteste-unicammodas.streamlit.app"
 
             link_rastreio_personalizado = f"{base_url}/?rastreio={codigo_rastreio}&transp={urllib.parse.quote(transportadora_rastreio)}&cliente={urllib.parse.quote(nome_cliente_rastreio)}"
 
             txt_saudacao = f"Olá, *{nome_cliente_rastreio}*!" if nome_cliente_rastreio else "Olá!"
             
             mensagem_rastreio = (
-                f"{txt_saudacao} Seu pedido da *Cia do Jeans* já foi despachado! 🎉\n\n"
+                f"{txt_saudacao} Seu pedido da *Unicam Modas* já foi despachado! 🎉\n\n"
                 f"🚚 *Transportadora:* {transportadora_rastreio}\n"
                 f"📦 *Código de Rastreio:* `{codigo_rastreio}`\n\n"
                 "🔗 *Clique no link abaixo para acompanhar seu envio em tempo real:*\n"
@@ -1520,7 +1587,6 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 awb_codigo = digitos_apenas if digitos_apenas else codigo_rastreio
 
             url_azul_site = f"https://www.azullogistica.com.br/Rastreio/Rastrear?awb={awb_codigo}"
-            url_api_hub = f"https://api.linketrack.com/track/json?user=teste&token=1fe10a01fe10a01fe10a01fe10a0&codigo={awb_codigo}"
 
             status_azul = "Objeto em Trânsito"
             previsao_azul = "Consultar no Portal"
@@ -1537,34 +1603,24 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 return texto.strip()
 
             with st.spinner(f"🔍 Consultando AWB {awb_codigo} na Azul Cargo..."):
+                # Busca real via scraping de eventos
                 try:
-                    res = requests.get(url_api_hub, timeout=5)
-                    if res.status_code == 200:
-                        dados = res.json()
-                        eventos = dados.get("eventos", [])
-                        
-                        # Validação rigorosa: só aceita eventos do ano atual para evitar cache antigo
-                        for ev in eventos:
-                            data_ev = ev.get("data", "")
-                            hora_ev = ev.get("hora", "")
-                            st_ev = ev.get("status", "")
-                            loc_ev = ev.get("local", "")
-                            
-                            if "2026" in data_ev or "2025" in data_ev:
-                                txt_loc = f" [{loc_ev}]" if loc_ev else ""
-                                historico_azul.append(f"<b>{data_ev} {hora_ev}</b>: {formatar_texto_azul(st_ev)}{txt_loc}")
-                        
+                    resp_alt = requests.get(f"https://rastreadordeencomendas.com/result.php?idcod={codigo_rastreio}", headers={"User-Agent": "Mozilla/5.0"}, timeout=6)
+                    if resp_alt.status_code == 200 and "<tr" in resp_alt.text:
+                        linhas_tr = re.findall(r'<tr[^>]*>(.*?)</tr>', resp_alt.text, re.DOTALL)
+                        for tr in linhas_tr:
+                            colunas = re.findall(r'<td[^>]*>(.*?)</td>', tr, re.DOTALL)
+                            if len(colunas) >= 2:
+                                txt_data = re.sub(r'<[^>]+>', '', colunas[0]).strip()
+                                txt_desc = re.sub(r'<[^>]+>', '', colunas[1]).strip()
+                                if txt_data and txt_desc:
+                                    historico_azul.append(f"<b>{txt_data}</b>: {formatar_texto_azul(txt_desc)}")
                         if historico_azul:
-                            primeiro_ev = eventos[0]
-                            st_nome = primeiro_ev.get("status", "")
-                            st_data = primeiro_ev.get("data", "")
-                            status_azul = f"{formatar_texto_azul(st_nome)} ({st_data})"
-                            if primeiro_ev.get("local"):
-                                origem_destino_azul = f"Local Atual: {primeiro_ev.get('local')}"
+                            status_azul = historico_azul[0].replace('<b>', '').replace('</b>', '')
                 except Exception:
                     pass
 
-            # Se não houver histórico real e atualizado, exibe mensagem limpa sem inventar dados
+            # Se não houver histórico real retornado, exibe mensagem limpa orientando consulta
             if not historico_azul:
                 status_azul = "Em Trânsito / Processamento"
                 historico_azul = [
