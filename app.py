@@ -1156,7 +1156,7 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
 
                                 const config = { 
                                     fps: 10, 
-                                    qrbox: { width: 250, height: 120 }
+                                    qrbox: { width: 260, height: 130 }
                                 };
 
                                 html5QrCode.start(
@@ -1171,21 +1171,45 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
 
                             function onScanSuccess(decodedText, decodedResult) {
                                 html5QrCode.stop().then(() => {
-                                    const inputs = window.parent.document.querySelectorAll('input[type="text"]');
+                                    const valorLimpo = decodedText.trim();
+                                    
+                                    // 1. Copia automaticamente para a área de transferência do usuário
+                                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                                        navigator.clipboard.writeText(valorLimpo);
+                                    }
+
+                                    // 2. Busca e preenche todos os inputs de texto na janela pai (DOM do Streamlit)
+                                    const parentDoc = window.parent.document;
+                                    const inputs = parentDoc.querySelectorAll('input[type="text"]');
+                                    
                                     inputs.forEach(input => {
-                                        if (input.placeholder && input.placeholder.includes("BR123456789X")) {
-                                            input.value = decodedText;
+                                        // Identifica o campo correto pelo placeholder ou pela ordem no formulário
+                                        if (input.placeholder && (
+                                            input.placeholder.includes("BR123456789X") || 
+                                            input.placeholder.includes("4552") ||
+                                            input.placeholder.includes("Ex:")
+                                        )) {
+                                            // Atualiza a propriedade do React e o atributo do HTML
+                                            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                                            nativeInputValueSetter.call(input, valorLimpo);
+                                            
+                                            // Dispara eventos encadeados para forçar a sincronização do state do Streamlit
                                             input.dispatchEvent(new Event('input', { bubbles: true }));
                                             input.dispatchEvent(new Event('change', { bubbles: true }));
+                                            input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }));
+                                            input.focus();
+                                            input.blur();
                                         }
                                     });
+                                }).catch(err => {
+                                    console.error("Erro ao parar câmera:", err);
                                 });
                             }
                         </script>
                     </body>
                     </html>
                     """,
-                    height=300,
+                    height=320,
                 )
 
         with col_doc:
