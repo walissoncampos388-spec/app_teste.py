@@ -5,14 +5,6 @@ import urllib.parse
 import pandas as pd
 import requests
 import streamlit as st
-from PIL import Image
-
-# Tenta importar biblioteca de leitura de código de barras em Python
-try:
-    from pyzbar.pyzbar import decode as decode_barcode
-    HAS_PYZBAR = True
-except ImportError:
-    HAS_PYZBAR = False
 
 # Configurações do Token e CEPs de Origem
 FRENET_TOKEN = st.secrets.get("FRENET_TOKEN", "")
@@ -27,11 +19,12 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# VERIFICAÇÃO DE QUERY PARAMS (SE O CLIENTE CLICOU NO LINK DIRETO)
+# VERIFICAÇÃO DE QUERY PARAMS (SE O CLIENTE CLICOU NO LINK DIRETO OU LER CÓDIGO VIA CÂMERA)
 query_params = st.query_params
 rastreio_param = query_params.get("rastreio", "")
 transp_param = query_params.get("transp", "J&T Express")
-cliente_param = query_params.get("cliente", "")  # PARAMETRO NOME DO CLIENTE
+cliente_param = query_params.get("cliente", "")
+codigo_lido_cam = query_params.get("code_scanned", "")
 
 # CONTROLE DE NAVEGAÇÃO
 if "tela_ativa" not in st.session_state:
@@ -46,6 +39,11 @@ if "uf_input_fiel" not in st.session_state:
     st.session_state["uf_input_fiel"] = ""
 if "rastreio_gerado" not in st.session_state:
     st.session_state["rastreio_gerado"] = True if rastreio_param else False
+
+# SE HOUVER CÓDIGO LIDO PELA CÂMERA, ATUALIZA O ESTADO
+if codigo_lido_cam:
+    st.session_state["campo_codigo_estavel"] = codigo_lido_cam
+    st.query_params.clear()
 
 
 # FUNÇÕES PARA LIMPAR OS TEXTOS DE PRE-VISUALIZACAO
@@ -284,7 +282,7 @@ def cotar_frenet(
     return servicos, msg_status
 
 
-# Estilização CSS
+# Estilização CSS e Estilo Original
 st.markdown(
     """
     <style>
@@ -1133,23 +1131,126 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 key="campo_codigo_estavel",
             ).strip()
 
-            # 3. LEITOR NATIVO DE CÓDIGO DE BARRAS / QR CODE VIA STREAMLIT CAMERA INPUT
-            with st.expander("📷 Escanear Código via Câmera (Nativo)"):
-                imagem_capturada = st.camera_input("Aproxime a etiqueta com o código de barras da câmera", key="cam_native_reader")
+            # 3. LEITOR DE CÓDIGO DE BARRAS VIA CÂMERA AUTOMÁTICO
+            st.components.v1.html(
+                """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+                    <style>
+                        body { font-family: sans-serif; margin: 0; padding: 0; background: transparent; }
+                        #cam-container {
+                            display: none;
+                            margin-top: 8px;
+                            background: #ffffff;
+                            padding: 10px;
+                            border-radius: 12px;
+                            border: 1px solid #cbd5e1;
+                            text-align: center;
+                            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+                        }
+                        #reader { width: 100%; max-width: 320px; margin: 0 auto; }
+                        .btn-cam-trigger {
+                            background: #1e3a8a;
+                            color: white;
+                            border: none;
+                            padding: 8px 14px;
+                            border-radius: 8px;
+                            font-size: 13px;
+                            font-weight: bold;
+                            cursor: pointer;
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 6px;
+                            margin-top: 4px;
+                            width: 100%;
+                            justify-content: center;
+                        }
+                        .btn-cam-trigger:hover { background: #2563eb; }
+                    </style>
+                </head>
+                <body>
+                    <button class="btn-cam-trigger" id="btn-toggle-cam" onclick="toggleCam()">
+                        📷 Escanear via Câmera
+                    </button>
 
-                if imagem_capturada:
-                    if HAS_PYZBAR:
-                        img_pil = Image.open(imagem_capturada)
-                        codigos_identificados = decode_barcode(img_pil)
-                        if codigos_identificados:
-                            codigo_lido_bruto = codigos_identificados[0].data.decode("utf-8").strip()
-                            st.session_state["campo_codigo_estavel"] = codigo_lido_bruto
-                            st.success(f"✅ Código Lido: **{codigo_lido_bruto}**")
-                            st.rerun()
-                        else:
-                            st.warning("⚠️ Câmera aberta! Centralize melhor o código de barras ou a etiqueta e tire a foto.")
-                    else:
-                        st.info("💡 Tire a foto da etiqueta. Se o servidor tiver a biblioteca pyzbar ativa, o código será preenchido automaticamente.")
+                    <div id="cam-container">
+                        <div id="reader"></div>
+                        <button style="margin-top: 8px; background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;" onclick="pararCam()">Fechar Câmera</button>
+                    </div>
+
+                    <script>
+                        let html5QrCode = null;
+                        let escaneando = false;
+
+                        function toggleCam() {
+                            const container = document.getElementById("cam-container");
+                            if (!escaneando) {
+                                container.style.display = "block";
+                                iniciarLeitor();
+                            } else {
+                                pararCam();
+                            }
+                        }
+
+                        function iniciarLeitor() {
+                            html5QrCode = new Html5Qrcode("reader");
+                            const config = { 
+                                fps: 15, 
+                                qrbox: { width: 280, height: 140 },
+                                formatsToSupport: [ 
+                                    Html5QrcodeSupportedFormats.CODE_128,
+                                    Html5QrcodeSupportedFormats.CODE_39,
+                                    Html5QrcodeSupportedFormats.EAN_13,
+                                    Html5QrcodeSupportedFormats.QR_CODE
+                                ]
+                            };
+
+                            html5QrCode.start(
+                                { facingMode: "environment" },
+                                config,
+                                onScanSuccess
+                            ).then(() => {
+                                escaneando = true;
+                                document.getElementById("btn-toggle-cam").innerText = "🔴 Cancelar Leitura";
+                            }).catch(err => {
+                                alert("Certifique-se de dar permissão para usar a câmera: " + err);
+                                pararCam();
+                            });
+                        }
+
+                        function pararCam() {
+                            if (html5QrCode && escaneando) {
+                                html5QrCode.stop().then(() => {
+                                    finalizarUI();
+                                }).catch(() => {
+                                    finalizarUI();
+                                });
+                            } else {
+                                finalizarUI();
+                            }
+                        }
+
+                        function finalizarUI() {
+                            escaneando = false;
+                            document.getElementById("cam-container").style.display = "none";
+                            document.getElementById("btn-toggle-cam").innerText = "📷 Escanear via Câmera";
+                        }
+
+                        function onScanSuccess(decodedText) {
+                            const valorLimpo = decodedText.trim();
+                            if(valorLimpo) {
+                                // Redireciona via URL para forçar o Streamlit a preencher o campo instantaneamente
+                                window.parent.location.search = "?code_scanned=" + encodeURIComponent(valorLimpo);
+                            }
+                        }
+                    </script>
+                </body>
+                </html>
+                """,
+                height=180,
+            )
 
         with col_doc:
             doc_cliente = st.text_input(
