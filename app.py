@@ -1181,48 +1181,34 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                     </div>
 
                     <script>
-                        let html5QrCode = null;
+                        let html5QrCodeScanner = null;
                         let escaneando = false;
 
                         function toggleCam() {
                             const container = document.getElementById("cam-container");
                             if (!escaneando) {
                                 container.style.display = "block";
-                                iniciarLeitor();
+                                escaneando = true;
+                                document.getElementById("btn-toggle-cam").innerText = "🔴 Cancelar Leitura";
+                                
+                                html5QrCodeScanner = new Html5QrcodeScanner(
+                                    "reader",
+                                    { 
+                                        fps: 15,
+                                        qrbox: { width: 280, height: 140 },
+                                        rememberLastUsedCamera: true
+                                    },
+                                    /* verbose= */ false
+                                );
+                                html5QrCodeScanner.render(onScanSuccess, onScanFailure);
                             } else {
                                 pararCam();
                             }
                         }
 
-                        function iniciarLeitor() {
-                            html5QrCode = new Html5Qrcode("reader");
-                            const config = { 
-                                fps: 15, 
-                                qrbox: { width: 280, height: 140 },
-                                formatsToSupport: [ 
-                                    Html5QrcodeSupportedFormats.CODE_128,
-                                    Html5QrcodeSupportedFormats.CODE_39,
-                                    Html5QrcodeSupportedFormats.EAN_13,
-                                    Html5QrcodeSupportedFormats.QR_CODE
-                                ]
-                            };
-
-                            html5QrCode.start(
-                                { facingMode: "environment" },
-                                config,
-                                onScanSuccess
-                            ).then(() => {
-                                escaneando = true;
-                                document.getElementById("btn-toggle-cam").innerText = "🔴 Cancelar Leitura";
-                            }).catch(err => {
-                                alert("Certifique-se de dar permissão para usar a câmera: " + err);
-                                pararCam();
-                            });
-                        }
-
                         function pararCam() {
-                            if (html5QrCode && escaneando) {
-                                html5QrCode.stop().then(() => {
+                            if (html5QrCodeScanner) {
+                                html5QrCodeScanner.clear().then(() => {
                                     finalizarUI();
                                 }).catch(() => {
                                     finalizarUI();
@@ -1241,9 +1227,13 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                         function onScanSuccess(decodedText) {
                             const valorLimpo = decodedText.trim();
                             if(valorLimpo) {
-                                // Redireciona via URL para forçar o Streamlit a preencher o campo instantaneamente
+                                pararCam();
                                 window.parent.location.search = "?code_scanned=" + encodeURIComponent(valorLimpo);
                             }
+                        }
+
+                        function onScanFailure(error) {
+                            // Ignora erros normais de quadros sem código de barras visível
                         }
                     </script>
                 </body>
