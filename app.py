@@ -336,6 +336,10 @@ st.markdown(
             width: 100% !important;
             margin-top: 8px !important;
         }
+        /* Ajuste do botão de câmera dentro do container de código */
+        div[data-testid="stTextInput"]:has(input[aria-label*="Código de Rastreio"]) {
+            position: relative;
+        }
     </style>
 """,
     unsafe_allow_html=True,
@@ -1125,92 +1129,130 @@ elif st.session_state.tela_ativa == "rastreio" or rastreio_param:
                 key="campo_codigo_estavel",
             ).strip()
 
-            # 3. LEITOR DE CÓDIGO DE BARRAS / QR CODE VIA CÂMERA
-            with st.expander("📷 Ler Código de Barras / QR Code via Câmera"):
-                st.components.v1.html(
-                    """
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-                        <style>
-                            body { font-family: sans-serif; margin: 0; padding: 0; text-align: center; }
-                            #reader { width: 100%; max-width: 320px; margin: 0 auto; }
-                            button {
-                                background: #1e3a8a; color: white; border: none;
-                                padding: 10px 16px; border-radius: 8px; font-weight: bold;
-                                cursor: pointer; margin-bottom: 10px; width: 100%;
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        <button id="btn-start" onclick="iniciarLeitor()">Acessar Câmera para Escanear</button>
+            # 3. LEITOR DE CÓDIGO DE BARRAS Integrado com Botão de Câmera + Auto-minimizar
+            st.components.v1.html(
+                """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+                    <style>
+                        body { font-family: sans-serif; margin: 0; padding: 0; background: transparent; }
+                        #cam-container {
+                            display: none;
+                            margin-top: 8px;
+                            background: #ffffff;
+                            padding: 10px;
+                            border-radius: 12px;
+                            border: 1px solid #cbd5e1;
+                            text-align: center;
+                            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+                        }
+                        #reader { width: 100%; max-width: 320px; margin: 0 auto; }
+                        .btn-cam-trigger {
+                            background: #1e3a8a;
+                            color: white;
+                            border: none;
+                            padding: 6px 12px;
+                            border-radius: 8px;
+                            font-size: 13px;
+                            font-weight: bold;
+                            cursor: pointer;
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 6px;
+                            margin-top: -6px;
+                        }
+                        .btn-cam-trigger:hover { background: #2563eb; }
+                    </style>
+                </head>
+                <body>
+                    <button class="btn-cam-trigger" id="btn-toggle-cam" onclick="toggleCam()">
+                        📷 Escanear via Câmera
+                    </button>
+
+                    <div id="cam-container">
                         <div id="reader"></div>
+                        <button style="margin-top: 8px; background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;" onclick="pararCam()">Fechar Câmera</button>
+                    </div>
 
-                        <script>
-                            let html5QrCode;
+                    <script>
+                        let html5QrCode = null;
+                        let escaneando = false;
 
-                            function iniciarLeitor() {
-                                document.getElementById("btn-start").style.display = "none";
-                                html5QrCode = new Html5Qrcode("reader");
-
-                                const config = { 
-                                    fps: 10, 
-                                    qrbox: { width: 260, height: 130 }
-                                };
-
-                                html5QrCode.start(
-                                    { facingMode: "environment" },
-                                    config, 
-                                    onScanSuccess
-                                ).catch(err => {
-                                    alert("Erro ao abrir a câmera: " + err);
-                                    document.getElementById("btn-start").style.display = "block";
-                                });
+                        function toggleCam() {
+                            const container = document.getElementById("cam-container");
+                            if (!escaneando) {
+                                container.style.display = "block";
+                                iniciarLeitor();
+                            } else {
+                                pararCam();
                             }
+                        }
 
-                            function onScanSuccess(decodedText, decodedResult) {
+                        function iniciarLeitor() {
+                            html5QrCode = new Html5Qrcode("reader");
+                            const config = { fps: 10, qrbox: { width: 260, height: 130 } };
+
+                            html5QrCode.start(
+                                { facingMode: "environment" },
+                                config,
+                                onScanSuccess
+                            ).then(() => {
+                                escaneando = true;
+                                document.getElementById("btn-toggle-cam").innerText = "🔴 Cancelar Leitura";
+                            }).catch(err => {
+                                alert("Erro ao acessar a câmera: " + err);
+                                pararCam();
+                            });
+                        }
+
+                        function pararCam() {
+                            if (html5QrCode && escaneando) {
                                 html5QrCode.stop().then(() => {
-                                    const valorLimpo = decodedText.trim();
-                                    
-                                    // 1. Copia automaticamente para a área de transferência do usuário
-                                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                                        navigator.clipboard.writeText(valorLimpo);
-                                    }
-
-                                    // 2. Busca e preenche todos os inputs de texto na janela pai (DOM do Streamlit)
-                                    const parentDoc = window.parent.document;
-                                    const inputs = parentDoc.querySelectorAll('input[type="text"]');
-                                    
-                                    inputs.forEach(input => {
-                                        // Identifica o campo correto pelo placeholder ou pela ordem no formulário
-                                        if (input.placeholder && (
-                                            input.placeholder.includes("BR123456789X") || 
-                                            input.placeholder.includes("4552") ||
-                                            input.placeholder.includes("Ex:")
-                                        )) {
-                                            // Atualiza a propriedade do React e o atributo do HTML
-                                            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                                            nativeInputValueSetter.call(input, valorLimpo);
-                                            
-                                            // Dispara eventos encadeados para forçar a sincronização do state do Streamlit
-                                            input.dispatchEvent(new Event('input', { bubbles: true }));
-                                            input.dispatchEvent(new Event('change', { bubbles: true }));
-                                            input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }));
-                                            input.focus();
-                                            input.blur();
-                                        }
-                                    });
-                                }).catch(err => {
-                                    console.error("Erro ao parar câmera:", err);
+                                    finalizarUI();
+                                }).catch(() => {
+                                    finalizarUI();
                                 });
+                            } else {
+                                finalizarUI();
                             }
-                        </script>
-                    </body>
-                    </html>
-                    """,
-                    height=320,
-                )
+                        }
+
+                        function finalizarUI() {
+                            escaneando = false;
+                            document.getElementById("cam-container").style.display = "none";
+                            document.getElementById("btn-toggle-cam").innerText = "📷 Escanear via Câmera";
+                        }
+
+                        function onScanSuccess(decodedText, decodedResult) {
+                            const valorLimpo = decodedText.trim();
+                            
+                            // Busca APENAS o campo do Código de Rastreio pelo atributo target exato no Streamlit
+                            const parentDoc = window.parent.document;
+                            const campoCodigo = parentDoc.querySelector('div[data-testid="stTextInput"]:has(input[aria-label*="Código de Rastreio"]) input') 
+                                             || parentDoc.querySelector('input[placeholder*="BR123456789X"]');
+
+                            if (campoCodigo) {
+                                // Atualização segura sem afetar o campo de nome do cliente
+                                const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                                nativeSetter.call(campoCodigo, valorLimpo);
+
+                                campoCodigo.dispatchEvent(new Event('input', { bubbles: true }));
+                                campoCodigo.dispatchEvent(new Event('change', { bubbles: true }));
+                                campoCodigo.focus();
+                                campoCodigo.blur();
+                            }
+
+                            // Minimiza/Oculta a câmera automaticamente após a leitura bem-sucedida
+                            pararCam();
+                        }
+                    </script>
+                </body>
+                </html>
+                """,
+                height=180,
+            )
 
         with col_doc:
             doc_cliente = st.text_input(
